@@ -283,11 +283,14 @@ def stacker(maplist, galcatlist, params):
     # overall spatial stack
     if params.spacestackwidth:
         stackim, imrms = weightmean(spacestack, spacerms, axis=0)
+    else:
+        stackim, imrms = None, None
 
     # overall frequency stack
     if params.freqstackwidth:
         stackspec, specrms = weightmean(freqstack, freqrms, axis=0)
-
+    else:
+        stackim, imrms = None, None
 
     if params.saveplots:
         # make the directory to store the plots

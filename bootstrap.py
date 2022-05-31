@@ -178,3 +178,23 @@ def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False):
         combined_plotter(stackim, stackspec, params)
 
     return stacktemp, stackrms, stackim, stackspec, fieldcatidx
+
+
+def n_random_stacks(nstacks, actidxlist, maplist, galcatlist, params):
+    """
+    wrapper to perform n different stacks on random locations to match the original
+    catalogue
+    """
+
+    stackTlist = []
+    stackrmslist = []
+
+    for n in range(nstacks):
+        if n % 10 == 0:
+            print('iteration {}'.format(n))
+
+        stackT, stackrms, _, _, _ = random_stacker(actidxlist, maplist, galcatlist, params)
+        stackTlist.append(stackT)
+        stackrmslist.append(stackrms)
+
+    return stackTlist, stackrmslist
