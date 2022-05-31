@@ -18,7 +18,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import SymLogNorm
 
 # beam aperture extraction
-from photutils.aperture import CircularAperture, aperture_photometry
+# from photutils.aperture import CircularAperture, aperture_photometry
 
 import lim_stacker as st
 
@@ -68,5 +68,5 @@ comaplist, qsolist = st.setup(mapfiles, galcatfile, params)
 
 tidxlist = st.random_stacker_setup(comaplist, qsolist, params)
 
-Tvals, Trmsvals = st.n_rand_stacks(10000, uselist, comaplist, qsolist, params)
+Tvals, Trmsvals = st.n_random_stacks(10000, uselist, comaplist, qsolist, params, verbose=True)
 np.savez('randomstacker_values.npz', T=Tvals, rms=rmsvals)

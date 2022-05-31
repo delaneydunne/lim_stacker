@@ -180,7 +180,7 @@ def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False):
     return stacktemp, stackrms, stackim, stackspec, fieldcatidx
 
 
-def n_random_stacks(nstacks, actidxlist, maplist, galcatlist, params):
+def n_rand_stacks(nstacks, actidxlist, maplist, galcatlist, params, verbose=True):
     """
     wrapper to perform n different stacks on random locations to match the original
     catalogue
@@ -190,8 +190,9 @@ def n_random_stacks(nstacks, actidxlist, maplist, galcatlist, params):
     stackrmslist = []
 
     for n in range(nstacks):
-        if n % 10 == 0:
-            print('iteration {}'.format(n))
+        if verbose:
+            if n % 10 == 0:
+                print('iteration {}'.format(n))
 
         stackT, stackrms, _, _, _ = random_stacker(actidxlist, maplist, galcatlist, params)
         stackTlist.append(stackT)
