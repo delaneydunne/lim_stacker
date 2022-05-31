@@ -95,6 +95,10 @@ def single_cutout(idx, galcat, comap, params):
     # more checks -- make sure it's not going off the center of the map
     if freqcutidx[0] < 0 or xcutidx[0] < 0 or ycutidx[0] < 0:
         return None
+    freqlen, xylen = len(comap.freq), len(comap.x)
+    if freqcutidx[1] > freqlen or xcutidx[1] > xylen or ycutidx[1] > xylen:
+        return None
+
 
     # pull the actual values to stack
     pixval = comap.map[cutout.freqidx[0]:cutout.freqidx[1],
@@ -103,6 +107,10 @@ def single_cutout(idx, galcat, comap, params):
     rmsval = comap.rms[cutout.freqidx[0]:cutout.freqidx[1],
                        cutout.yidx[0]:cutout.yidx[1],
                        cutout.xidx[0]:cutout.xidx[1]]
+
+    if params.beamscale:
+        pixval = pixval*params.beam
+        rmsval = rmsval*params.beam
 
     # if all pixels are masked, lose the whole object
     if np.all(np.isnan(pixval)):
