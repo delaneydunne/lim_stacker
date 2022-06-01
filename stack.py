@@ -290,7 +290,7 @@ def stacker(maplist, galcatlist, params):
     if params.freqstackwidth:
         stackspec, specrms = weightmean(freqstack, freqrms, axis=0)
     else:
-        stackim, imrms = None, None
+        stackspec, imrms = None, None
 
     if params.saveplots:
         # make the directory to store the plots
