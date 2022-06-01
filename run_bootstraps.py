@@ -31,8 +31,8 @@ galcatfile = 'data/cutquasarcat.npz'
 
 # set up a params class that you can just pass around
 params = st.empty_table()
-params.xwidth = 3 # number of x pixels to average between when getting the cutout T
-params.ywidth = 3 # number of y pixels to average between when getting the cutout T
+params.xwidth = 2 # number of x pixels to average between when getting the cutout T
+params.ywidth = 2 # number of y pixels to average between when getting the cutout T
 params.freqwidth = 2 # number of freq pixels to average between when getting the cutout T
 
 # cent vals (for properly centering the cutout)
@@ -54,7 +54,7 @@ params.plotfreq = False
 params.fieldcents = [SkyCoord(25.435*u.deg, 0.0*u.deg), SkyCoord(170.0*u.deg, 52.5*u.deg),
                      SkyCoord(226.0*u.deg, 55.0*u.deg)]
 
-params.beamscale=True
+params.beamscale=False
 beamscale = np.array([[0.25, 0.5, 0.25],
                       [0.50, 1.0, 0.50],
                       [0.25, 0.5, 0.25]])
