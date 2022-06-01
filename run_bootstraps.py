@@ -41,10 +41,10 @@ params.idxmin, params.idxmax = length-1, length+1
 
 params.centfreq = 115.27 # rest frequency CO(1-0)
 params.beamwidth = 1 # when smoothing to the synthesized beam, std of gaussian kernel
-params.gauss_kernel = Gaussian2DKernel(params.beamwidth)
-params.tophat_kernel = Tophat2DKernel(params.beamwidth)
-params.spacestackwidth = 10 # in pixels -- if you only want single T value from each cutout, set to None
-params.freqstackwidth = 20 # number of channels. "" ""
+params.gauss_kernel = None # Gaussian2DKernel(params.beamwidth)
+params.tophat_kernel = None # Tophat2DKernel(params.beamwidth)
+params.spacestackwidth = None # in pixels -- if you only want single T value from each cutout, set to None
+params.freqstackwidth = None # number of channels. "" ""
 
 # plotting parameters
 params.savepath = 'beamscale_output'
@@ -68,5 +68,5 @@ comaplist, qsolist = st.setup(mapfiles, galcatfile, params)
 
 tidxlist = st.random_stacker_setup(comaplist, qsolist, params)
 
-Tvals, Trmsvals = st.n_random_stacks(10000, uselist, comaplist, qsolist, params, verbose=True)
-np.savez('randomstacker_values.npz', T=Tvals, rms=rmsvals)
+Tvals, Trmsvals = st.n_random_stacks(10000, tidxlist, comaplist, qsolist, params, verbose=True)
+np.savez('randomstacker_values.npz', T=Tvals, rms=Trmsvals)
