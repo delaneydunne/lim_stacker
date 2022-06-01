@@ -156,7 +156,7 @@ def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False):
     if params.spacestackwidth:
         stackim, imrms = weightmean(spacestack, spacerms, axis=0)
     else:
-        stackim, imrms = None, None
+        stackspec, imrms = None, None
 
     # overall frequency stack
     if params.freqstackwidth:
