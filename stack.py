@@ -364,8 +364,8 @@ def spectral_plotter(stackspec, params):
     ax.axvline(0, color='k', ls='--')
 
     # show which channels contribute to the stack
-    freqax.axvline(0 - params.freqwidth / 2, color='0.7', ls=':')
-    freqax.axvline(0 + params.freqwidth / 2, color='0.7', ls=':')
+    ax.axvline(0 - params.freqwidth / 2, color='0.7', ls=':')
+    ax.axvline(0 + params.freqwidth / 2, color='0.7', ls=':')
 
     if params.saveplots:
         fig.savefig(params.savepath + '/frequencystack.png')
