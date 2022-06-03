@@ -311,15 +311,22 @@ def stacker(maplist, galcatlist, params):
 def spatial_plotter(stackim, params):
 
     # corners for the beam rectangle
-    rectmin = params.spacestackwidth - params.xwidth/2 - 0.5
-    rectmax = params.spacestackwidth + params.xwidth/2 - 0.5
+    if params.xwidth % 2 == 0:
+        rectmin = params.spacestackwidth - params.xwidth/2 - 0.5
+        rectmax = params.spacestackwidth + params.xwidth/2 - 0.5
+    else:
+        rectmin = params.spacestackwidth - params.xwidth/2
+        rectmin = params.spacestackwidth + params.xwidth/2
 
     xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
     ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
 
+    vext = np.max(np.abs([np.min(stackim), np.max(stackim)]))
+    vmin,vmax = -vext, vext
+
     # unsmoothed
     fig, ax = plt.subplots(1)
-    c = ax.imshow(stackim*1e6, cmap='PiYG')
+    c = ax.imshow(stackim*1e6, cmap='PiYG', vmin=vmin, vmax=vmax)
     ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     cbar = fig.colorbar(c)
     cbar.ax.set_ylabel('Tb (uK)')
@@ -331,7 +338,7 @@ def spatial_plotter(stackim, params):
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
 
     fig, ax = plt.subplots(1)
-    c = ax.imshow(smoothed_spacestack_gauss*1e6, cmap='PiYG')
+    c = ax.imshow(smoothed_spacestack_gauss*1e6, cmap='PiYG', vmin=vmin, vmax=vmax)
     ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     cbar = fig.colorbar(c)
     cbar.ax.set_ylabel('Tb (uK)')
@@ -343,7 +350,10 @@ def spatial_plotter(stackim, params):
 
 def spectral_plotter(stackspec, params):
     fig, ax = plt.subplots(1)
-    freqarr = np.arange((params.freqstackwidth // 2) * 4)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
+    if params.freqwidth % 2 == 0:
+        freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
+    else:
+        freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
     ax.plot(freqarr, stackspec*1e6,
             color='indigo', zorder=10)
     ax.set_xlabel(r'$\Delta_\nu$ [GHz]')
@@ -353,6 +363,10 @@ def spectral_plotter(stackspec, params):
     ax.axhline(0, color='k', ls='--')
     ax.axvline(0, color='k', ls='--')
 
+    # show which channels contribute to the stack
+    freqax.axvline(0 - params.freqwidth / 2, color='0.7', ls=':')
+    freqax.axvline(0 + params.freqwidth / 2, color='0.7', ls=':')
+
     if params.saveplots:
         fig.savefig(params.savepath + '/frequencystack.png')
 
@@ -361,11 +375,18 @@ def spectral_plotter(stackspec, params):
 def combined_plotter(stackim, stackspec, params):
 
     # corners for the beam rectangle
-    rectmin = params.spacestackwidth - 1.5
-    rectmax = params.spacestackwidth + 0.5
+    if params.xwidth % 2 == 0:
+        rectmin = params.spacestackwidth - params.xwidth/2 - 0.5
+        rectmax = params.spacestackwidth + params.xwidth/2 - 0.5
+    else:
+        rectmin = params.spacestackwidth - params.xwidth/2
+        rectmax = params.spacestackwidth + params.xwidth/2
 
     xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
     ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
+
+    vext = np.max(np.abs([np.min(stackim), np.max(stackim)]))
+    vmin,vmax = -vext, vext
 
     # plot with all three stack representations
     gs_kw = dict(width_ratios=[1,1], height_ratios=[3,2])
@@ -377,7 +398,7 @@ def combined_plotter(stackim, stackspec, params):
 
     freqax = fig.add_subplot(gs[-1,:])
 
-    c = axs[0,0].imshow(stackim*1e6, cmap='PiYG')
+    c = axs[0,0].imshow(stackim*1e6, cmap='PiYG', vmin=vmin, vmax=vmax)
     axs[0,0].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     axs[0,0].set_title('Unsmoothed')
 
@@ -400,7 +421,7 @@ def combined_plotter(stackim, stackspec, params):
 
     # smoothed
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
-    c = axs[0,1].imshow(smoothed_spacestack_gauss*1e6, cmap='PiYG')
+    c = axs[0,1].imshow(smoothed_spacestack_gauss*1e6, cmap='PiYG', vmin=vmin, vmax=vmax)
     axs[0,1].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     axs[0,1].set_title('Gaussian-smoothed')
 
@@ -421,11 +442,17 @@ def combined_plotter(stackim, stackspec, params):
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
     cbar.ax.set_ylabel(r'$T_b$ ($\mu$K)')
 
-    freqarr = np.arange(2*params.freqstackwidth)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
+    if params.freqwidth % 2 == 0:
+        freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
+    else:
+        freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
     freqax.plot(freqarr, stackspec*1e6,
                 color='indigo', zorder=10)
     freqax.axhline(0, color='k', ls='--')
     freqax.axvline(0, color='k', ls='--')
+    # show which channels contribute to the stack
+    freqax.axvline(0 - params.freqwidth / 2, color='0.7', ls=':')
+    freqax.axvline(0 + params.freqwidth / 2, color='0.7', ls=':')
     freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
     freqax.set_ylabel(r'T$_b$ [$\mu$K]')
 
