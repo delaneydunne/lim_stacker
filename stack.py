@@ -311,15 +311,15 @@ def stacker(maplist, galcatlist, params):
 def spatial_plotter(stackim, params):
 
     # corners for the beam rectangle
-    rectmin = params.spacestackwidth - 1.5
-    rectmax = params.spacestackwidth + 0.5
+    rectmin = params.spacestackwidth - params.xwidth/2 - 0.5
+    rectmax = params.spacestackwidth + params.xwidth/2 - 0.5
 
     xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
     ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
 
     # unsmoothed
     fig, ax = plt.subplots(1)
-    c = ax.imshow(stackim*1e6)
+    c = ax.imshow(stackim*1e6, cmap='PiYG')
     ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     cbar = fig.colorbar(c)
     cbar.ax.set_ylabel('Tb (uK)')
@@ -331,7 +331,7 @@ def spatial_plotter(stackim, params):
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
 
     fig, ax = plt.subplots(1)
-    c = ax.imshow(smoothed_spacestack_gauss*1e6)
+    c = ax.imshow(smoothed_spacestack_gauss*1e6, cmap='PiYG')
     ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     cbar = fig.colorbar(c)
     cbar.ax.set_ylabel('Tb (uK)')
@@ -377,7 +377,7 @@ def combined_plotter(stackim, stackspec, params):
 
     freqax = fig.add_subplot(gs[-1,:])
 
-    c = axs[0,0].imshow(stackim*1e6)
+    c = axs[0,0].imshow(stackim*1e6, cmap='PiYG')
     axs[0,0].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     axs[0,0].set_title('Unsmoothed')
 
@@ -400,7 +400,7 @@ def combined_plotter(stackim, stackspec, params):
 
     # smoothed
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
-    c = axs[0,1].imshow(smoothed_spacestack_gauss*1e6)
+    c = axs[0,1].imshow(smoothed_spacestack_gauss*1e6, cmap='PiYG')
     axs[0,1].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     axs[0,1].set_title('Gaussian-smoothed')
 

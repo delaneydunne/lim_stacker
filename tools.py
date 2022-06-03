@@ -176,9 +176,9 @@ def plot_mom0(comap, ext=0.95, lognorm=True):
         c = ax.pcolormesh(comap.ra, comap.dec, moment0.T,
                           norm=SymLogNorm(linthresh=1, linscale=0.5,
                                           vmin=vext[0], vmax=vext[1]),
-                          cmap='plasma')
+                          cmap='PiYG')
     else:
-        c = ax.pcolormesh(comap.ra, comap.dec, moment0.T, cmap='plasma')
+        c = ax.pcolormesh(comap.ra, comap.dec, moment0.T, cmap='PiYG')
     ax.set_xlabel('RA (deg)')
     ax.set_ylabel('Dec (deg)')
 
@@ -195,9 +195,9 @@ def plot_chan(comap, channel, ext=0.95, lognorm=True):
         c = ax.pcolormesh(comap.ra, comap.dec, plotmap,
                           norm=SymLogNorm(linthresh=1, linscale=0.5,
                                           vmin=vext[0], vmax=vext[1]),
-                          cmap='plasma')
+                          cmap='PiYG')
     else:
-        c = ax.pcolormesh(comap.ra, comap.dec, plotmap, cmap='plasma')
+        c = ax.pcolormesh(comap.ra, comap.dec, plotmap, cmap='PiYG')
     ax.set_xlabel('RA (deg)')
     ax.set_ylabel('Dec (deg)')
 
