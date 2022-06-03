@@ -316,7 +316,7 @@ def spatial_plotter(stackim, params):
         rectmax = params.spacestackwidth + params.xwidth/2 - 0.5
     else:
         rectmin = params.spacestackwidth - params.xwidth/2
-        rectmin = params.spacestackwidth + params.xwidth/2
+        rectmax = params.spacestackwidth + params.xwidth/2
 
     xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
     ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
