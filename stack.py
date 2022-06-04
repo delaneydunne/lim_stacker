@@ -220,6 +220,10 @@ def field_get_cutouts(comap, galcat, params, field=None):
 
             cutoutlist.append(cutout)
 
+        if params.verbose:
+            if i % 100 == 0:
+                print('   done {} of {} cutouts in this field'.format(i, galcat.nobj))
+
     return cutoutlist
 
 def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
@@ -237,6 +241,9 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         fieldcutouts = field_get_cutouts(maplist[i], galcatlist[i], params, field=fields[i])
         fieldlens.append(len(fieldcutouts))
         allcutouts = allcutouts + fieldcutouts
+
+        if params.verbose:
+            print('Field {} complete'.format(fields[i]))
 
     print(fieldlens)
 

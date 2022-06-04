@@ -62,6 +62,9 @@ beamscale = np.array([[0.25, 0.5, 0.25],
 beamscale3d = np.tile(beamscale, (params.freqwidth, 1, 1))
 params.beam = beamscale3d
 
+# print more things while running through the cutout process
+params.verbose = True
+
 """ SETUP """
 comaplist, qsolist = st.setup(mapfiles, galcatfile, params)
 
