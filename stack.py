@@ -11,6 +11,9 @@ import astropy.constants as const
 from astropy.convolution import convolve, Gaussian2DKernel, Tophat2DKernel
 from astropy.coordinates import SkyCoord
 
+# standard COMAP cosmology
+cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
+
 def single_cutout(idx, galcat, comap, params):
 
     # find gal in each axis, test to make sure it falls into field
@@ -240,6 +243,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     # unzip all your cutout objects
     Tvals = []
     rmsvals = []
+    zvals = []
+    nuobsvals = []
     catidxs = []
     if params.spacestackwidth:
         spacestack = []
@@ -250,6 +255,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     for cut in allcutouts:
         Tvals.append(cut.T)
         rmsvals.append(cut.rms)
+        zvals.append(cut.z)
+        nuobsvals.append(cut.freq)
         catidxs.append(cut.catidx)
 
         if params.spacestackwidth:
@@ -263,6 +270,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     # put everything into numpy arrays for ease
     Tvals = np.array(Tvals)
     rmsvals = np.array(rmsvals)
+    zvals = np.array(zvals)
+    nuobsvals = np.array(nuobsvals)
     catidxs = np.array(catidxs)
     if params.spacestackwidth:
         spacestack = np.array(spacestack)
@@ -276,8 +285,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         allou = observer_units(Tvals, rmsvals, zvals, nuobsvals, params)
 
 
-        linelumstack, dlinelumstack = st.weightmean(allou['L'], allou['dL'])
-        rhoh2stack, drhoh2stack = st.weightmean(allou['rho'], allou['drho'])
+        linelumstack, dlinelumstack = weightmean(allou['L'], allou['dL'])
+        rhoh2stack, drhoh2stack = weightmean(allou['rho'], allou['drho'])
 
         outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
         outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack

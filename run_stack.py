@@ -7,10 +7,12 @@ import h5py
 from astropy.io import fits
 
 from astropy.cosmology import FlatLambdaCDM
-cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
 import astropy.units as u
 import astropy.constants as const
 from astropy.coordinates import SkyCoord
+
+# standard COMAP cosmology
+cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
 
 # funky plot packages
 from astropy.convolution import convolve, Gaussian2DKernel, Tophat2DKernel
