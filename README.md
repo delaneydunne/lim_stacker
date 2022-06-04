@@ -8,6 +8,7 @@ Code to stack line-intensity mapping data cubes on galaxy catalogues.
 
 UPDATES:
 - physical units conversion now implemented!
+- all three axes can now handle odd numbers of pixels to be stacked
 
 NOTES:
 - weighting issue when params.beamscale is set to True -- returning results that seem to be self-consistent but about a factor of 10 too small
