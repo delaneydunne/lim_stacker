@@ -1,16 +1,22 @@
 from __future__ import absolute_import, print_function
 from .tools import *
 from .stack import *
+
 import os
 import numpy as np
+
 from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 from astropy.coordinates import SkyCoord
 from astropy.cosmology import FlatLambdaCDM
 import astropy.units as u
 import astropy.constants as const
 from astropy.convolution import convolve, Gaussian2DKernel, Tophat2DKernel
 from astropy.coordinates import SkyCoord
+
+from scipy.optimize import curve_fit
+from scipy.stats import norm
 
 
 def field_zbin_stack_output(galidxs, comap, galcat, params):
@@ -203,3 +209,52 @@ def n_random_stacks(nstacks, actidxlist, maplist, galcatlist, params, verbose=Tr
                 np.savez(params.itersavefile, T=stackTlist, rms=stackrmslist)
 
     return stackTlist, stackrmslist
+
+def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False):
+    """
+    Function to plot the output of a bootstrap run as a histogram
+    """
+
+    # put T values in uK
+    bootstrap = np.load(bootfile)['T'] * 1e6
+    actT = stackdict['T'] * 1e6
+    actrms = stackdict['rms'] * 1e6
+
+    npoints = len(bootstrap)
+
+    counts, binedges = np.histogram(bootstrap, bins=nbins)
+
+    bincent = (binedges[1:] - binedges[:-1]) / 2 + binedges[:-1]
+
+    print(npoints, counts, binedges)
+
+    xarr = np.linspace(np.min(bincent), np.max(bincent))
+    opt, cov = curve_fit(gauss, bincent, counts, p0=p0)
+
+    fig,ax = plt.subplots(1)
+
+    ax.hist(bootstrap, bins=nbins, color='indigo')
+
+    ax.plot(xarr, gauss(xarr, *opt), color='darkorange')
+
+    ax.axvline(opt[1], color='0.3', ls=':', label="From Bootstrap")
+    rect = Rectangle((opt[1] - opt[2], -1), 2*opt[2], 1200, color='0.3', alpha=0.4)
+    ax.add_patch(rect)
+
+    ax.axvline(actT, color='k', ls='--', label="From Map RMS")
+    rect = Rectangle((actT-actrms, -1), 2*actrms,
+                      1200, color='k', alpha=0.4)
+    ax.add_patch(rect)
+
+    ax.legend()
+
+
+    ax.set_xlabel(r'$T_b$ ($\mu K$)')
+    ax.set_ylabel('Counts')
+
+    p_og = norm.cdf(x=opt[1], loc=stackdict['T'], scale=opt[2])
+
+    if rethist:
+        return p_og, npoints, counts, bincent
+
+    return p_og, npoints

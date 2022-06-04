@@ -22,6 +22,7 @@ class empty_table():
         return copy.copy(self)
 
 
+""" MATH """
 def weightmean(vals, rmss, axis=None):
     """
     average of vals, weighted by rmss, over the passed axes
@@ -30,15 +31,33 @@ def weightmean(vals, rmss, axis=None):
     meanrms = np.sqrt(1/np.nansum(1/rmss**2, axis=axis))
     return meanval, meanrms
 
+def gauss(x, a, b, c):
+    """
+    1-dimensional Gaussian probability distribution with scaleable amplitude
+    """
+    return a*np.exp(-(x-b)**2/2/c**2)
+
+""" DOPPLER CONVERSIONS """
 def freq_to_z(nuem, nuobs):
+    """
+    returns a redshift given an observed and emitted frequency
+    """
     zval = (nuem - nuobs) / nuobs
     return zval
 
 def nuem_to_nuobs(nuem, z):
+    """
+    returns the frequency at which an emitted line at a given redshift would be
+    observed
+    """
     nuobs = nuem / (1 + z)
     return nuobs
 
 def nuobs_to_nuem(nuobs, z):
+    """
+    returns the frequency at which an observed line at a given redshift would have
+    been emitted
+    """
     nuem = nuobs * (1 + z)
     return nuem
 
