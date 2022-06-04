@@ -336,8 +336,6 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     unit change to physical units
     """
 
-    nuobsvals = nuobsvals*u.GHz
-
     # actual beam FWHP is a function of frequency - listed values are 4.9,4.5,4.4 arcmin at 26, 30, 34GHz
     # set up a function to interpolate on
     beamthetavals = np.array([4.9,4.5,4.4])
@@ -348,6 +346,8 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
 
     beamthetas = np.interp(nuobsvals, beamthetafreqs, beamthetavals)*u.arcmin
     omega_Bs = 1.33*beamthetas**2
+
+    nuobsvals = nuobsvals*u.GHz
 
     onesiglimvals = Tvals + rmsvals
 
