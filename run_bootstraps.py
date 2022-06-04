@@ -43,6 +43,7 @@ params.tophat_kernel = None # Tophat2DKernel(params.beamwidth)
 params.spacestackwidth = None # in pixels -- if you only want single T value from each cutout, set to None
 params.freqstackwidth = None # number of channels. "" ""
 params.obsunits = False
+params.verbose = False
 # different methods for cutting out -- not yet implemented
 params.beamscale=False
 beamscale = np.array([[0.25, 0.5, 0.25],
@@ -59,7 +60,10 @@ params.fieldcents = [SkyCoord(25.435*u.deg, 0.0*u.deg), SkyCoord(170.0*u.deg, 52
                      SkyCoord(226.0*u.deg, 55.0*u.deg)]
 # bootstrap parameters
 params.nzbins = 3
-params.verbose = False
+# ***save as you go
+params.itersave = True
+params.itersavefile = "randomstacker_output.npz"
+params.itersavestep = 10
 
 """ SET UP THE DATA """
 comaplist, qsolist = st.setup(mapfiles, galcatfile, params)
@@ -70,5 +74,7 @@ tidxlist = st.random_stacker_setup(comaplist, qsolist, params)
 print('Done Setup')
 
 """ STACKS ON RANDOM LOCATIONS """
-Tvals, Trmsvals = st.n_random_stacks(10000, tidxlist, comaplist, qsolist, params, verbose=True)
-np.savez('randomstacker_values.npz', T=Tvals, rms=Trmsvals)
+# ****fix your VERY bad saving iteratively!!
+""" STACKS ON RANDOM LOCATIONS """
+Tvals, Trmsvals = st.n_random_stacks(10000, tidxlist, comaplist, qsolist, params,
+                                         verbose=True, itersave=True)

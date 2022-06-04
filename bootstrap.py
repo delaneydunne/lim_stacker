@@ -198,4 +198,8 @@ def n_random_stacks(nstacks, actidxlist, maplist, galcatlist, params, verbose=Tr
         stackTlist.append(stackT)
         stackrmslist.append(stackrms)
 
+        if params.itersave:
+            if n % params.itersavestep == 0:
+                np.savez(params.itersavefile, T=stackTlist, rms=stackrmslist)
+
     return stackTlist, stackrmslist
