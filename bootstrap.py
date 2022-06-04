@@ -85,7 +85,7 @@ def field_get_rand_cutouts(galidxs, comap, galcat, params, field=None, verbose=F
 
 def random_stacker_setup(maplist, galcatlist, params):
     # values using the actual galaxy catalogue
-    actT, actrms, actim, actspec, actcatidx = stacker(maplist, galcatlist, params)
+    outvals, actim, actspec, actcatidx = stacker(maplist, galcatlist, params)
     return actcatidx
 
 def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False):
