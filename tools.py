@@ -51,6 +51,7 @@ def coord_to_pix(coords, comap):
     yval = (coords[1] - comap.dec[0]) / (comap.dec[1] - comap.dec[0])
     return (xval, yval)
 
+""" SETUP FUNCTIONS """
 def load_map(file, reshape=True):
     """
     loads in a file in the COMAP format, storing everything as arrays in the map class.
@@ -162,6 +163,8 @@ def field_cull_galaxy_cat(galdict, comap, maxsep=3*u.deg):
 
     return galcat
 
+
+""" EXTRA PLOTTING FUNCTIONS """
 def plot_mom0(comap, ext=0.95, lognorm=True):
 
     """

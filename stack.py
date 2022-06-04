@@ -128,7 +128,7 @@ def single_cutout(idx, galcat, comap, params):
         # same process as above, just wider
         dxy = params.spacestackwidth
         # x-axis
-        if params.spacestackwidth  % 2 == 0:
+        if params.xwidth  % 2 == 0:
             if xdiff < 0:
                 xcutidx = (xidx - dxy, xidx + dxy)
             else:
@@ -138,7 +138,7 @@ def single_cutout(idx, galcat, comap, params):
         cutout.spacexidx = xcutidx
 
         # y-axis
-        if params.spacestackwidth  % 2 == 0:
+        if params.ywidth  % 2 == 0:
             if ydiff < 0:
                 ycutidx = (yidx - dxy, yidx + dxy)
             else:
@@ -219,12 +219,14 @@ def field_get_cutouts(comap, galcat, params, field=None):
 
     return cutoutlist
 
-def stacker(maplist, galcatlist, params):
+def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     """
     wrapper to perform a full stack on all available values in the catalogue.
     will plot if desired
     """
     fields = [1,2,3]
+    # dict to store stacked values
+    outputvals = {}
 
     fieldlens = []
     allcutouts = []
@@ -269,8 +271,18 @@ def stacker(maplist, galcatlist, params):
         freqstack = np.array(freqstack)
         freqrms = np.array(freqrms)
 
+    # put into physical units if requested
+    if params.obsunits:
+        allou = observer_units(Tvals, rmsvals, zvals, nuobsvals, params)
 
-    # split indices up by field
+
+        linelumstack, dlinelumstack = st.weightmean(allou['L'], allou['dL'])
+        rhoh2stack, drhoh2stack = st.weightmean(allou['rho'], allou['drho'])
+
+        outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
+        outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
+
+    # split indices up by field for easy access later
     fieldcatidx = []
     previdx = 0
     for catlen in fieldlens:
@@ -279,7 +291,9 @@ def stacker(maplist, galcatlist, params):
 
     # overall stack for T value
     stacktemp, stackrms = weightmean(Tvals, rmsvals)
+    outputvals['T'], outputvals['rms'] = stacktemp, stackrms
 
+    """ EXTRA STACKS """
     # overall spatial stack
     if params.spacestackwidth:
         stackim, imrms = weightmean(spacestack, spacerms, axis=0)
@@ -292,23 +306,95 @@ def stacker(maplist, galcatlist, params):
     else:
         stackspec, imrms = None, None
 
+    """ PLOTS """
     if params.saveplots:
         # make the directory to store the plots
         os.makedirs(params.savepath, exist_ok=True)
 
     if params.plotspace:
-        spatial_plotter(stackim, params)
+        spatial_plotter(stackim, params, cmap=cmap)
 
     if params.plotfreq:
         spectral_plotter(stackspec, params)
 
     if params.plotspace and params.plotfreq:
-        combined_plotter(stackim, stackspec, params)
+        combined_plotter(stackim, stackspec, params, cmap=cmap)
 
-    return stacktemp, stackrms, stackim, stackspec, fieldcatidx
+    return outputvals, stackim, stackspec, fieldcatidx
+
+def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
+    """
+    unit change to physical units
+    """
+
+    nuobsvals = nuobsvals*u.GHz
+
+    # actual beam FWHP is a function of frequency - listed values are 4.9,4.5,4.4 arcmin at 26, 30, 34GHz
+    # set up a function to interpolate on
+    beamthetavals = np.array([4.9,4.5,4.4])
+    beamthetafreqs = np.array([26, 30, 34])
+
+    beamsigma = 2*u.arcmin
+    omega_B = (2 / np.sqrt(2*np.log(2)))*np.pi*beamsigma**2
+
+    beamthetas = np.interp(nuobsvals, beamthetafreqs, beamthetavals)*u.arcmin
+    omega_Bs = 1.33*beamthetas**2
+
+    onesiglimvals = Tvals + rmsvals
+
+    Sact = (Tvals*u.K).to(u.Jy, equivalencies=u.brightness_temperature(omega_B, nuobsvals))
+    Ssig = (onesiglimvals*u.K).to(u.Jy, equivalencies=u.brightness_temperature(omega_B, nuobsvals))
+    Srms = (rmsvals*u.K).to(u.Jy, equivalencies=u.brightness_temperature(omega_B, nuobsvals))
+
+    # channel widths in km/s
+    delnus = (31.25*u.MHz*params.freqwidth / nuobsvals * const.c).to(u.km/u.s)
+
+    # luminosity distances in Mpc
+    DLs = cosmo.luminosity_distance(zvals)
+
+    # line luminosities
+    linelumact = const.c**2/(2*const.k_B)*Sact*delnus*DLs**2/ (nuobsvals**2*(1+zvals)**3)
+    linelumsig = const.c**2/(2*const.k_B)*Ssig*delnus*DLs**2/ (nuobsvals**2*(1+zvals)**3)
+    linelumrms = const.c**2/(2*const.k_B)*Srms*delnus*DLs**2/ (nuobsvals**2*(1+zvals)**3)
+
+
+    # fixing units
+    beamvalobs = linelumact.to(u.K*u.km/u.s*u.pc**2)
+    beamvalslim = linelumsig.to(u.K*u.km/u.s*u.pc**2)
+    beamrmsobs = linelumrms.to(u.K*u.km/u.s*u.pc**2)
+
+    # rho H2:
+    alphaco = 3.6*u.Msun / (u.K * u.km/u.s*u.pc**2)
+    mh2us = (linelumact + 2*linelumrms) * alphaco
+    mh2obs = linelumact * alphaco
+    mh2rms = linelumrms * alphaco
+
+    nu1 = nuobsvals - 0.5*0.0625*u.GHz
+    nu2 = nuobsvals + 0.5*0.0625*u.GHz
+
+    z1 = (115.27*u.GHz - nu1) / nu1
+    z2 = (115.27*u.GHz - nu2) / nu2
+
+    distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
+
+    # proper volume at each voxel
+    volus = ((cosmo.kpc_proper_per_arcmin(z1) * 4*u.arcmin).to(u.Mpc))**2 * distdiff
+
+    rhous = mh2us / volus
+    rhousobs = mh2obs / volus
+    rhousrms = mh2rms / volus
+    # keep number
+    beamrhoobs = rhousobs.to(u.Msun/u.Mpc**3)
+    beamrhorms = rhousrms.to(u.Msun/u.Mpc**3)
+    beamrholim = rhous.to(u.Msun/u.Mpc**3)
+
+    obsunitdict = {'L': beamvalobs, 'dL': beamrmsobs,
+                   'rho': beamrhoobs, 'drho': beamrhorms}
+
+    return obsunitdict
 
 """ PLOTTING FUNCTIONS """
-def spatial_plotter(stackim, params):
+def spatial_plotter(stackim, params, cmap='PiYG_r'):
 
     # corners for the beam rectangle
     if params.xwidth % 2 == 0:
@@ -326,7 +412,7 @@ def spatial_plotter(stackim, params):
 
     # unsmoothed
     fig, ax = plt.subplots(1)
-    c = ax.imshow(stackim*1e6, cmap='PiYG', vmin=vmin, vmax=vmax)
+    c = ax.imshow(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
     ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     cbar = fig.colorbar(c)
     cbar.ax.set_ylabel('Tb (uK)')
@@ -340,7 +426,7 @@ def spatial_plotter(stackim, params):
     vext = np.nanmax(smoothed_spacestack_gauss*1e6)
 
     fig, ax = plt.subplots(1)
-    c = ax.imshow(smoothed_spacestack_gauss*1e6, cmap='PiYG', vmin=-vext, vmax=vext)
+    c = ax.imshow(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
     ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     cbar = fig.colorbar(c)
     cbar.ax.set_ylabel('Tb (uK)')
@@ -374,7 +460,7 @@ def spectral_plotter(stackspec, params):
 
     return 0
 
-def combined_plotter(stackim, stackspec, params):
+def combined_plotter(stackim, stackspec, params, cmap='PiYG_r'):
 
     # corners for the beam rectangle
     if params.xwidth % 2 == 0:
@@ -400,7 +486,7 @@ def combined_plotter(stackim, stackspec, params):
 
     freqax = fig.add_subplot(gs[-1,:])
 
-    c = axs[0,0].imshow(stackim*1e6, cmap='PiYG', vmin=vmin, vmax=vmax)
+    c = axs[0,0].imshow(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
     axs[0,0].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     axs[0,0].set_title('Unsmoothed')
 
@@ -424,7 +510,7 @@ def combined_plotter(stackim, stackspec, params):
     # smoothed
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
     vext = np.nanmax(smoothed_spacestack_gauss*1e6)
-    c = axs[0,1].imshow(smoothed_spacestack_gauss*1e6, cmap='PiYG', vmin=-vext, vmax=vext)
+    c = axs[0,1].imshow(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
     axs[0,1].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     axs[0,1].set_title('Gaussian-smoothed')
 

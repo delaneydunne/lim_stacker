@@ -20,6 +20,7 @@ from matplotlib.colors import SymLogNorm
 
 import stacker as st
 
+""" INPUT FILES """
 # path to COMAP map files
 mapfiles = glob.glob('yr1data/*_summer.h5')
 mapfiles = [mapfiles[0], mapfiles[2], mapfiles[1]]
@@ -27,15 +28,12 @@ mapfiles = [mapfiles[0], mapfiles[2], mapfiles[1]]
  # path to the galaxy catalogue (I made preliminary cuts before running it through)
 galcatfile = 'BOSS_quasars/cutquasarcat.npz'
 
+""" PARAMETERS """
 # set up a params class that you can just pass around
 params = st.empty_table()
 params.xwidth = 2 # number of x pixels to average between when getting the cutout T
 params.ywidth = 2 # number of y pixels to average between when getting the cutout T
 params.freqwidth = 2 # number of freq pixels to average between when getting the cutout T
-
-# cent vals (for properly centering the cutout)
-length = params.xwidth // 2
-params.idxmin, params.idxmax = length-1, length+1
 
 params.centfreq = 115.27 # rest frequency CO(1-0)
 params.beamwidth = 1 # when smoothing to the synthesized beam, std of gaussian kernel
@@ -43,6 +41,9 @@ params.gauss_kernel = Gaussian2DKernel(params.beamwidth)
 params.tophat_kernel = Tophat2DKernel(params.beamwidth)
 params.spacestackwidth = 10 # in pixels -- if you only want single T value from each cutout, set to None
 params.freqstackwidth = 20 # number of channels. "" ""
+
+# convert into cosmological units?
+params.obsunits = True
 
 # plotting parameters
 params.savepath = 'output'
@@ -57,11 +58,12 @@ beamscale = np.array([[0.25, 0.5, 0.25],
                       [0.50, 1.0, 0.50],
                       [0.25, 0.5, 0.25]])
 beamscale3d = np.tile(beamscale, (params.freqwidth, 1, 1))
-
 params.beam = beamscale3d
 
+""" SETUP """
 comaplist, qsolist = st.setup(mapfiles, galcatfile, params)
 
-stacktemp, stackrms, image, spectrum, qsoidxlist = st.stacker(comaplist, qsolist, params)
+""" RUN """
+stackvals, image, spectrum, qsoidxlist = st.stacker(comaplist, qsolist, params)
 
-print("stack Tb is {:.3e} +/- {:.3e} uK".format(stacktemp*1e6, stackrms*1e6))
+print("stack Tb is {:.3e} +/- {:.3e} uK".format(stackvals['T']*1e6, stackvals['rms']*1e6))
