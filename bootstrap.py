@@ -226,8 +226,6 @@ def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False):
 
     bincent = (binedges[1:] - binedges[:-1]) / 2 + binedges[:-1]
 
-    print(npoints, counts, binedges)
-
     xarr = np.linspace(np.min(bincent), np.max(bincent))
     opt, cov = curve_fit(gauss, bincent, counts, p0=p0)
 
