@@ -176,3 +176,148 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
                 dump_map(datmap, outfiles[i])
 
     return datmap
+
+
+""" DISTRIBUTION-AWARE STACKS """
+def bin_field_sim_catalogue(actidxs, galcat, simcat, params):
+    """
+    bin the simulated galaxy catalogue to match the real one in redshift
+    """
+    nperbin, zedges = st.field_zbin_stack_output(actidxs, 0, galcat, params)
+    simz = simcat.z
+    coords = simcat.coords
+    idx = simcat.idx
+
+    bincatlist = []
+    for i in range(params.nzbins):
+        binhaloidx = np.where(np.logical_and(simz > zedges[i], simz < zedges[i+1]))[0]
+
+        bincat = st.empty_table()
+
+        bincat.z = simz[binhaloidx]
+        bincat.coords = coords[binhaloidx]
+        bincat.idx = idx[binhaloidx]
+        bincat.goalnobj = nperbin[i]
+        bincat.nobj = len(binhaloidx)
+        bincatlist.append(bincat)
+
+        if bincat.goalnobj > bincat.nobj:
+            print("Too few objects in simulated catalogue!")
+            return None
+
+    return nperbin, bincatlist
+
+def field_get_sim_cutouts(actidxs, comap, galcat, simcat, params, field=None, verbose=False):
+    """
+    return the appropriate number of simulated cutouts, binned in redshift to match galidxs
+    """
+
+    nperbin, bincatlist = bin_field_sim_catalogue(actidxs, galcat, simcat, params)
+
+    cutoutlist = []
+    for i in range(params.nzbins):
+        bincat = bincatlist[i]
+
+        if verbose:
+            print("  bin {} needs {} cutouts".format(i+1, bincat.goalnobj))
+
+        gbinlist = bin_get_sim_cutouts(comap, bincat, params)
+
+        if gbinlist:
+            cutoutlist = cutoutlist + gbinlist
+        else:
+            print("Didn't get enough gals in {} bin".format(i))
+            break
+    return cutoutlist
+
+def sim_stacker(actcatidx, maplist, galcatlist, simcatlist, params):
+    """
+    wrapper to perform a stack on random locations binned to match
+    the numbers of the stack in actcatidx
+    """
+
+    fields = [1,2,3]
+    fieldlens = [len(actcatidx[0]), len(actcatidx[1]), len(actcatidx[2])]
+
+    allcutouts = []
+    for i in range(len(maplist)):
+        if params.verbose:
+            print(fields[i])
+            print("need {} total cutouts".format(fieldlens[i]))
+        fieldcutouts = field_get_sim_cutouts(actcatidx[i], maplist[i],
+                                              galcatlist[i], simcatlist[i], params,
+                                              field=fields[i], verbose=params.verbose)
+        allcutouts = allcutouts + fieldcutouts
+
+        # unzip all your cutout objects
+    Tvals = []
+    rmsvals = []
+    catidxs = []
+    if params.spacestackwidth:
+        spacestack = []
+        spacerms = []
+    if params.freqstackwidth:
+        freqstack = []
+        freqrms = []
+    for cut in allcutouts:
+        Tvals.append(cut.T)
+        rmsvals.append(cut.rms)
+        catidxs.append(cut.catidx)
+
+        if params.spacestackwidth:
+            spacestack.append(cut.spacestack)
+            spacerms.append(cut.spacestackrms)
+
+        if params.freqstackwidth:
+            freqstack.append(cut.freqstack)
+            freqrms.append(cut.freqstackrms)
+
+    # put everything into numpy arrays for ease
+    Tvals = np.array(Tvals)
+    rmsvals = np.array(rmsvals)
+    catidxs = np.array(catidxs)
+    if params.spacestackwidth:
+        spacestack = np.array(spacestack)
+        spacerms = np.array(spacerms)
+    if params.freqstackwidth:
+        freqstack = np.array(freqstack)
+        freqrms = np.array(freqrms)
+
+
+    # split indices up by field
+    fieldcatidx = []
+    previdx = 0
+    for catlen in fieldlens:
+        fieldcatidx.append(catidxs[previdx:catlen+previdx])
+        previdx += catlen
+
+    # overall stack for T value
+    stacktemp, stackrms = st.weightmean(Tvals, rmsvals)
+    stackvals = {'T':stacktemp, 'rms':stackrms}
+
+    # overall spatial stack
+    if params.spacestackwidth:
+        stackim, imrms = st.weightmean(spacestack, spacerms, axis=0)
+    else:
+        stackspec, imrms = None, None
+
+    # overall frequency stack
+    if params.freqstackwidth:
+        stackspec, specrms = st.weightmean(freqstack, freqrms, axis=0)
+    else:
+        stackim, imrms = None, None
+
+    if params.saveplots:
+        # make the directory to store the plots
+        os.makedirs(params.savepath, exist_ok=True)
+
+    if params.plotspace:
+        st.spatial_plotter(stackim, params)
+
+    if params.plotfreq:
+        st.spectral_plotter(stackspec, params)
+
+    if params.plotspace and params.plotfreq:
+        st.combined_plotter(stackim, stackspec, params)
+
+    return stackvals, stackim, stackspec, fieldcatidx
