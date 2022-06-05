@@ -235,3 +235,12 @@ def plot_chan(comap, channel, ext=0.95, lognorm=True):
     cbar.ax.set_ylabel(r'$T_b \ (\mu K)$')
 
     return 0
+
+""" SETUP FOR SIMS/BOOTSTRAPS """
+def field_zbin_stack_output(galidxs, comap, galcat, params):
+
+    usedzvals = galcat.z[galidxs]
+
+    nperbin, binedges = np.histogram(usedzvals, bins=params.nzbins)
+
+    return nperbin, binedges

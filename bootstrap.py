@@ -19,14 +19,6 @@ from scipy.optimize import curve_fit
 from scipy.stats import norm
 
 
-def field_zbin_stack_output(galidxs, comap, galcat, params):
-
-    usedzvals = galcat.z[galidxs]
-
-    nperbin, binedges = np.histogram(usedzvals, bins=params.nzbins)
-
-    return nperbin, binedges
-
 def bin_get_rand_cutouts(ncutouts, binzlims, comap, galcat, params, field=None):
     """
     wrapper to return ncutout randomly located cutouts in a single field +
