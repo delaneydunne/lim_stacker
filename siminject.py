@@ -72,7 +72,7 @@ def dump_map(comap, filename):
 
     return 0
 
-def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True):
+def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True, rms=True):
     """
     Wrapper to load files and add simulated data. Scale can be arraylike or a single value
     ***warn properly
@@ -95,8 +95,19 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True):
 
             datmap.simmap = np.array(simlummap.map)
 
+            if rms:
+                maprms = rms(datmap)
+
+                rawsn = np.nanmax(simlummap) / maprms
+
+                scale = scale / rawsn
+
             for j in range(len(scale)):
-                datmap.simdatmap = np.array(datmap.map + scale[j] * simlummap.map)
+                simdatmap = np.array(datmap.map + scale[j] * simlummap.map)
+
+                # subtract the mean
+                meanval = np.nanmean(simdatmap)
+                datmap.simdatmap = simdatmap - meanval
 
                 # rename the output files to have the correct scale in them
                 outfiles[i] = outfiles[i].split('_scale')[0] + '_scale'+str(j)+'.h5'
@@ -115,8 +126,20 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True):
 
             datmap.simmap = np.array(simlummap.map)
 
-            datmap.simdatmap = np.array(datmap.map + scale * simlummap.map)
+            if rms:
+                maprms = rms(datmap)
+
+                rawsn = np.nanmax(simlummap) / maprms
+
+                scale = scale / rawsn
+
+            simdatmap = np.array(datmap.map + scale * simlummap.map)
+
+            # subtract off the mean (done in the actual COMAP pipeline)
+            meanval = np.nanmean(simdatmap)
+            datmap.simdatmap = simdatmap - meanval
 
             if save:
                 dump_map(datmap, outfiles[i])
+
     return datmap

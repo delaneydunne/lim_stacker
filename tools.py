@@ -31,6 +31,14 @@ def weightmean(vals, rmss, axis=None):
     meanrms = np.sqrt(1/np.nansum(1/rmss**2, axis=axis))
     return meanval, meanrms
 
+def rms(vals):
+    """
+    root-mean-square error of an array
+    """
+    N = len(vals)
+    square = vals**2
+    return np.sqrt(np.nansum(square) / N)
+
 def gauss(x, a, b, c):
     """
     1-dimensional Gaussian probability distribution with scaleable amplitude
