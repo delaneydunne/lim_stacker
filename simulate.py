@@ -1,5 +1,6 @@
 from __future__ import absolute_import, print_function
 from .tools import *
+from .stack import *
 import numpy as np
 import matplotlib.pyplot as plt
 import astropy.units as u
@@ -110,7 +111,7 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
                 if rmsscale:
                     # *** generalize
                     tm = datmap.map[100,40:80,40:80]
-                    maprms = np.nanmedian(tm)
+                    maprms = np.abs(np.nanmedian(tm))
 
                     tsm = datmap.simmap[100,40:80,40:80]
                     simsig = np.nanmax(tsm) * 0.25
@@ -122,10 +123,11 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
                     print(scale)
 
             for j in range(len(scale)):
-                simdatmap = np.array(datmap.map + scale[j] * simlummap.map)
+                simdatmap = np.array(datmap.map + scale[j] * datmap.simmap)
+                sdmcent = simdatmap[120:160,40:80,40:80]
 
                 # subtract the mean
-                meanval = np.nanmean(simdatmap)
+                meanval = np.nanmean(sdmcent)
                 datmap.simdatmap = simdatmap - meanval
 
                 if rmsscale:
@@ -154,10 +156,10 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
                 # in field 1 and have the others match
                 if rmsscale:
                     # *** generalize
-                    tm = datmap.map[100,40:80,40:80]
-                    maprms = np.nanmedian(tm)
+                    tm = datmap.map[120:160,40:80,40:80]
+                    maprms = np.abs(np.nanmean(tm))
 
-                    tsm = datmap.simmap[100,40:80,40:80]
+                    tsm = datmap.simmap[120:160,40:80,40:80]
                     simsig = np.nanmax(tsm) * 0.25
 
                     rawsn = simsig / maprms
@@ -166,10 +168,11 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
                     # ***return better
                     print(scale)
 
-            simdatmap = np.array(datmap.map + scale * simlummap.map)
+            simdatmap = np.array(datmap.map + scale * datmap.simmap)
+            sdmcent = simdatmap[120:160,40:80,40:80]
 
             # subtract off the mean (done in the actual COMAP pipeline)
-            meanval = np.nanmean(simdatmap)
+            meanval = np.nanmean(sdmcent)
             datmap.simdatmap = simdatmap - meanval
 
             if save:
@@ -183,7 +186,7 @@ def bin_field_sim_catalogue(actidxs, galcat, simcat, params):
     """
     bin the simulated galaxy catalogue to match the real one in redshift
     """
-    nperbin, zedges = st.field_zbin_stack_output(actidxs, 0, galcat, params)
+    nperbin, zedges = field_zbin_stack_output(actidxs, 0, galcat, params)
     simz = simcat.z
     coords = simcat.coords
     idx = simcat.idx
@@ -192,7 +195,7 @@ def bin_field_sim_catalogue(actidxs, galcat, simcat, params):
     for i in range(params.nzbins):
         binhaloidx = np.where(np.logical_and(simz > zedges[i], simz < zedges[i+1]))[0]
 
-        bincat = st.empty_table()
+        bincat = empty_table()
 
         bincat.z = simz[binhaloidx]
         bincat.coords = coords[binhaloidx]
@@ -206,6 +209,35 @@ def bin_field_sim_catalogue(actidxs, galcat, simcat, params):
             return None
 
     return nperbin, bincatlist
+
+def bin_get_sim_cutouts(comap, galcat, params, field=None):
+    """
+    wrapper to return all cutouts for a single bin
+    """
+
+    cutoutlist = []
+    ngood = 0
+    for i in range(galcat.nobj):
+        cutout = single_cutout(i, galcat, comap, params)
+
+        # if it passed all the tests, keep it
+        if cutout:
+            if field:
+                cutout.field = field
+
+            cutoutlist.append(cutout)
+
+            ngood += 1
+
+            if ngood == galcat.goalnobj:
+                return cutoutlist
+
+
+        if params.verbose:
+            if i % 100 == 0:
+                print('   done {} of {} cutouts in this field'.format(i, galcat.nobj))
+
+    return None
 
 def field_get_sim_cutouts(actidxs, comap, galcat, simcat, params, field=None, verbose=False):
     """
@@ -292,18 +324,18 @@ def sim_stacker(actcatidx, maplist, galcatlist, simcatlist, params):
         previdx += catlen
 
     # overall stack for T value
-    stacktemp, stackrms = st.weightmean(Tvals, rmsvals)
+    stacktemp, stackrms = weightmean(Tvals, rmsvals)
     stackvals = {'T':stacktemp, 'rms':stackrms}
 
     # overall spatial stack
     if params.spacestackwidth:
-        stackim, imrms = st.weightmean(spacestack, spacerms, axis=0)
+        stackim, imrms = weightmean(spacestack, spacerms, axis=0)
     else:
         stackspec, imrms = None, None
 
     # overall frequency stack
     if params.freqstackwidth:
-        stackspec, specrms = st.weightmean(freqstack, freqrms, axis=0)
+        stackspec, specrms = weightmean(freqstack, freqrms, axis=0)
     else:
         stackim, imrms = None, None
 
@@ -312,12 +344,12 @@ def sim_stacker(actcatidx, maplist, galcatlist, simcatlist, params):
         os.makedirs(params.savepath, exist_ok=True)
 
     if params.plotspace:
-        st.spatial_plotter(stackim, params)
+        spatial_plotter(stackim, params)
 
     if params.plotfreq:
-        st.spectral_plotter(stackspec, params)
+        spectral_plotter(stackspec, params)
 
     if params.plotspace and params.plotfreq:
-        st.combined_plotter(stackim, stackspec, params)
+        combined_plotter(stackim, stackspec, params)
 
     return stackvals, stackim, stackspec, fieldcatidx
