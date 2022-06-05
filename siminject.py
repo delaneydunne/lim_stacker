@@ -104,12 +104,22 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
 
             datmap.simmap = np.array(simlummap.map)
 
-            if rmsscale:
-                maprms = rootmeansquare(datmap.map)
+            if i == 0:
+                # noise varies between the comap fields -- only want to scale
+                # in field 1 and have the others match
+                if rmsscale:
+                    # *** generalize
+                    tm = datmap.map[100,40:80,40:80]
+                    maprms = np.nanmedian(tm)
 
-                rawsn = np.nanmax(simlummap.map) / maprms
+                    tsm = datmap.simmap[100,40:80,40:80]
+                    simsig = np.nanmax(tsm) * 0.25
 
-                scale = scale / rawsn
+                    rawsn = simsig / maprms
+
+                    scale = scale * rawsn
+                    # ***return better
+                    print(scale)
 
             for j in range(len(scale)):
                 simdatmap = np.array(datmap.map + scale[j] * simlummap.map)
@@ -139,12 +149,22 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
 
             datmap.simmap = np.array(simlummap.map)
 
-            if rmsscale:
-                maprms = rootmeansquare(datmap.map)
+            if i == 0:
+                # noise varies between the comap fields -- only want to scale
+                # in field 1 and have the others match
+                if rmsscale:
+                    # *** generalize
+                    tm = datmap.map[100,40:80,40:80]
+                    maprms = np.nanmedian(tm)
 
-                rawsn = np.nanmax(simlummap.map) / maprms
+                    tsm = datmap.simmap[100,40:80,40:80]
+                    simsig = np.nanmax(tsm) * 0.25
 
-                scale = scale / rawsn
+                    rawsn = simsig / maprms
+
+                    scale = scale * rawsn
+                    # ***return better
+                    print(scale)
 
             simdatmap = np.array(datmap.map + scale * simlummap.map)
 
