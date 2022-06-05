@@ -63,6 +63,11 @@ def dump_map(comap, filename):
 
     # *** automatic output file naming
 
+    # undo the coordinate shift so it doesn't happen twice when it's reloaded
+    comap.freq = comap.freq + comap.fstep / 2
+    comap.ra = comap.ra + comap.xstep / 2
+    comap.dec = comap.dec + comap.ystep / 2
+
     with h5py.File(filename, 'w') as f:
         dset = f.create_dataset('map_coadd', data = comap.simdatmap, dtype='float64')
         dset = f.create_dataset('rms_coadd', data = comap.rms, dtype='float64')
@@ -70,9 +75,13 @@ def dump_map(comap, filename):
         dset = f.create_dataset('x', data = comap.ra, dtype='float64')
         dset = f.create_dataset('y', data = comap.dec, dtype='float64')
 
+        patchcent = (comap.fieldcent.ra.deg, comap.fieldcent.dec.deg)
+        dset = f.create_dataset('patch_center', data = patchcent, dtype='float64')
+
     return 0
 
-def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True, rms=True):
+def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
+             rmsscale=True):
     """
     Wrapper to load files and add simulated data. Scale can be arraylike or a single value
     ***warn properly
@@ -95,10 +104,10 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True, rms
 
             datmap.simmap = np.array(simlummap.map)
 
-            if rms:
-                maprms = rms(datmap)
+            if rmsscale:
+                maprms = rootmeansquare(datmap.map)
 
-                rawsn = np.nanmax(simlummap) / maprms
+                rawsn = np.nanmax(simlummap.map) / maprms
 
                 scale = scale / rawsn
 
@@ -109,8 +118,12 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True, rms
                 meanval = np.nanmean(simdatmap)
                 datmap.simdatmap = simdatmap - meanval
 
-                # rename the output files to have the correct scale in them
-                outfiles[i] = outfiles[i].split('_scale')[0] + '_scale'+str(j)+'.h5'
+                if rmsscale:
+                    # rename the output files to have the correct scale in them
+                    outfiles[i] = outfiles[i].split('_sn')[0] + '_sn'+str(j)+'.h5'
+                else:
+                    # rename the output files to have the correct scale in them
+                    outfiles[i] = outfiles[i].split('_scale')[0] + '_scale'+str(j)+'.h5'
 
                 if save:
                     dump_map(datmap, outfiles[i])
@@ -126,10 +139,10 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True, rms
 
             datmap.simmap = np.array(simlummap.map)
 
-            if rms:
-                maprms = rms(datmap)
+            if rmsscale:
+                maprms = rootmeansquare(datmap.map)
 
-                rawsn = np.nanmax(simlummap) / maprms
+                rawsn = np.nanmax(simlummap.map) / maprms
 
                 scale = scale / rawsn
 

@@ -31,9 +31,9 @@ def weightmean(vals, rmss, axis=None):
     meanrms = np.sqrt(1/np.nansum(1/rmss**2, axis=axis))
     return meanval, meanrms
 
-def rms(vals):
+def rootmeansquare(vals):
     """
-    root-mean-square error of an array
+    rms variation in an array
     """
     N = len(vals)
     square = vals**2
