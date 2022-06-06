@@ -112,10 +112,10 @@ def load_map(file, reshape=True):
         comap.map = np.reshape(comap.map, (4*64, len(comap.ra), len(comap.dec)))
         comap.rms = np.reshape(comap.rms, (4*64, len(comap.ra), len(comap.dec)))
 
-    # 1-pixel radii for each of the axes
-    comap.fstep = (comap.freq[1] - comap.freq[0])/2
-    comap.xstep = (comap.ra[1] - comap.ra[0])/2
-    comap.ystep = (comap.dec[1] - comap.dec[0])/2
+    # 1-pixel width for each of the axes
+    comap.fstep = comap.freq[1] - comap.freq[0]
+    comap.xstep = comap.ra[1] - comap.ra[0]
+    comap.ystep = comap.dec[1] - comap.dec[0]
 
     # housekeeping for the arrays - give each axis an index array as well
     comap.x = np.arange(len(comap.ra))
@@ -208,7 +208,7 @@ def plot_mom0(comap, ext=0.95, lognorm=True):
                                           vmin=vext[0], vmax=vext[1]),
                           cmap='PiYG')
     else:
-        c = ax.pcolormesh(comap.ra, comap.dec, moment0.T, cmap='PiYG')
+        c = ax.pcolormesh(comap.ra, comap.dec, moment0.T, cmap='PiYG_r')
     ax.set_xlabel('RA (deg)')
     ax.set_ylabel('Dec (deg)')
 
@@ -219,7 +219,7 @@ def plot_mom0(comap, ext=0.95, lognorm=True):
 
 def plot_chan(comap, channel, ext=0.95, lognorm=True):
     fig,ax = plt.subplots(1)
-    plotmap = comap.map[channel,:,:].T * 1e6
+    plotmap = comap.map[channel,:,:] * 1e6
     vext = (np.nanmin(plotmap)*ext, np.nanmax(plotmap)*ext)
     if lognorm:
         c = ax.pcolormesh(comap.ra, comap.dec, plotmap,
@@ -227,7 +227,7 @@ def plot_chan(comap, channel, ext=0.95, lognorm=True):
                                           vmin=vext[0], vmax=vext[1]),
                           cmap='PiYG')
     else:
-        c = ax.pcolormesh(comap.ra, comap.dec, plotmap, cmap='PiYG')
+        c = ax.pcolormesh(comap.ra, comap.dec, plotmap, cmap='PiYG_r')
     ax.set_xlabel('RA (deg)')
     ax.set_ylabel('Dec (deg)')
 

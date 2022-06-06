@@ -89,9 +89,9 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
     """
 
     # *** fix
-    if len(datfiles) != len(simfiles):
-        print('different number of files')
-        return 0
+    # if len(datfiles) != len(simfiles):
+    #     print('different number of files')
+    #     return 0
 
     # if an array of scale values passed, only run io once and then add and dump
     #  for each scale value

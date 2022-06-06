@@ -20,6 +20,193 @@ def single_cutout(idx, galcat, comap, params):
     ## freq
     zval = galcat.z[idx]
     nuobs = params.centfreq / (1 + zval)
+    if nuobs < np.min(comap.freq) or nuobs > np.max(comap.freq + comap.fstep):
+        return None
+    freqidx = np.max(np.where(comap.freq < nuobs))
+    if np.abs(nuobs - comap.freq[freqidx]) < comap.fstep:
+        fdiff = -1
+    else:
+        fdiff = 1
+
+    x = galcat.coords[idx].ra.deg
+    if x < np.min(comap.ra) or x > np.max(comap.ra + comap.xstep):
+        return None
+    xidx = np.max(np.where(comap.ra < x))
+    if np.abs(x - comap.ra[xidx]) < comap.xstep:
+        xdiff = -1
+    else:
+        xdiff = 1
+
+    y = galcat.coords[idx].dec.deg
+    if y < np.min(comap.dec) or y > np.max(comap.dec + comap.ystep):
+        return None
+    yidx = np.max(np.where(comap.dec < y))
+    if np.abs(y - comap.dec[yidx]) < comap.ystep:
+        ydiff = -1
+    else:
+        ydiff = 1
+
+    # start setting up cutout object if it passes all these tests
+    cutout = empty_table()
+
+    # center values of the gal (store for future reference)
+    cutout.catidx = idx
+    cutout.z = zval
+    cutout.coords = galcat.coords[idx]
+    cutout.freq = nuobs
+    cutout.x = x
+    cutout.y = y
+
+    # indices for freq axis
+    dfreq = params.freqwidth // 2
+    if params.freqwidth % 2 == 0:
+        if fdiff < 0:
+            freqcutidx = (freqidx - dfreq, freqidx + dfreq)
+        else:
+            freqcutidx = (freqidx - dfreq + 1, freqidx + dfreq + 1)
+
+    else:
+        freqcutidx = (freqidx - dfreq, freqidx + dfreq + 1)
+    cutout.freqidx = freqcutidx
+
+    # indices for x axis
+    dx = params.xwidth // 2
+    if params.xwidth  % 2 == 0:
+        if xdiff < 0:
+            xcutidx = (xidx - dx, xidx + dx)
+        else:
+            xcutidx = (xidx - dx + 1, xidx + dx + 1)
+    else:
+        xcutidx = (xidx - dx, xidx + dx + 1)
+    cutout.xidx = xcutidx
+
+    # indices for y axis
+    dy = params.ywidth // 2
+    if params.ywidth  % 2 == 0:
+        if ydiff < 0:
+            ycutidx = (yidx - dy, yidx + dy)
+        else:
+            ycutidx = (yidx - dy + 1, yidx + dy + 1)
+    else:
+        ycutidx = (yidx - dy, yidx + dy + 1)
+    cutout.yidx = ycutidx
+
+    # more checks -- make sure it's not going off the center of the map
+    if freqcutidx[0] < 0 or xcutidx[0] < 0 or ycutidx[0] < 0:
+        return None
+    freqlen, xylen = len(comap.freq), len(comap.x)
+    if freqcutidx[1] > freqlen or xcutidx[1] > xylen or ycutidx[1] > xylen:
+        return None
+
+
+    # pull the actual values to stack
+    pixval = comap.map[cutout.freqidx[0]:cutout.freqidx[1],
+                       cutout.yidx[0]:cutout.yidx[1],
+                       cutout.xidx[0]:cutout.xidx[1]]
+    rmsval = comap.rms[cutout.freqidx[0]:cutout.freqidx[1],
+                       cutout.yidx[0]:cutout.yidx[1],
+                       cutout.xidx[0]:cutout.xidx[1]]
+
+
+    if params.beamscale:
+        pixval = pixval*params.beam
+        rmsval = rmsval*params.beam
+
+    # if all pixels are masked, lose the whole object
+    if np.all(np.isnan(pixval)):
+        return None
+
+    # find the actual Tb in the cutout -- weighted average over all axes
+    Tbval, Tbrms = weightmean(pixval, rmsval)
+
+    cutout.T = Tbval
+    cutout.rms = Tbrms
+
+    # get the bigger cutouts for plotting if desired:
+    ## spatial map
+    if params.spacestackwidth:
+        # same process as above, just wider
+        dxy = params.spacestackwidth
+        # x-axis
+        if params.xwidth  % 2 == 0:
+            if xdiff < 0:
+                xcutidx = (xidx - dxy, xidx + dxy)
+            else:
+                xcutidx = (xidx - dxy + 1, xidx + dxy + 1)
+        else:
+            xcutidx = (xidx - dxy, xidx + dxy + 1)
+        cutout.spacexidx = xcutidx
+
+        # y-axis
+        if params.ywidth  % 2 == 0:
+            if ydiff < 0:
+                ycutidx = (yidx - dxy, yidx + dxy)
+            else:
+                ycutidx = (yidx - dxy + 1, yidx + dxy + 1)
+        else:
+            ycutidx = (yidx - dxy, yidx + dxy + 1)
+        cutout.spaceyidx = ycutidx
+
+        # pad edges of map with nans so you don't have to worry about going off the edge
+        padmap = np.pad(comap.map, ((0,0), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
+        padrms = np.pad(comap.rms, ((0,0), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
+
+        padxidx = (cutout.spacexidx[0] + dxy, cutout.spacexidx[1] + dxy)
+        padyidx = (cutout.spaceyidx[0] + dxy, cutout.spaceyidx[1] + dxy)
+
+        # pull the actual values to stack
+        spixval = padmap[cutout.freqidx[0]:cutout.freqidx[1],
+                         padyidx[0]:padyidx[1],
+                         padxidx[0]:padxidx[1]]
+        srmsval = padrms[cutout.freqidx[0]:cutout.freqidx[1],
+                         padyidx[0]:padyidx[1],
+                         padxidx[0]:padxidx[1]]
+
+        # collapse along freq axis to get a spatial map
+        spacestack, rmsspacestack = weightmean(spixval, srmsval, axis=0)
+        cutout.spacestack = spacestack
+        cutout.spacestackrms = rmsspacestack
+
+    ## spectrum
+    if params.freqstackwidth:
+        df = params.freqstackwidth
+        if params.freqwidth % 2 == 0:
+            if fdiff < 0:
+                freqcutidx = (freqidx - df, freqidx + df)
+            else:
+                freqcutidx = (freqidx - df + 1, freqidx + df + 1)
+
+        else:
+            freqcutidx = (freqidx - df, freqidx + df + 1)
+        cutout.freqfreqidx = freqcutidx
+
+        # pad edges of map with nans so you don't have to worry about going off the edge
+        padmap = np.pad(comap.map, ((df,df), (0,0), (0,0)), 'constant', constant_values=np.nan)
+        padrms = np.pad(comap.rms, ((df,df), (0,0), (0,0)), 'constant', constant_values=np.nan)
+
+        padfreqidx = (cutout.freqfreqidx[0] + df, cutout.freqfreqidx[1] + df)
+
+        # clip out values to stack
+        fpixval = padmap[padfreqidx[0]:padfreqidx[1],
+                         cutout.yidx[0]:cutout.yidx[1],
+                         cutout.xidx[0]:cutout.xidx[1]]
+        frmsval = padrms[padfreqidx[0]:padfreqidx[1],
+                         cutout.yidx[0]:cutout.yidx[1],
+                         cutout.xidx[0]:cutout.xidx[1]]
+
+        # collapse along spatial axes to get a spectral profile
+        freqstack, rmsfreqstack = weightmean(fpixval, frmsval, axis=(1,2))
+        cutout.freqstack = freqstack
+        cutout.freqstackrms = rmsfreqstack
+
+    return cutout
+
+def single_cutout_old(idx, galcat, comap, params):
+
+    # find gal in each axis, test to make sure it falls into field
+    ## freq
+    zval = galcat.z[idx]
+    nuobs = params.centfreq / (1 + zval)
 
     diffarr = np.abs(comap.freq - nuobs)
     freqidx = np.argmin(diffarr)
