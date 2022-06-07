@@ -18,6 +18,11 @@ from astropy.coordinates import SkyCoord
 from scipy.optimize import curve_fit
 from scipy.stats import norm
 
+import warnings
+warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
+warnings.filterwarnings("ignore", message="invalid value encountered in power")
+warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
+
 
 def bin_get_rand_cutouts(ncutouts, binzlims, comap, galcat, params, field=None):
     """
