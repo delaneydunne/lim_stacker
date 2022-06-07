@@ -11,6 +11,10 @@ import h5py
 import glob
 from astropy.convolution import convolve, Gaussian2DKernel
 from astropy.io import fits
+import warnings
+warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
+warnings.filterwarnings("ignore", message="invalid value encountered in power")
+warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
 
 """ COMBINE ALREADY-MADE SIMS WITH DATA """
@@ -82,7 +86,7 @@ def dump_map(comap, filename):
     return 0
 
 def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
-             rmsscale=True):
+             rmsscale=False):
     """
     Wrapper to load files and add simulated data. Scale can be arraylike or a single value
     ***warn properly
