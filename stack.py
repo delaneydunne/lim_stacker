@@ -10,6 +10,10 @@ import astropy.units as u
 import astropy.constants as const
 from astropy.convolution import convolve, Gaussian2DKernel, Tophat2DKernel
 from astropy.coordinates import SkyCoord
+import warnings
+warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
+warnings.filterwarnings("ignore", message="invalid value encountered in power")
+warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
 # standard COMAP cosmology
 cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
@@ -20,28 +24,28 @@ def single_cutout(idx, galcat, comap, params):
     ## freq
     zval = galcat.z[idx]
     nuobs = params.centfreq / (1 + zval)
-    if nuobs < np.min(comap.freq) or nuobs > np.max(comap.freq + comap.fstep):
+    if nuobs < np.min(comap.freq) or nuobs > np.max(comap.freq):
         return None
     freqidx = np.max(np.where(comap.freq < nuobs))
-    if np.abs(nuobs - comap.freq[freqidx]) < comap.fstep:
+    if np.abs(nuobs - comap.freq[freqidx]) < comap.fstep / 2:
         fdiff = -1
     else:
         fdiff = 1
 
     x = galcat.coords[idx].ra.deg
-    if x < np.min(comap.ra) or x > np.max(comap.ra + comap.xstep):
+    if x < np.min(comap.ra) or x > np.max(comap.ra):
         return None
     xidx = np.max(np.where(comap.ra < x))
-    if np.abs(x - comap.ra[xidx]) < comap.xstep:
+    if np.abs(x - comap.ra[xidx]) < comap.xstep / 2:
         xdiff = -1
     else:
         xdiff = 1
 
     y = galcat.coords[idx].dec.deg
-    if y < np.min(comap.dec) or y > np.max(comap.dec + comap.ystep):
+    if y < np.min(comap.dec) or y > np.max(comap.dec):
         return None
     yidx = np.max(np.where(comap.dec < y))
-    if np.abs(y - comap.dec[yidx]) < comap.ystep:
+    if np.abs(y - comap.dec[yidx]) < comap.ystep / 2:
         ydiff = -1
     else:
         ydiff = 1
@@ -645,8 +649,9 @@ def spectral_plotter(stackspec, params):
         freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
     else:
         freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
-    ax.plot(freqarr, stackspec*1e6,
-            color='indigo', zorder=10)
+
+    ax.step(freqarr, stackspec*1e6,
+            color='indigo', zorder=10, where='mid')
     ax.set_xlabel(r'$\Delta_\nu$ [GHz]')
     ax.set_ylabel(r'T$_b$ [$\mu$K]')
     ax.set_title('Stacked over {} Spatial Pixels'.format((params.xwidth)**2))
@@ -689,7 +694,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r'):
 
     freqax = fig.add_subplot(gs[-1,:])
 
-    c = axs[0,0].imshow(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
+    c = axs[0,0].pcolormesh(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
     axs[0,0].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     axs[0,0].set_title('Unsmoothed')
 
@@ -713,7 +718,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r'):
     # smoothed
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
     vext = np.nanmax(smoothed_spacestack_gauss*1e6)
-    c = axs[0,1].imshow(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
+    c = axs[0,1].pcolormesh(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
     axs[0,1].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     axs[0,1].set_title('Gaussian-smoothed')
 
@@ -738,8 +743,8 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r'):
         freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
     else:
         freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
-    freqax.plot(freqarr, stackspec*1e6,
-                color='indigo', zorder=10)
+    freqax.step(freqarr, stackspec*1e6,
+                color='indigo', zorder=10, where='mid')
     freqax.axhline(0, color='k', ls='--')
     freqax.axvline(0, color='k', ls='--')
     # show which channels contribute to the stack

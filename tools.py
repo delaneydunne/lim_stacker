@@ -7,6 +7,10 @@ import astropy.constants as const
 from astropy.coordinates import SkyCoord
 import os
 import h5py
+import warnings
+warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
+warnings.filterwarnings("ignore", message="invalid value encountered in power")
+warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
 
 class empty_table():
@@ -69,14 +73,14 @@ def nuobs_to_nuem(nuobs, z):
     nuem = nuobs * (1 + z)
     return nuem
 
-def coord_to_pix(coords, comap):
-    """
-    given a coordinate value in degrees, return the (x,y) coordinates
-    according to the map stored in comap
-    """
-    xval = (coords[0] - comap.ra[0]) / (comap.ra[1] - comap.ra[0])
-    yval = (coords[1] - comap.dec[0]) / (comap.dec[1] - comap.dec[0])
-    return (xval, yval)
+# def coord_to_pix(coords, comap):
+#     """
+#     given a coordinate value in degrees, return the (x,y) coordinates
+#     according to the map stored in comap
+#     """
+#     xval = (coords[0] - comap.ra[0]) / (comap.ra[1] - comap.ra[0])
+#     yval = (coords[1] - comap.dec[0]) / (comap.dec[1] - comap.dec[0])
+#     return (xval, yval)
 
 """ SETUP FUNCTIONS """
 def load_map(file, reshape=True):
@@ -121,11 +125,15 @@ def load_map(file, reshape=True):
     comap.x = np.arange(len(comap.ra))
     comap.y = np.arange(len(comap.dec))
 
-    # rearrange so that the stored coordinate coordinate arrays correspond to the
-    # bottom right (etc.) of the voxel (currently they're the center)
-    comap.freq = comap.freq - comap.fstep / 2
-    comap.ra = comap.ra - comap.xstep / 2
-    comap.dec = comap.dec - comap.ystep / 2
+    # store the old coordinates as bin centers
+    comap.freqbc = comap.freq
+    comap.rabc = comap.ra
+    comap.decbc = comap.dec
+
+    # separate coordinates for the edges of the voxel bins
+    comap.freq = np.append(comap.freq - comap.fstep / 2, comap.freq[-1] + comap.fstep / 2)
+    comap.ra = np.append(comap.ra - comap.xstep / 2, comap.ra[-1] + comap.xstep / 2)
+    comap.dec = np.append(comap.dec - comap.ystep / 2, comap.dec[-1] + comap.ystep / 2)
 
 
     # limits on each axis for easy testing
