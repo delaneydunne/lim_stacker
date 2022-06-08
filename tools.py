@@ -125,15 +125,11 @@ def load_map(file, reshape=True):
     comap.x = np.arange(len(comap.ra))
     comap.y = np.arange(len(comap.dec))
 
-    # store the old coordinates as bin centers
-    comap.freqbc = comap.freq
-    comap.rabc = comap.ra
-    comap.decbc = comap.dec
-
-    # separate coordinates for the edges of the voxel bins
-    comap.freq = np.append(comap.freq - comap.fstep / 2, comap.freq[-1] + comap.fstep / 2)
-    comap.ra = np.append(comap.ra - comap.xstep / 2, comap.ra[-1] + comap.xstep / 2)
-    comap.dec = np.append(comap.dec - comap.ystep / 2, comap.dec[-1] + comap.ystep / 2)
+    # rearrange so that the stored coordinate coordinate arrays correspond to the
+    # bottom right (etc.) of the voxel (currently they're the center)
+    comap.freq = comap.freq - comap.fstep / 2
+    comap.ra = comap.ra - comap.xstep / 2
+    comap.dec = comap.dec - comap.ystep / 2
 
 
     # limits on each axis for easy testing
