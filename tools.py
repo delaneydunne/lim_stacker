@@ -25,6 +25,18 @@ class empty_table():
         """@brief Creates a copy of the table."""
         return copy.copy(self)
 
+def printdict(dict):
+    """
+    print a python dict to terminal, testing each variable to see if it has units 
+    """
+    print('{')
+    for key in dict.keys():
+        if isinstance(dict[key], u.Quantity):
+            val = dict[key].value
+        else:
+            val = dict[key]
+        print("'", key, "':", val,",")
+    print('}')
 
 """ MATH """
 def weightmean(vals, rmss, axis=None):
