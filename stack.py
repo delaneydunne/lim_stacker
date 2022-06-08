@@ -42,7 +42,7 @@ def single_cutout(idx, galcat, comap, params):
         xdiff = 1
 
     y = galcat.coords[idx].dec.deg
-    if y < comap.ylims[0] or y > comap.ylims[-1]
+    if y < comap.ylims[0] or y > comap.ylims[-1]:
         return None
     yidx = np.max(np.where(comap.dec < y))
     if np.abs(y - comap.dec[yidx]) < comap.ystep / 2:
