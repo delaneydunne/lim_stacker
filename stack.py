@@ -27,7 +27,7 @@ def single_cutout(idx, galcat, comap, params):
     if nuobs < comap.flims[0] or nuobs > comap.flims[-1]:
         return None
     freqidx = np.max(np.where(comap.freq < nuobs))
-    if np.abs(nuobs - comap.freq[freqidx]) < comap.fstep / 2:
+    if np.abs(nuobs - comap.freq[freqidx]) < comap.fstep:
         fdiff = -1
     else:
         fdiff = 1
@@ -36,7 +36,7 @@ def single_cutout(idx, galcat, comap, params):
     if x < comap.xlims[0] or x > comap.xlims[-1]:
         return None
     xidx = np.max(np.where(comap.ra < x))
-    if np.abs(x - comap.ra[xidx]) < comap.xstep / 2:
+    if np.abs(x - comap.ra[xidx]) < comap.xstep:
         xdiff = -1
     else:
         xdiff = 1
@@ -45,7 +45,7 @@ def single_cutout(idx, galcat, comap, params):
     if y < comap.ylims[0] or y > comap.ylims[-1]:
         return None
     yidx = np.max(np.where(comap.dec < y))
-    if np.abs(y - comap.dec[yidx]) < comap.ystep / 2:
+    if np.abs(y - comap.dec[yidx]) < comap.ystep:
         ydiff = -1
     else:
         ydiff = 1
