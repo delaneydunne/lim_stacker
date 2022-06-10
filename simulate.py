@@ -127,7 +127,7 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
                     print(scale)
 
             for j in range(len(scale)):
-                simdatmap = np.array(datmap.map + scale[j] * datmap.simmap)
+                simdatmap = np.array(datmap.map / scale[j] + datmap.simmap)
                 sdmcent = simdatmap[120:160,40:80,40:80]
 
                 # subtract the mean
@@ -172,7 +172,7 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
                     # ***return better
                     print(scale)
 
-            simdatmap = np.array(datmap.map + scale * datmap.simmap)
+            simdatmap = np.array(datmap.map / scale + datmap.simmap)
             sdmcent = simdatmap[120:160,40:80,40:80]
 
             # subtract off the mean (done in the actual COMAP pipeline)
