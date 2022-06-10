@@ -15,6 +15,8 @@ warnings.filterwarnings("ignore", message="invalid value encountered in true_div
 warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
+""" FREEZING FOR AAS W THIS VERSION: 10.06.22 """
+
 # standard COMAP cosmology
 cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
 
