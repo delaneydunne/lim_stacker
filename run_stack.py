@@ -33,9 +33,9 @@ galcatfile = 'BOSS_quasars/cutquasarcat.npz'
 """ PARAMETERS """
 # set up a params class that you can just pass around
 params = st.empty_table()
-params.xwidth = 2 # number of x pixels to average between when getting the cutout T
-params.ywidth = 2 # number of y pixels to average between when getting the cutout T
-params.freqwidth = 2 # number of freq pixels to average between when getting the cutout T
+params.xwidth = 3 # number of x pixels to average between when getting the cutout T
+params.ywidth = 3 # number of y pixels to average between when getting the cutout T
+params.freqwidth = 1 # number of freq pixels to average between when getting the cutout T
 
 params.centfreq = 115.27 # rest frequency CO(1-0)
 params.beamwidth = 1 # when smoothing to the synthesized beam, std of gaussian kernel
