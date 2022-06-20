@@ -13,6 +13,7 @@ warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
 
+""" OBJECTS AND DICTS AND RELATED CONVENIENCE FUNCTIONS """
 class empty_table():
     """
     simple Class creating an empty table
@@ -27,7 +28,7 @@ class empty_table():
 
 def printdict(dict):
     """
-    print a python dict to terminal, testing each variable to see if it has units 
+    print a python dict to terminal, testing each variable to see if it has units
     """
     print('{')
     for key in dict.keys():
@@ -37,6 +38,28 @@ def printdict(dict):
             val = dict[key]
         print("'", key, "':", val,",")
     print('}')
+
+def unzip(tablist):
+    """
+    unzipper to take a list of identical empty_table objects and return arrays containing the contents of each
+    individual attribute over the list
+    """
+
+    # turn all the individual objects into dicts (to keep only the attributes and
+    # their values)
+    dictlist = []
+    for obj in tablist:
+        dictlist.append(vars(obj))
+
+    # dict to be returned
+    d = {}
+    for k in dictlist[0].keys():
+        if isinstance(dictlist[0][k], np.ndarray):
+            d[k] = np.stack(list(d[k] for d in dictlist))
+        else:
+            d[k] = np.array(tuple(list(d[k] for d in dictlist)))
+
+    return d
 
 """ MATH """
 def weightmean(vals, rmss, axis=None):
