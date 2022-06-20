@@ -229,6 +229,35 @@ def field_cull_galaxy_cat(galdict, comap, maxsep=3*u.deg):
 
     return galcat
 
+def make_output_pathnames(params, append=True):
+    """
+    Uses the input parameters to automatically make a directory to save data
+    with an informational name. If there's already a path name passed, uses that one
+    """
+
+    sinfo = '_x'+str(params.xwidth)+'f'+str(params.freqwidth)
+
+    if params.savepath and append:
+        outputdir = params.savepath + sinfo
+    elif not params.savepath:
+        outputdir = './stack' + sinfo
+    else:
+        outputdir = params.savepath
+
+    if not os.path.exists(outputdir):
+        os.makedirs(outputdir)
+
+    params.plotsavepath = outputdir + '/plots'
+    params.datasavepath = outputdir + '/data'
+
+    if params.saveplots:
+        # make the directories to store the plots and data
+        os.makedirs(params.plotsavepath, exist_ok=True)
+    if params.savedata:
+        os.makedirs(params.datasavepath, exist_ok=True)
+
+    return
+
 
 """ EXTRA PLOTTING FUNCTIONS """
 def plot_mom0(comap, ext=0.95, lognorm=True):

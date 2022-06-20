@@ -131,8 +131,9 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
                 sdmcent = simdatmap[120:160,40:80,40:80]
 
                 # subtract the mean
-                meanval = np.nanmean(sdmcent)
-                datmap.simdatmap = simdatmap - meanval
+                # meanval = np.nanmean(sdmcent)
+                # datmap.simdatmap = simdatmap - meanval
+                datmap.simdatmap = simdatmap
 
                 if rmsscale:
                     # rename the output files to have the correct scale in them
@@ -176,8 +177,9 @@ def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
             sdmcent = simdatmap[120:160,40:80,40:80]
 
             # subtract off the mean (done in the actual COMAP pipeline)
-            meanval = np.nanmean(sdmcent)
-            datmap.simdatmap = simdatmap - meanval
+            # meanval = np.nanmean(sdmcent)
+            # datmap.simdatmap = simdatmap - meanval
+            datmap.simdatmap = simdatmap
 
             if save:
                 dump_map(datmap, outfiles[i])

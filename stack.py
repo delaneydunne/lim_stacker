@@ -340,7 +340,14 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         cubestacks, cubermss = np.stack(cubestacks), np.stack(cubermss)
         cubestack, cuberms = weightmean(cubestacks, cubermss, axis=0)
 
-    print(fieldlens)
+    nobj = np.sum(fieldlens)
+    outputvals['nobj'] = nobj
+    if params.verbose:
+        print('number of objects in each field is:')
+        print('   field 1:{}'.format(fieldlens[0]))
+        print('   field 2:{}'.format(fieldlens[1]))
+        print('   field 3:{}'.format(fieldlens[2]))
+        print('for a total number of {} objects'.format(nobj))
 
     # unzip all your cutout objects
     cutlistdict = unzip(allcutouts)
@@ -356,6 +363,7 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
 
         outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
         outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
+        outputvals['nuobs_mean'], outputvals['z_mean'] = allou['nuobs_mean'], allou['z_mean']
 
     # split indices up by field for easy access later
     fieldcatidx = []
@@ -405,9 +413,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
 
 
     """ PLOTS """
-    if params.saveplots:
-        # make the directory to store the plots
-        os.makedirs(params.savepath, exist_ok=True)
+    if params.savedata or params.saveplots:
+        make_output_pathnames(params)
 
     if params.spacestackwidth and params.plotspace:
         spatial_plotter(stackim, params, cmap=cmap)
@@ -417,6 +424,30 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
 
     if params.spacestackwidth and params.freqstackwidth and params.plotspace and params.plotfreq:
                 combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
+
+    """ SAVE DATA """
+    if params.savedata:
+        # save the output values
+        ovalfile = params.datasavepath + '/output_values.csv'
+        with open(ovalfile, 'w') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=list(outputvals.keys()))
+            writer.writeheader()
+            writer.writerow(outputvals)
+
+        idxfile = params.datasavepath + '/included_cat_indices.npz'
+        np.savez(idxfile, field1=fieldcatidx[0], field2=fieldcatidx[1], field3=fieldcatidx[2])
+
+        if params.spacestackwidth:
+            imfile = params.datasavepath + '/stacked_image.npz'
+            np.savez(imfile, T=stackim, rms=imrms)
+
+        if params.freqstackwidth:
+            specfile = params.datasavepath + '/stacked_spectrum.npz'
+            np.savez(specfile, T=stackspec, rms=specrms)
+
+        if params.cubelet:
+            cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
+            np.savez(cubefile, T=cubestack, rms=cuberms)
 
     if params.cubelet:
         return outputvals, stackim, stackspec, fieldcatidx, cubestack, cuberms
@@ -440,6 +471,7 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     omega_Bs = 1.33*beamthetas**2
 
     nuobsvals = nuobsvals*u.GHz
+    meannuobs = np.nanmean(nuobsvals)
 
     onesiglimvals = Tvals + rmsvals
 
@@ -473,8 +505,10 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     nu1 = nuobsvals - 0.5*0.0625*u.GHz
     nu2 = nuobsvals + 0.5*0.0625*u.GHz
 
-    z1 = (115.27*u.GHz - nu1) / nu1
-    z2 = (115.27*u.GHz - nu2) / nu2
+    z = (params.centfreq*u.GHz - nuobsvals) / nuobsvals
+    z1 = (params.centfreq*u.GHz - nu1) / nu1
+    z2 = (params.centfreq*u.GHz - nu2) / nu2
+    meanz = np.nanmean(z)
 
     distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
 
@@ -490,7 +524,8 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     beamrholim = rhous.to(u.Msun/u.Mpc**3)
 
     obsunitdict = {'L': beamvalobs, 'dL': beamrmsobs,
-                   'rho': beamrhoobs, 'drho': beamrhorms}
+                   'rho': beamrhoobs, 'drho': beamrhorms,
+                   'nuobs_mean': meannuobs, 'z_mean': meanz}
 
     return obsunitdict
 
@@ -519,7 +554,7 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     cbar.ax.set_ylabel('Tb (uK)')
 
     if params.saveplots:
-        fig.savefig(params.savepath+'/angularstack_unsmoothed.png')
+        fig.savefig(params.plotsavepath+'/angularstack_unsmoothed.png')
 
     # smoothed
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
@@ -533,7 +568,7 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     cbar.ax.set_ylabel('Tb (uK)')
 
     if params.saveplots:
-        fig.savefig(params.savepath+'/angularstack_smoothed.png')
+        fig.savefig(params.plotsavepath+'/angularstack_smoothed.png')
 
     return 0
 
@@ -558,7 +593,7 @@ def spectral_plotter(stackspec, params):
     ax.axvline(0 + params.freqwidth / 2 * 31.25e-3, color='0.7', ls=':')
 
     if params.saveplots:
-        fig.savefig(params.savepath + '/frequencystack.png')
+        fig.savefig(params.plotsavepath + '/frequencystack.png')
 
     return 0
 
@@ -651,6 +686,6 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
         fig.suptitle('$T_b = {:.3f}\\pm {:.3f}$ $\\mu$K'.format(*stackresult))
 
     if params.saveplots:
-        fig.savefig(params.savepath + '/combinedstackim.png')
+        fig.savefig(params.plotsavepath + '/combinedstackim.png')
 
     return 0
