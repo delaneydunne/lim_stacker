@@ -43,6 +43,8 @@ params.gauss_kernel = Gaussian2DKernel(params.beamwidth)
 params.tophat_kernel = Tophat2DKernel(params.beamwidth)
 params.spacestackwidth = 10 # in pixels -- if you only want single T value from each cutout, set to None
 params.freqstackwidth = 20 # number of channels. "" ""
+params.cubelet = True # tells stacker to save info in a different way to not completely overload
+                      # the RAM
 
 # convert into cosmological units?
 params.obsunits = True
