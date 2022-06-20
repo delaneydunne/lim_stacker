@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import h5py
 from astropy.io import fits
+import csv
 
 from astropy.cosmology import FlatLambdaCDM
 import astropy.units as u
@@ -49,8 +50,11 @@ params.cubelet = True # tells stacker to save info in a different way to not com
 # convert into cosmological units?
 params.obsunits = True
 
+# save the data separately
+params.savedata = True
+params.savepath = None
+
 # plotting parameters
-params.savepath = 'output'
 params.saveplots = True
 params.plotspace = True
 params.plotfreq = True
@@ -71,6 +75,9 @@ params.verbose = True
 comaplist, qsolist = st.setup(mapfiles, galcatfile, params)
 
 """ RUN """
-stackvals, image, spectrum, qsoidxlist = st.stacker(comaplist, qsolist, params)
+if params.cubelet:
+    stackvals, image, spectrum, qsoidxlist, cube, cuberms = st.stacker(comaplist, qsolist, params)
+else:
+    stackvals, image, spectrum, qsoidxlist = st.stacker(comaplist, qsolist, params)
 
 print("stack Tb is {:.3e} +/- {:.3e} uK".format(stackvals['T']*1e6, stackvals['rms']*1e6))
