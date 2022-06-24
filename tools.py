@@ -46,10 +46,11 @@ def unzip(tablist):
     """
 
     # turn all the individual objects into dicts (to keep only the attributes and
-    # their values)
-    dictlist = []
-    for obj in tablist:
-        dictlist.append(vars(obj))
+    # their values) if they're not already
+    if ~isinstance(tablist[0], dict):
+        dictlist = []
+        for obj in tablist:
+            dictlist.append(vars(obj))
 
     # dict to be returned
     d = {}
@@ -165,6 +166,11 @@ def load_map(file, reshape=True):
     comap.freq = comap.freq - comap.fstep / 2
     comap.ra = comap.ra - comap.xstep / 2
     comap.dec = comap.dec - comap.ystep / 2
+
+    # bin edges for each axis for convenience
+    comap.freqbe = np.append((comap.freq, comap.freq[-1] + comap.fstep))
+    comap.rabe = np.append((comap.ra, comap.ra[-1] + comap.xstep))
+    comap.decbe = np.append((comap.dec, comap.dec[-1] + comap.ystep))
 
 
     # limits on each axis for easy testing
