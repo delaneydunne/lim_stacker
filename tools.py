@@ -168,9 +168,9 @@ def load_map(file, reshape=True):
     comap.dec = comap.dec - comap.ystep / 2
 
     # bin edges for each axis for convenience
-    comap.freqbe = np.append((comap.freq, comap.freq[-1] + comap.fstep))
-    comap.rabe = np.append((comap.ra, comap.ra[-1] + comap.xstep))
-    comap.decbe = np.append((comap.dec, comap.dec[-1] + comap.ystep))
+    comap.freqbe = np.append(comap.freq, comap.freq[-1] + comap.fstep)
+    comap.rabe = np.append(comap.ra, comap.ra[-1] + comap.xstep)
+    comap.decbe = np.append(comap.dec, comap.dec[-1] + comap.ystep)
 
 
     # limits on each axis for easy testing
