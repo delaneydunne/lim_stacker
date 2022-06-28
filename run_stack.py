@@ -33,9 +33,9 @@ galcatfile = 'BOSS_quasars/cutquasarcat.npz'
 
 """ PARAMETERS """
 # set up a params class that you can just pass around
-params = st.empty_table()
+params = empty_table()
 params.xwidth = 3 # number of x pixels to average between when getting the cutout T
-params.ywidth = 3 # number of y pixels to average between when getting the cutout T
+params.ywidth = params.xwidth # number of y pixels to average between when getting the cutout T
 params.freqwidth = 1 # number of freq pixels to average between when getting the cutout T
 
 params.centfreq = 115.27 # rest frequency CO(1-0)
@@ -43,16 +43,13 @@ params.beamwidth = 1 # when smoothing to the synthesized beam, std of gaussian k
 params.gauss_kernel = Gaussian2DKernel(params.beamwidth)
 params.tophat_kernel = Tophat2DKernel(params.beamwidth)
 params.spacestackwidth = 10 # in pixels -- if you only want single T value from each cutout, set to None
-params.freqstackwidth = 20 # number of channels. "" ""
-params.cubelet = True # tells stacker to save info in a different way to not completely overload
-                      # the RAM
+params.freqstackwidth = 10 # number of channels. "" ""
 
-# convert into cosmological units?
 params.obsunits = True
+params.verbose = True
 
-# save the data separately
 params.savedata = True
-params.savepath = None
+params.savepath = 'boss_2006'
 
 # plotting parameters
 params.saveplots = True
@@ -62,14 +59,16 @@ params.fieldcents = [SkyCoord(25.435*u.deg, 0.0*u.deg), SkyCoord(170.0*u.deg, 52
                      SkyCoord(226.0*u.deg, 55.0*u.deg)]
 
 params.beamscale=False
-beamscale = np.array([[0.25, 0.5, 0.25],
-                      [0.50, 1.0, 0.50],
-                      [0.25, 0.5, 0.25]])
-beamscale3d = np.tile(beamscale, (params.freqwidth, 1, 1))
-params.beam = beamscale3d
+# beamscale = np.array([[0.25, 0.5, 0.25],
+#                       [0.50, 1.0, 0.50],
+#                       [0.25, 0.5, 0.25]])
+# beamscale3d = np.tile(beamscale, (params.freqwidth, 1, 1))
 
-# print more things while running through the cutout process
-params.verbose = True
+# params.beam = beamscale3d
+
+# save cubelets instead of spatial/spectral stacks separately
+# this will change how the data is saved and combined, so it doesn't overflow the RAM
+params.cubelet = True
 
 """ SETUP """
 comaplist, qsolist = st.setup(mapfiles, galcatfile, params)

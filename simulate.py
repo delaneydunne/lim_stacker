@@ -10,6 +10,7 @@ import pandas as pd
 import h5py
 import glob
 from astropy.convolution import convolve, Gaussian2DKernel
+from astropy.convolution import convolve_fft, Gaussian1DKernel, Kernel
 from astropy.io import fits
 import warnings
 warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
@@ -18,6 +19,44 @@ warnings.filterwarnings("ignore", message="divide by zero encountered in true_di
 
 
 """ COMBINE ALREADY-MADE SIMS WITH DATA """
+def load_raw_sim(file):
+    """
+    loads in a mock CO luminosity cube and stores as an object like the real
+    map
+    """
+
+    rawsimmap = st.empty_table()
+
+    with np.load(file) as simfile:
+        # sims output uK, data in K. stack functions all deal w K so convert
+        rawsimmap.rawmap = simfile['map_cube'] / 1e6
+        # these are bin CENTERS also
+        rawsimmap.freq = simfile['map_frequencies']
+        rawsimmap.ra = simfile['map_pixel_ra']
+        rawsimmap.dec = simfile['map_pixel_dec']
+
+    # just go ahead and flip the frequency axis here:
+    #  rearrange so frequency axis is first in the map
+    rawsimmap.rawmap = np.swapaxes(rawsimmap.rawmap, 0, -1)
+    rawsimmap.freq = np.flip(rawsimmap.freq)
+    rawsimmap.rawmap = np.flip(rawsimmap.rawmap, axis=0)
+
+    # get the pixel 'bin' edges for catalogue matching, etc
+    rawsimmap.fdiff = rawsimmap.freq[1] - rawsimmap.freq[0]
+    rawsimmap.radiff = rawsimmap.ra[1] - rawsimmap.ra[0]
+    rawsimmap.decdiff = rawsimmap.dec[1] - rawsimmap.dec[0]
+
+    rawsimmap.freqbe = np.append(rawsimmap.freq - rawsimmap.fdiff/2, rawsimmap.freq[-1] + rawsimmap.fdiff/2)
+    rawsimmap.rabe = np.append(rawsimmap.ra - rawsimmap.radiff/2, rawsimmap.ra[-1] + rawsimmap.radiff/2)
+    rawsimmap.decbe = np.append(rawsimmap.dec - rawsimmap.decdiff/2, rawsimmap.dec[-1] + rawsimmap.decdiff/2)
+
+
+    # **anything else here?
+
+    return rawsimmap
+
+
+
 def load_sim(file):
     """
     loads in a mock CO luminosity cube and stores as an object like the real
@@ -37,11 +76,22 @@ def load_sim(file):
 
     return simmap
 
-def beam_smooth_sim(simmap, fwhm=4.5):
+def beam_smooth_sim(simmap, fwhm=4.5, nu_fwhm=None):
     """
     Smooth the simulated data with a Gaussian 2D kernel to approximate the wider COMAP beam
     fwhm should be the beam fwhm in arcmin
     """
+
+    if nu_fwhm:
+        # VERY rough first smooth over frequency axes
+        # *** nu_fwhm is just in pixels for now
+        linekernel = Gaussian1DKernel(nu_fwhm)
+        linewidth_3d = linekernel.array[:, np.newaxis, np.newaxis]
+        linekernel_3d = Kernel(linewidth_3d)
+
+        nusmoothmap = convolve_fft(simmap.rawmap, linekernel_3d, allow_huge=True)
+        simmap.rawmap = nusmoothmap
+
 
     std = fwhm / (2*np.sqrt(2*np.log(2)))
     pixwidth = (simmap.ra[1] - simmap.ra[0])*60
