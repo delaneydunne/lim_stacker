@@ -36,7 +36,7 @@ def printdict(dict):
             val = dict[key].value
         else:
             val = dict[key]
-        print("'", key, "':", val,",")
+        print("'{}': {:.3e},".format(key, val))
     print('}')
 
 def unzip(tablist):
