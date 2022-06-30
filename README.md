@@ -9,6 +9,7 @@ Code to stack line-intensity mapping data cubes on galaxy catalogues.
 TO DO:
 - change what cubelet params flag does?
   - cubelet/cubestack bug
+- brightness temperature deprecation
 - integrate peak-patch simulation combining and stacking into package
 - per-field stacks -- create an automatic output flag
 - make a custom params class and set it to auto-populate with defaults
