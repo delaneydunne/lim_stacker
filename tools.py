@@ -7,7 +7,9 @@ import astropy.constants as const
 from astropy.coordinates import SkyCoord
 import os
 import h5py
+import csv
 import warnings
+import copy
 warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
 warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
@@ -24,7 +26,7 @@ class empty_table():
 
     def copy(self):
         """@brief Creates a copy of the table."""
-        return copy.copy(self)
+        return copy.deepcopy(self)
 
 def printdict(dict):
     """
@@ -51,6 +53,8 @@ def unzip(tablist):
         dictlist = []
         for obj in tablist:
             dictlist.append(vars(obj))
+    else:
+        dictlist = tablist
 
     # dict to be returned
     d = {}
@@ -61,6 +65,32 @@ def unzip(tablist):
             d[k] = np.array(tuple(list(d[k] for d in dictlist)))
 
     return d
+
+def dict_saver(indict, outfile, strip_units=True):
+    """
+    function to save a dictionary to an output .csv file
+    can't handle dicts with more than one value per key, but can handle dicts
+    with units -- it will strip the units off if strip_units is true so they're
+    easier to open on the other end
+    """
+
+    if strip_units:
+        unitless_dict = {}
+        for (key, val) in indict.items():
+            if isinstance(val, u.Quantity):
+                key = key + ' (' + val.unit.to_string() + ')'
+                unitless_dict[key] = val.value
+            else:
+                unitless_dict[key] = val
+    else:
+        unitless_dict = indict.copy()
+
+    with open(outfile, 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=list(unitless_dict.keys()))
+        writer.writeheader()
+        writer.writerow(unitless_dict)
+
+    return unitless_dict
 
 """ MATH """
 def weightmean(vals, rmss, axis=None):

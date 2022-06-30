@@ -431,18 +431,7 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         ovalfile = params.datasavepath + '/output_values.csv'
         # strip the values of their units before saving them (otherwise really annoying
         # to read out on the other end)
-        outputvals_nu = {}
-        for (key, val) in outputvals.items():
-            if isinstance(val, u.Quantity):
-                key = key + ' (' + val.unit.to_string() + ')'
-                outputvals_nu[key] = val.value
-            else:
-                outputvals_nu[key] = val
-
-        with open(ovalfile, 'w') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=list(outputvals_nu.keys()))
-            writer.writeheader()
-            writer.writerow(outputvals_nu)
+        outputvals_nu = dict_saver(outputvals, ovalfile)
 
         idxfile = params.datasavepath + '/included_cat_indices.npz'
         np.savez(idxfile, field1=fieldcatidx[0], field2=fieldcatidx[1], field3=fieldcatidx[2])
