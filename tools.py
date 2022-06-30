@@ -72,25 +72,61 @@ def dict_saver(indict, outfile, strip_units=True):
     can't handle dicts with more than one value per key, but can handle dicts
     with units -- it will strip the units off if strip_units is true so they're
     easier to open on the other end
+
+    can also handle a list of dicts with identical keys
     """
 
-    if strip_units:
-        unitless_dict = {}
-        for (key, val) in indict.items():
-            if isinstance(val, u.Quantity):
-                key = key + ' (' + val.unit.to_string() + ')'
-                unitless_dict[key] = val.value
+    if isinstance(indict, list):
+        # if a list of dicts is given, have to iterate through them
+        unitless_dict_list = []
+        for idict in indict:
+            if strip_units:
+                # if we want units gone, this needs to be done for each dict individually
+                # before printing
+                unitless_dict = {}
+                for (key, val) in idict.items():
+                    if isinstance(val, u.Quantity):
+                        key = key + ' (' + val.unit.to_string() + ')'
+                        unitless_dict[key] = val.value
+                    else:
+                        unitless_dict[key] = val
             else:
-                unitless_dict[key] = val
-    else:
-        unitless_dict = indict.copy()
+                # otherwise just copy them over
+                unitless_dict = idict.copy()
+            # new list of cleaned dicts to print to file
+            unitless_dict_list.append(unitless_dict)
 
+    # if there's only one dict given, don't need to iterate -- just clean it if
+    # necessary
+    else:
+        if strip_units:
+            unitless_dict = {}
+            for (key, val) in indict.items():
+                if isinstance(val, u.Quantity):
+                    key = key + ' (' + val.unit.to_string() + ')'
+                    unitless_dict[key] = val.value
+                else:
+                    unitless_dict[key] = val
+        else:
+            unitless_dict = indict.copy()
+
+    # will have a floating single dict with keys to reference no matter what, so
+    # print those first
     with open(outfile, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=list(unitless_dict.keys()))
         writer.writeheader()
-        writer.writerow(unitless_dict)
+        # then, either print many rows or only one depending on what was passed
+        if isinstance(indict, list):
+            for idict in unitless_dict_list:
+                writer.writerow(idict)
+            # return the cleaned dict list
+            return unitless_dict_list
 
-    return unitless_dict
+        else:
+            writer.writerow(unitless_dict)
+            # return the cleaned dict
+            return unitless_dict
+
 
 """ MATH """
 def weightmean(vals, rmss, axis=None):
