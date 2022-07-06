@@ -25,7 +25,7 @@ def load_raw_sim(file):
     map
     """
 
-    rawsimmap = st.empty_table()
+    rawsimmap = empty_table()
 
     with np.load(file, allow_pickle=True) as simfile:
         # sims output uK, data in K. stack functions all deal w K so convert
@@ -60,7 +60,7 @@ def load_raw_catalogue(catfile, pixel_values=None):
     # load from npz file
     with np.load(catfile, allow_pickle=True) as rawcat:
         # store in a table object to access different values as attributes
-        catobj = st.empty_table()
+        catobj = empty_table()
         catobj.ra = rawcat['ra']
         catobj.dec = rawcat['dec']
         if 'z' in rawcat.files:
@@ -69,7 +69,7 @@ def load_raw_catalogue(catfile, pixel_values=None):
             catobj.z = rawcat['redshift']
         catobj.Lco = rawcat['Lco']
         catobj.M = rawcat['M']
-        catobj.freq = st.nuem_to_nuobs(115.27, catobj.z) #***
+        catobj.freq = nuem_to_nuobs(115.27, catobj.z) #***
 
     # if pixel values is not none, a simulated map object should be passed instead
     # when this is the case find the pixel values in the simulated map that correspond to the
@@ -179,7 +179,7 @@ def sim_inject_field(datfile, simfile, catfile, outfile=None, scale=1.):
     """
 
     # load the actual data in (this acts as noise)
-    datmap = st.load_map(datfile)
+    datmap = load_map(datfile)
 
     # load the simulation in (preserving its wcs for now)
     simmap = load_raw_sim(simfile)
@@ -213,11 +213,17 @@ def sim_inject_field(datfile, simfile, catfile, outfile=None, scale=1.):
 
     return injmap, simcat
 
-def sim_inject(datfiles, simfiles, catfiles, outputdir=None, scale=1.):
+def sim_inject(datfiles, simfiles, catfiles, outputdir=None, scale=1., trim=None):
     """
     takes input for three different COMAP fields with associated simulations and
     does the injection, matching wcs in the simulation and catalogue to the actual
     data wcs
+    --------
+    scale:  DIVIDES the input data map (i.e. the noise) by this factor to simulate
+            beating the noise down
+    trim:   number of catalogue objects to keep (default is all of them). can be
+            either a list of integers (one per field) or a single integer (same
+            number kept in each field)
     """
 
     # output path management stuff - save all files to a passed directory
@@ -257,10 +263,21 @@ def sim_inject(datfiles, simfiles, catfiles, outputdir=None, scale=1.):
         fieldcats.append(fieldcat)
 
     # combine all the output catalogues together into a single file for ease
-    allfieldcat = st.empty_table()
-    allfieldcat.z = np.concatenate([cat.z for cat in fieldcats])
-    allfieldcat.ra = np.concatenate([cat.ra for cat in fieldcats])
-    allfieldcat.dec = np.concatenate([cat.dec for cat in fieldcats])
+    allfieldcat = empty_table()
+    if isinstance(trim, (list, tuple, np.ndarray)):
+        allfieldcat.z = np.concatenate([cat.z[:trim[i]] for i,cat in enumerate(fieldcats)])
+        allfieldcat.ra = np.concatenate([cat.ra[:trim[i]] for i,cat in enumerate(fieldcats)])
+        allfieldcat.dec = np.concatenate([cat.dec[:trim[i]] for i,cat in enumerate(fieldcats)])
+
+    elif trim:
+        allfieldcat.z = np.concatenate([cat.z[:trim] for cat in fieldcats])
+        allfieldcat.ra = np.concatenate([cat.ra[:trim] for cat in fieldcats])
+        allfieldcat.dec = np.concatenate([cat.dec[:trim] for cat in fieldcats])
+
+    else:
+        allfieldcat.z = np.concatenate([cat.z for cat in fieldcats])
+        allfieldcat.ra = np.concatenate([cat.ra for cat in fieldcats])
+        allfieldcat.dec = np.concatenate([cat.dec for cat in fieldcats])
 
     dump_cat(allfieldcat, allfieldcatfile)
 
