@@ -112,19 +112,21 @@ def load_raw_catalogue(catfile, pixel_values=None):
     return catobj
 
 """MATCH WCS OF SIMS TO THE REAL MAP COORDINATES"""
-def simcoords_to_mapcoords(simobj, mapobj, simcat):
+def simcoords_to_mapcoords(insimobj, mapobj, insimcat):
 
+    outsimobj = insimobj.copy()
     # ra/dec and all their permutations
-    simobj.ra = simobj.ra + mapobj.ra[0]
-    simobj.rabe = simobj.rabe + mapobj.rabe[0]
-    simobj.dec = simobj.dec + mapobj.dec[0]
-    simobj.decbe = simobj.decbe + mapobj.decbe[0]
+    outsimobj.ra = insimobj.ra - insimobj.ra[0] + mapobj.ra[0]
+    outsimobj.rabe = insimobj.rabe - insimobj.rabe[0] + mapobj.rabe[0]
+    outsimobj.dec = insimobj.dec - insimobj.dec[0] + mapobj.dec[0]
+    outsimobj.decbe = insimobj.decbe - insimobj.decbe[0] + mapobj.decbe[0]
 
+    outsimcat = insimcat.copy()
     # same for the catalogue
-    simcat.ra = simcat.ra + mapobj.ra[0]
-    simcat.dec = simcat.dec + mapobj.dec[0]
+    outsimcat.ra = insimcat.ra - insimobj.ra[0] + mapobj.ra[0]
+    outsimcat.dec = insimcat.dec - insimobj.dec[0] + mapobj.dec[0]
 
-    return simobj, mapobj, simcat
+    return outsimobj, mapobj, outsimcat
 
 
 
@@ -254,7 +256,7 @@ def sim_inject(datfiles, simfiles, catfiles, outputdir=None, scale=1., trim=None
     allfieldcatfile = outputdir+'combined_cat_fields_'+'-'.join(fieldnames)+'_seeds_'+'-'.join(simnames)
     if trim:
         if isinstance(trim, (list, tuple, np.ndarray)):
-            allfieldcatfile += '_trim_'+'-'.join(trim)
+            allfieldcatfile += '_trim_'+'-'.join([str(ti) for ti in trim])
         else:
             allfieldcatfile += '_trim_'+trim
     allfieldcatfile +=  '.npz'
@@ -286,8 +288,9 @@ def sim_inject(datfiles, simfiles, catfiles, outputdir=None, scale=1., trim=None
 
     dump_cat(allfieldcat, allfieldcatfile)
 
-    return
+    outfiles.append(allfieldcatfile)
 
+    return outfiles
 
 """ DISTRIBUTION-AWARE STACKS """
 def bin_field_sim_catalogue(actidxs, galcat, simcat, params):
