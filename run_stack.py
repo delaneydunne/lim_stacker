@@ -21,7 +21,7 @@ from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import SymLogNorm
 
-import stacker as st
+import lim_stacker as st
 
 """ INPUT FILES """
 # path to COMAP map files
@@ -33,7 +33,7 @@ galcatfile = 'BOSS_quasars/cutquasarcat.npz'
 
 """ PARAMETERS """
 # set up a params class that you can just pass around
-params = empty_table()
+params = st.empty_table()
 params.xwidth = 3 # number of x pixels to average between when getting the cutout T
 params.ywidth = params.xwidth # number of y pixels to average between when getting the cutout T
 params.freqwidth = 1 # number of freq pixels to average between when getting the cutout T

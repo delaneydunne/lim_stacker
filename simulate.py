@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
 
-""" COMBINE ALREADY-MADE SIMS WITH DATA """
+""" FUNCTIONS FOR LOADING SIMS IN """
 def load_raw_sim(file):
     """
     loads in a mock CO luminosity cube and stores as an object like the real
@@ -27,7 +27,7 @@ def load_raw_sim(file):
 
     rawsimmap = st.empty_table()
 
-    with np.load(file) as simfile:
+    with np.load(file, allow_pickle=True) as simfile:
         # sims output uK, data in K. stack functions all deal w K so convert
         rawsimmap.rawmap = simfile['map_cube'] / 1e6
         # these are bin CENTERS also
@@ -55,60 +55,80 @@ def load_raw_sim(file):
 
     return rawsimmap
 
+def load_raw_catalogue(catfile, pixel_values=None):
+
+    # load from npz file
+    with np.load(catfile, allow_pickle=True) as rawcat:
+        # store in a table object to access different values as attributes
+        catobj = st.empty_table()
+        catobj.ra = rawcat['ra']
+        catobj.dec = rawcat['dec']
+        if 'z' in rawcat.files:
+            catobj.z = rawcat['z']
+        else:
+            catobj.z = rawcat['redshift']
+        catobj.Lco = rawcat['Lco']
+        catobj.M = rawcat['M']
+        catobj.freq = st.nuem_to_nuobs(115.27, catobj.z) #***
+
+    # if pixel values is not none, a simulated map object should be passed instead
+    # when this is the case find the pixel values in the simulated map that correspond to the
+    # positions of the catalogue objects
+    if pixel_values:
+        # think this just has to be brute-force #***
+        pixfreq = []
+        pixra = []
+        pixdec = []
+        for i in range(len(catobj.freq)):
+            objpixfreq = np.max(np.where(pixel_values.freqbe < catobj.freq[i])[0])
+            objpixra = np.max(np.where(pixel_values.rabe < catobj.ra[i])[0])
+            objpixdec = np.max(np.where(pixel_values.decbe < catobj.dec[i])[0])
+
+            pixfreq.append(objpixfreq)
+            pixra.append(objpixra)
+            pixdec.append(objpixdec)
+
+        catobj.chan = np.array(pixfreq)
+        catobj.x = np.array(pixra)
+        catobj.y = np.array(pixdec)
+
+    # if not already sorted, sort so the most luminous halo is the first one
+    if np.argmax(catobj.M) != 0:
+        sortidx = np.flip(np.argsort(catobj.M))
+        catobj.ra = catobj.ra[sortidx]
+        catobj.dec = catobj.dec[sortidx]
+        catobj.z = catobj.z[sortidx]
+        catobj.Lco = catobj.Lco[sortidx]
+        catobj.M = catobj.M[sortidx]
+        catobj.freq = catobj.freq[sortidx]
+
+        if pixel_values:
+            catobj.chan = catobj.chan[sortidx]
+            catobj.x = catobj.x[sortidx]
+            catobj.y = catobj.y[sortidx]
 
 
-def load_sim(file):
-    """
-    loads in a mock CO luminosity cube and stores as an object like the real
-    map
-    """
 
-    simmap = empty_table()
+    return catobj
 
-    with np.load(file) as simfile:
-        # sims output uK, data in K. stack functions all deal w K so convert
-        simmap.rawmap = simfile['map_cube'].T / 1e6
-        simmap.freq = simfile['map_frequencies']
-        simmap.ra = simfile['map_pixel_ra']
-        simmap.dec = simfile['map_pixel_dec']
+"""MATCH WCS OF SIMS TO THE REAL MAP COORDINATES"""
+def simcoords_to_mapcoords(simobj, mapobj, simcat):
 
-    # **anything else here?
+    # ra/dec and all their permutations
+    simobj.ra = simobj.ra + mapobj.ra[0]
+    simobj.rabe = simobj.rabe + mapobj.rabe[0]
+    simobj.dec = simobj.dec + mapobj.dec[0]
+    simobj.decbe = simobj.decbe + mapobj.decbe[0]
 
-    return simmap
+    # same for the catalogue
+    simcat.ra = simcat.ra + mapobj.ra[0]
+    simcat.dec = simcat.dec + mapobj.dec[0]
 
-def beam_smooth_sim(simmap, fwhm=4.5, nu_fwhm=None):
-    """
-    Smooth the simulated data with a Gaussian 2D kernel to approximate the wider COMAP beam
-    fwhm should be the beam fwhm in arcmin
-    """
-
-    if nu_fwhm:
-        # VERY rough first smooth over frequency axes
-        # *** nu_fwhm is just in pixels for now
-        linekernel = Gaussian1DKernel(nu_fwhm)
-        linewidth_3d = linekernel.array[:, np.newaxis, np.newaxis]
-        linekernel_3d = Kernel(linewidth_3d)
-
-        nusmoothmap = convolve_fft(simmap.rawmap, linekernel_3d, allow_huge=True)
-        simmap.rawmap = nusmoothmap
+    return simobj, mapobj, simcat
 
 
-    std = fwhm / (2*np.sqrt(2*np.log(2)))
-    pixwidth = (simmap.ra[1] - simmap.ra[0])*60
 
-    std_pix = std / pixwidth
-
-    beamkernel = Gaussian2DKernel(std_pix)
-
-    # loop over the frequency axis and convolve each frame
-    smoothsimlist = []
-    for i in range(len(simmap.freq)):
-        smoothsimlist.append(convolve(simmap.rawmap[i,:,:], beamkernel))
-
-    simmap.map = np.stack(smoothsimlist, axis=0)
-
-    return simmap
-
+""" FUNCTIONS FOR SAVING SIMS"""
 def dump_map(comap, filename):
     """
     save a map class as a hdf5 file
@@ -116,125 +136,135 @@ def dump_map(comap, filename):
     datasets needed for stacking
     """
 
-    # *** automatic output file naming
-
     # undo the coordinate shift so it doesn't happen twice when it's reloaded
-    comap.freq = comap.freq + comap.fstep / 2
-    comap.ra = comap.ra + comap.xstep / 2
-    comap.dec = comap.dec + comap.ystep / 2
+    outfreq = comap.freq + comap.fstep / 2
+    outra = comap.ra + comap.xstep / 2
+    outdec = comap.dec + comap.ystep / 2
 
     with h5py.File(filename, 'w') as f:
-        dset = f.create_dataset('map_coadd', data = comap.simdatmap, dtype='float64')
+        dset = f.create_dataset('map_coadd', data = comap.sim, dtype='float64')
         dset = f.create_dataset('rms_coadd', data = comap.rms, dtype='float64')
-        dset = f.create_dataset('freq', data = comap.freq, dtype='float64')
-        dset = f.create_dataset('x', data = comap.ra, dtype='float64')
-        dset = f.create_dataset('y', data = comap.dec, dtype='float64')
+        dset = f.create_dataset('freq', data = outfreq, dtype='float64')
+        dset = f.create_dataset('x', data = outra, dtype='float64')
+        dset = f.create_dataset('y', data = outdec, dtype='float64')
 
         patchcent = (comap.fieldcent.ra.deg, comap.fieldcent.dec.deg)
         dset = f.create_dataset('patch_center', data = patchcent, dtype='float64')
 
+        # store the simulation-only and data-only maps too for posterity
+        dset = f.create_dataset('sim_only', data = comap.simonly, dtype='float64')
+        dset = f.create_dataset('dat_only', data = comap.map, dtype='float64')
+
     return 0
 
-def scalesim(datfiles, simfiles, outfiles, scale=1, beamfwhm=4.5, save=True,
-             rmsscale=False):
+def dump_cat(cat, filename):
     """
-    Wrapper to load files and add simulated data. Scale can be arraylike or a single value
-    ***warn properly
+    save the simulated catalogue (with wcs corrected to match data) to file in the
+    correct format for run_stack to just read it in like a real catalogue
     """
 
-    # *** fix
-    # if len(datfiles) != len(simfiles):
-    #     print('different number of files')
-    #     return 0
+    np.savez(filename, z=cat.z, ra=cat.ra, dec=cat.dec)
 
-    # if an array of scale values passed, only run io once and then add and dump
-    #  for each scale value
-    if isinstance(scale, (list, tuple, np.ndarray)):
-        for i in range(len(datfiles)):
+    return 0
 
-            datmap = load_map(datfiles[i])
 
-            simlummap = load_sim(simfiles[i])
-            simlummap = beam_smooth_sim(simlummap, fwhm=beamfwhm)
+"""SIGNAL-INJECTION WRAPPERS"""
+def sim_inject_field(datfile, simfile, catfile, outfile=None, scale=1.):
+    """
+    wrapper function -- loads in an actual COMAP map and a simulated halo luminosity LIM
+    cube, matches the wcs between the two, and injects the simulated signal into the
+    actual map, scaling by 'scale'. Will then save the new map and the associated halo
+    catalogue (also wcs-matched) to file.
+    Works on a SINGLE COMAP field
+    """
 
-            datmap.simmap = np.array(simlummap.map)
+    # load the actual data in (this acts as noise)
+    datmap = st.load_map(datfile)
 
-            if i == 0:
-                # noise varies between the comap fields -- only want to scale
-                # in field 1 and have the others match
-                if rmsscale:
-                    # *** generalize
-                    tm = datmap.map[100,40:80,40:80]
-                    maprms = np.abs(np.nanmedian(tm))
+    # load the simulation in (preserving its wcs for now)
+    simmap = load_raw_sim(simfile)
+    simcat = load_raw_catalogue(catfile, pixel_values=simmap)
 
-                    tsm = datmap.simmap[100,40:80,40:80]
-                    simsig = np.nanmax(tsm) * 0.25
+    # match wcs
+    simmap, datmap, simcat = simcoords_to_mapcoords(simmap, datmap, simcat)
 
-                    rawsn = simsig / maprms
+    # inject the signal into the map, beating the noise down by the scale factor
+    injected_map = datmap.map / scale + simmap.rawmap
 
-                    scale = scale * rawsn
-                    # ***return better
-                    print(scale)
+    # new map object to store all this info in
+    injmap = datmap.copy()
+    injmap.sim = injected_map
+    injmap.simonly = simmap.rawmap
 
-            for j in range(len(scale)):
-                simdatmap = np.array(datmap.map / scale[j] + datmap.simmap)
-                sdmcent = simdatmap[120:160,40:80,40:80]
+    # save the injected simulation like it's a normal COMAP .h5 product
+    ## make a file name if none is given for both the map and the catalogue
+    if not outfile:
+        datname = datfile.split('/')[-1][:-3]
+        simname = simfile.split('seed_')[-1][:-3]
+        outfile = 'simcube_' + datname + '_sim_' + simname
 
-                # subtract the mean
-                # meanval = np.nanmean(sdmcent)
-                # datmap.simdatmap = simdatmap - meanval
-                datmap.simdatmap = simdatmap
+        if scale != 1.:
+            outfile += '_scale{:.1f}.h5'.format(scale)
+        else:
+            outfile += '.h5'
 
-                if rmsscale:
-                    # rename the output files to have the correct scale in them
-                    outfiles[i] = outfiles[i].split('_sn')[0] + '_sn'+str(j)+'.h5'
-                else:
-                    # rename the output files to have the correct scale in them
-                    outfiles[i] = outfiles[i].split('_scale')[0] + '_scale'+str(j)+'.h5'
+    ## save the map
+    dump_map(injmap, outfile)
 
-                if save:
-                    dump_map(datmap, outfiles[i])
+    return injmap, simcat
 
-    # otherwise, just run through everything once
+def sim_inject(datfiles, simfiles, catfiles, outputdir=None, scale=1.):
+    """
+    takes input for three different COMAP fields with associated simulations and
+    does the injection, matching wcs in the simulation and catalogue to the actual
+    data wcs
+    """
+
+    # output path management stuff - save all files to a passed directory
+    if not outputdir:
+        outputdir = './output/'
     else:
-        for i in range(len(datfiles)):
+        if outputdir[-1] != '/': outputdir += '/'
 
-            datmap = load_map(datfiles[i])
+    if not os.path.exists(outputdir):
+        os.makedirs(outputdir)
 
-            simlummap = load_sim(simfiles[i])
-            simlummap = beam_smooth_sim(simlummap, fwhm=beamfwhm)
+    outfiles = []
+    simnames = []
+    fieldnames = []
+    for i in range(3):
+        datname = datfiles[i].split('/')[-1][:-3]
+        fieldnames.append('co'+datname.split('co')[-1][0])
+        simname = simfiles[i].split('seed_')[-1][:-4]
+        simnames.append(simname[:5])
+        outfile = outputdir + datname + '_sim_' + simname
+        if scale != 1.:
+            outfile += '_scale{:.1f}.h5'.format(scale)
+        else:
+            outfile += '.h5'
+        outfiles.append(outfile)
 
-            datmap.simmap = np.array(simlummap.map)
+    # come up with a file name for the combined catalogue
+    allfieldcatfile = outputdir+'combined_cat_fields_'+fieldnames[0]+'-'+fieldnames[1]+'-'+fieldnames[2]
+    allfieldcatfile += '_seeds_' + simnames[0]+ '-' +simnames[1]+ '-' +simnames[2] + '.npz'
 
-            if i == 0:
-                # noise varies between the comap fields -- only want to scale
-                # in field 1 and have the others match
-                if rmsscale:
-                    # *** generalize
-                    tm = datmap.map[120:160,40:80,40:80]
-                    maprms = np.abs(np.nanmean(tm))
+    # individual injections for each field
+    fieldcats = []
+    for i in range(3):
+        fieldmap, fieldcat = sim_inject_field(datfiles[i], simfiles[i], catfiles[i],
+                                              outfile=outfiles[i], scale=scale)
 
-                    tsm = datmap.simmap[120:160,40:80,40:80]
-                    simsig = np.nanmax(tsm) * 0.25
+        fieldcats.append(fieldcat)
 
-                    rawsn = simsig / maprms
+    # combine all the output catalogues together into a single file for ease
+    allfieldcat = st.empty_table()
+    allfieldcat.z = np.concatenate([cat.z for cat in fieldcats])
+    allfieldcat.ra = np.concatenate([cat.ra for cat in fieldcats])
+    allfieldcat.dec = np.concatenate([cat.dec for cat in fieldcats])
 
-                    scale = scale * rawsn
-                    # ***return better
-                    print(scale)
+    dump_cat(allfieldcat, allfieldcatfile)
 
-            simdatmap = np.array(datmap.map / scale + datmap.simmap)
-            sdmcent = simdatmap[120:160,40:80,40:80]
-
-            # subtract off the mean (done in the actual COMAP pipeline)
-            # meanval = np.nanmean(sdmcent)
-            # datmap.simdatmap = simdatmap - meanval
-            datmap.simdatmap = simdatmap
-
-            if save:
-                dump_map(datmap, outfiles[i])
-
-    return datmap
+    return
 
 
 """ DISTRIBUTION-AWARE STACKS """

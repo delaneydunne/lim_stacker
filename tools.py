@@ -204,7 +204,7 @@ def load_map(file, reshape=True):
         patch_cent = np.array(mapfile.get('patch_center'))
         comap.fieldcent = SkyCoord(patch_cent[0]*u.deg, patch_cent[1]*u.deg)
 
-        # mark pixels with zero rms and mask them in the rms/map arrays (how the pipeline stores infs)
+    # mark pixels with zero rms and mask them in the rms/map arrays (how the pipeline stores infs)
     comap.badpix = np.where(rmstemparr < 1e-10)
     maptemparr[comap.badpix] = np.nan
     rmstemparr[comap.badpix] = np.nan
