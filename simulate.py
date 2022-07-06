@@ -251,8 +251,13 @@ def sim_inject(datfiles, simfiles, catfiles, outputdir=None, scale=1., trim=None
         outfiles.append(outfile)
 
     # come up with a file name for the combined catalogue
-    allfieldcatfile = outputdir+'combined_cat_fields_'+fieldnames[0]+'-'+fieldnames[1]+'-'+fieldnames[2]
-    allfieldcatfile += '_seeds_' + simnames[0]+ '-' +simnames[1]+ '-' +simnames[2] + '.npz'
+    allfieldcatfile = outputdir+'combined_cat_fields_'+'-'.join(fieldnames)+'_seeds_'+'-'.join(simnames)
+    if trim:
+        if isinstance(trim, (list, tuple, np.ndarray)):
+            allfieldcatfile += '_trim_'+'-'.join(trim)
+        else:
+            allfieldcatfile += '_trim_'+trim
+    allfieldcatfile +=  '.npz'
 
     # individual injections for each field
     fieldcats = []
