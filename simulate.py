@@ -113,18 +113,24 @@ def load_raw_catalogue(catfile, pixel_values=None):
 
 """MATCH WCS OF SIMS TO THE REAL MAP COORDINATES"""
 def simcoords_to_mapcoords(insimobj, mapobj, insimcat):
+    """
+    sim maps have ra/dec/freq saved as the CENTER of each pixel, and
+    rabe/decbe are width/2 off of this! need to UNDO this in the catalogue part
+    of the transformation
+    frequency axes should be identical between the two already
+    """
 
     outsimobj = insimobj.copy()
     # ra/dec and all their permutations
-    outsimobj.ra = insimobj.ra - insimobj.ra[0] + mapobj.ra[0]
-    outsimobj.rabe = insimobj.rabe - insimobj.rabe[0] + mapobj.rabe[0]
-    outsimobj.dec = insimobj.dec - insimobj.dec[0] + mapobj.dec[0]
-    outsimobj.decbe = insimobj.decbe - insimobj.decbe[0] + mapobj.decbe[0]
+    outsimobj.ra = insimobj.ra - insimobj.radiff/2 - insimobj.ra[0] + mapobj.ra[0]
+    outsimobj.rabe = insimobj.rabe - insimobj.radiff/2 - insimobj.rabe[0] + mapobj.rabe[0]
+    outsimobj.dec = insimobj.dec - insimobj.decdiff/2 - insimobj.dec[0] + mapobj.dec[0]
+    outsimobj.decbe = insimobj.decbe - insimobj.decdiff/2 - insimobj.decbe[0] + mapobj.decbe[0]
 
     outsimcat = insimcat.copy()
     # same for the catalogue
-    outsimcat.ra = insimcat.ra - insimobj.ra[0] + mapobj.ra[0]
-    outsimcat.dec = insimcat.dec - insimobj.dec[0] + mapobj.dec[0]
+    outsimcat.ra = insimcat.ra + insimobj.radiff/2 - insimobj.ra[0] + mapobj.ra[0]
+    outsimcat.dec = insimcat.dec + insimobj.decdiff/2 - insimobj.dec[0] + mapobj.dec[0]
 
     return outsimobj, mapobj, outsimcat
 
