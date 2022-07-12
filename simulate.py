@@ -161,7 +161,7 @@ def dump_map(comap, filename):
 
         # store the simulation-only and data-only maps too for posterity
         dset = f.create_dataset('sim_only', data = comap.simonly, dtype='float64')
-        dset = f.create_dataset('dat_only', data = comap.map, dtype='float64')
+        dset = f.create_dataset('dat_only', data = comap.datonly, dtype='float64')
 
     return 0
 
@@ -198,11 +198,14 @@ def sim_inject_field(datfile, simfile, catfile, outfile=None, scale=1.):
 
     # inject the signal into the map, beating the noise down by the scale factor
     injected_map = datmap.map / scale + simmap.rawmap
+    injected_rms = datmap.rms / scale
 
     # new map object to store all this info in
     injmap = datmap.copy()
     injmap.sim = injected_map
+    injmap.rms = injected_rms
     injmap.simonly = simmap.rawmap
+    injmap.datonly = datmap.map
 
     # save the injected simulation like it's a normal COMAP .h5 product
     ## make a file name if none is given for both the map and the catalogue

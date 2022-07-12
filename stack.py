@@ -688,3 +688,28 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
         fig.savefig(params.plotsavepath + '/combinedstackim.png')
 
     return 0
+
+
+def catalogue_plotter(catlist, goodcatidx, params):
+
+    fig,axs = plt.subplots(1,3, figsize=(13,4))
+    fields = ['Field 1', 'Field 2', 'Field 3']
+
+    for i in range(3):
+        fieldz = catlist[i].z[goodcatidx[i]]
+        fieldcoord = catlist[i].coords[goodcatidx[i]]
+
+        c = axs[i].scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4)
+        axs[i].set_xlabel('Dec (deg)')
+        axs[i].set_title(fields[i]+' ('+str(len(qsoidxlist[i]))+' quasars)')
+
+    axs[0].set_ylabel('RA (deg)')
+    divider = make_axes_locatable(axs[2])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cbar = fig.colorbar(c, cax=cax)
+    cbar.ax.set_ylabel('Redshift')
+
+    if params.saveplots:
+        fig.savefig(params.plotsavepath + '/catalogue_object_distribution.png')
+
+    return 0
