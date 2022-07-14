@@ -326,7 +326,7 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
                                                                            galcatlist[i],
                                                                            params,
                                                                            field=fields[i])
-            if fieldcubestack:
+            if isinstance(fieldcubestack, np.ndarray):
                 cubestacks.append(fieldcubestack)
                 cubermss.append(fieldcuberms)
         else:
