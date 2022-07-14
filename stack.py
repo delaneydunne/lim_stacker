@@ -269,6 +269,7 @@ def field_get_cutouts(comap, galcat, params, field=None):
     wrapper to return all cutouts for a single field
     """
     ti = 0
+    cubestack, cuberms = None, None
     cutoutlist = []
     for i in range(galcat.nobj):
         cutout = single_cutout(i, galcat, comap, params)
@@ -416,6 +417,9 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     if params.savedata or params.saveplots:
         make_output_pathnames(params)
 
+    if params.saveplots:
+        catalogue_plotter(galcatlist, fieldcatidx, params)
+
     if params.spacestackwidth and params.plotspace:
         spatial_plotter(stackim, params, cmap=cmap)
 
@@ -423,7 +427,7 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         spectral_plotter(stackspec, params)
 
     if params.spacestackwidth and params.freqstackwidth and params.plotspace and params.plotfreq:
-                combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
+        combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
 
     """ SAVE DATA """
     if params.savedata:
@@ -701,7 +705,7 @@ def catalogue_plotter(catlist, goodcatidx, params):
 
         c = axs[i].scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4)
         axs[i].set_xlabel('Dec (deg)')
-        axs[i].set_title(fields[i]+' ('+str(len(qsoidxlist[i]))+' quasars)')
+        axs[i].set_title(fields[i]+' ('+str(len(goodcatidx[i]))+' objects)')
 
     axs[0].set_ylabel('RA (deg)')
     divider = make_axes_locatable(axs[2])

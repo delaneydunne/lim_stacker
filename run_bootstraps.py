@@ -58,6 +58,7 @@ params.plotspace = False
 params.plotfreq = False
 params.fieldcents = [SkyCoord(25.435*u.deg, 0.0*u.deg), SkyCoord(170.0*u.deg, 52.5*u.deg),
                      SkyCoord(226.0*u.deg, 55.0*u.deg)]
+params.cubelet = False
 # bootstrap parameters
 params.nzbins = 3
 # ***save as you go
