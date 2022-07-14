@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
 
-def bin_get_rand_cutouts(ncutouts, binzlims, comap, galcat, params, field=None):
+def bin_get_rand_cutouts(ncutouts, binzlims, comap, galcat, params, field=None, seed=None):
     """
     wrapper to return ncutout randomly located cutouts in a single field +
     a single redshift bin
@@ -32,9 +32,12 @@ def bin_get_rand_cutouts(ncutouts, binzlims, comap, galcat, params, field=None):
 
     fac = 10.
 
-    randz = np.random.uniform(binzlims[0], binzlims[1], size=int(ncutouts*fac))
-    randra = np.random.uniform(comap.xlims[0], comap.xlims[1], size=int(ncutouts*fac))
-    randdec = np.random.uniform(comap.ylims[0], comap.ylims[1], size=int(ncutouts*fac))
+    rng = np.random.default_rng(seed)
+
+
+    randz = rng.uniform(binzlims[0], binzlims[1], size=int(ncutouts*fac))
+    randra = rng.uniform(comap.xlims[0], comap.xlims[1], size=int(ncutouts*fac))
+    randdec = rng.uniform(comap.xlims[0], comap.xlims[1], size=int(ncutouts*fac))
     randcoords = SkyCoord(randra*u.deg, randdec*u.deg)
     randidx = np.arange(ncutouts*fac)
 
@@ -61,7 +64,7 @@ def bin_get_rand_cutouts(ncutouts, binzlims, comap, galcat, params, field=None):
     print(ngoodcuts)
     return None, None
 
-def field_get_rand_cutouts(galidxs, comap, galcat, params, field=None, verbose=False):
+def field_get_rand_cutouts(galidxs, comap, galcat, params, field=None, verbose=False, seed=None):
     """
     return ncutout random cutouts, binned in redshift to match galidxs
     """
@@ -76,7 +79,7 @@ def field_get_rand_cutouts(galidxs, comap, galcat, params, field=None, verbose=F
             print("  bin {} needs {} cutouts".format(i+1, nbin))
         binedge = binedges[i:i+2]
 
-        randcat, binlist = bin_get_rand_cutouts(nbin, binedge, comap, galcat, params)
+        randcat, binlist = bin_get_rand_cutouts(nbin, binedge, comap, galcat, params, seed=seed)
 
         if binlist:
             bigrandcat = np.append(bigrandcat, randcat)
@@ -108,7 +111,7 @@ def random_stacker_setup(maplist, galcatlist, params):
 
     return actcatidx
 
-def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False):
+def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False, seed=None):
     """
     wrapper to perform a stack on random locations binned to match
     the numbers of the stack in actcatidx
@@ -124,7 +127,8 @@ def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False):
             print("need {} total cutouts".format(fieldlens[i]))
         fieldcutouts = field_get_rand_cutouts(actcatidx[i], maplist[i],
                                               galcatlist[i], params,
-                                              field=fields[i], verbose=verbose)
+                                              field=fields[i], verbose=verbose,
+                                              seed=seed)
         allcutouts = allcutouts + fieldcutouts
 
         # unzip all your cutout objects
@@ -214,7 +218,7 @@ def n_random_stacks(nstacks, actidxlist, maplist, galcatlist, params, verbose=Tr
             if n % 10 == 0:
                 print('iteration {}'.format(n))
 
-        stackT, stackrms, _, _, _ = random_stacker(actidxlist, maplist, galcatlist, params)
+        stackT, stackrms, _, _, _ = random_stacker(actidxlist, maplist, galcatlist, params, seed=n*10)
         stackTlist.append(stackT)
         stackrmslist.append(stackrms)
 
