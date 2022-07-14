@@ -326,8 +326,9 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
                                                                            galcatlist[i],
                                                                            params,
                                                                            field=fields[i])
-            cubestacks.append(fieldcubestack)
-            cubermss.append(fieldcuberms)
+            if fieldcubestack:
+                cubestacks.append(fieldcubestack)
+                cubermss.append(fieldcuberms)
         else:
             fieldcutouts = field_get_cutouts(maplist[i], galcatlist[i], params, field=fields[i])
         fieldlens.append(len(fieldcutouts))
