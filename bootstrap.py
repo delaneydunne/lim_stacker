@@ -34,10 +34,9 @@ def bin_get_rand_cutouts(ncutouts, binzlims, comap, galcat, params, field=None, 
 
     rng = np.random.default_rng(seed)
 
-
     randz = rng.uniform(binzlims[0], binzlims[1], size=int(ncutouts*fac))
     randra = rng.uniform(comap.xlims[0], comap.xlims[1], size=int(ncutouts*fac))
-    randdec = rng.uniform(comap.xlims[0], comap.xlims[1], size=int(ncutouts*fac))
+    randdec = rng.uniform(comap.ylims[0], comap.ylims[1], size=int(ncutouts*fac))
     randcoords = SkyCoord(randra*u.deg, randdec*u.deg)
     randidx = np.arange(ncutouts*fac)
 
