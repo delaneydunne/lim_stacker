@@ -137,6 +137,22 @@ def weightmean(vals, rmss, axis=None):
     meanrms = np.sqrt(1/np.nansum(1/rmss**2, axis=axis))
     return meanval, meanrms
 
+def globalweightmean(vals, rmss, axis=None):
+    """
+    average of vals, weighted by rmss, over the passed axes
+    difference from weightmean is that this function will calculate a global rms
+    for each object to be combined
+    """
+    if axis == None:
+        globrms = np.nanmean(rmss)
+    else:
+        naxis = np.arange(len(rmss.shape))
+        naxis = tuple(np.delete(naxis, axis))
+        globrms = np.nanmean(rmss, axis=naxis)
+
+    meanval = (np.nansum(vals, axis=axis) / globrms**2) / (globrms**2)
+    meanrms = np.sqrt(1/(1/globrms**2))
+
 def rootmeansquare(vals):
     """
     rms variation in an array
@@ -343,7 +359,7 @@ def plot_mom0(comap, ext=0.95, lognorm=True):
     moment0 = weightmean(comap.map, comap.rms, axis=(0))[0] * 1e6
     vext = (np.nanmin(moment0)*ext, np.nanmax(moment0)*ext)
     if lognorm:
-        c = ax.pcolormesh(comap.ra, comap.dec, moment0.T,
+        c = ax.pcolormesh(comap.ra, comap.dec, moment0,
                           norm=SymLogNorm(linthresh=1, linscale=0.5,
                                           vmin=vext[0], vmax=vext[1]),
                           cmap='PiYG')

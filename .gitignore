@@ -1,2 +1,4 @@
 stacker/__pycache__/
 __pycache__
+run_fast_stack.py
+stacker/run_fast_stack.py

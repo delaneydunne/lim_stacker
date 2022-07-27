@@ -124,6 +124,8 @@ def single_cutout(idx, galcat, comap, params):
 
     # find the actual Tb in the cutout -- weighted average over all axes
     Tbval, Tbrms = weightmean(pixval, rmsval)
+    if np.isnan(Tbval):
+        return None
 
     cutout.T = Tbval
     cutout.rms = Tbrms
