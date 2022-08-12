@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import SymLogNorm
 import matplotlib.gridspec as gridspec
-from matplotlib import get_cmap
 from photutils.aperture import CircularAnnulus, CircularAperture, aperture_photometry
 import astropy.units as u
 import astropy.constants as const
@@ -19,10 +18,66 @@ warnings.filterwarnings("ignore", message="invalid value encountered in true_div
 warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
-cmap = get_cmap('twilight')
+cmap = plt.get_cmap('twilight')
+
+
+
+
+""" MAP PLOTTING FUNCTIONS """
+def plot_mom0(comap, params, ext=0.95, lognorm=True, smooth=False):
+
+    """
+    unsure about the transpose thing
+    """
+
+    fig,ax = plt.subplots(1)
+
+    moment0 = weightmean(comap.map, comap.rms, axis=(0))[0] * 1e6
+    if smooth:
+        moment0 = convolve(moment0, params.gauss_kernel)
+
+    vext = (np.nanmin(moment0)*ext, np.nanmax(moment0)*ext)
+
+    if lognorm:
+        c = ax.pcolormesh(comap.ra, comap.dec, moment0,
+                          norm=SymLogNorm(linthresh=1, linscale=0.5,
+                                          vmin=vext[0], vmax=vext[1]),
+                          cmap='PiYG_r')
+    else:
+        c = ax.pcolormesh(comap.ra, comap.dec, moment0.T, cmap='PiYG_r')
+    ax.set_xlabel('RA (deg)')
+    ax.set_ylabel('Dec (deg)')
+
+    cbar = fig.colorbar(c, ax=ax, extend='both')
+    cbar.ax.set_ylabel(r'$T_b \ (\mu K)$')
+
+    return fig
+
+def plot_chan(comap, channel, params, ext=0.95, smooth=False, lognorm=True):
+
+    fig,ax = plt.subplots(1)
+
+    plotmap = comap.map[channel,:,:] * 1e6
+    if smooth:
+        plotmap = convolve(plotmap, params.gauss_kernel)
+
+    vext = (np.nanmin(plotmap)*ext, np.nanmax(plotmap)*ext)
+    if lognorm:
+        c = ax.pcolormesh(comap.ra, comap.dec, plotmap,
+                          norm=SymLogNorm(linthresh=1, linscale=0.5,
+                                          vmin=vext[0], vmax=vext[1]),
+                          cmap='PiYG_r')
+    else:
+        c = ax.pcolormesh(comap.ra, comap.dec, plotmap, cmap='PiYG_r')
+    ax.set_xlabel('RA (deg)')
+    ax.set_ylabel('Dec (deg)')
+
+    cbar = fig.colorbar(c, ax=ax, extend='both')
+    cbar.ax.set_ylabel(r'$T_b \ (\mu K)$')
+
+    return fig
 
 """ CUBELET PLOTS """
-
 def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0):
 
     fig = plt.figure(figsize=(9,7))
@@ -182,7 +237,7 @@ def spaceweightmean(cubelet, rmslet):
             ii1, ii2 = i, i+3
             ij1, ij2 = j, j+3
 
-            t, rms = st.weightmean(padcubelet[:,ii1:ii2,ij1:ij2], padrmslet[:,ii1:ii2,ij1:ij2], axis=(1,2))
+            t, rms = weightmean(padcubelet[:,ii1:ii2,ij1:ij2], padrmslet[:,ii1:ii2,ij1:ij2], axis=(1,2))
             ccubelet[:,i,j] = t
             crmslet[:,i,j] = rms
 

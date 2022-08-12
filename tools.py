@@ -347,51 +347,6 @@ def make_output_pathnames(params, append=True):
     return
 
 
-""" EXTRA PLOTTING FUNCTIONS """
-def plot_mom0(comap, ext=0.95, lognorm=True):
-
-    """
-    unsure about the transpose thing
-    """
-
-    fig,ax = plt.subplots(1)
-
-    moment0 = weightmean(comap.map, comap.rms, axis=(0))[0] * 1e6
-    vext = (np.nanmin(moment0)*ext, np.nanmax(moment0)*ext)
-    if lognorm:
-        c = ax.pcolormesh(comap.ra, comap.dec, moment0,
-                          norm=SymLogNorm(linthresh=1, linscale=0.5,
-                                          vmin=vext[0], vmax=vext[1]),
-                          cmap='PiYG')
-    else:
-        c = ax.pcolormesh(comap.ra, comap.dec, moment0.T, cmap='PiYG_r')
-    ax.set_xlabel('RA (deg)')
-    ax.set_ylabel('Dec (deg)')
-
-    cbar = fig.colorbar(c)
-    cbar.ax.set_ylabel(r'$T_b \ (\mu K)$')
-
-    return 0
-
-def plot_chan(comap, channel, ext=0.95, lognorm=True):
-    fig,ax = plt.subplots(1)
-    plotmap = comap.map[channel,:,:] * 1e6
-    vext = (np.nanmin(plotmap)*ext, np.nanmax(plotmap)*ext)
-    if lognorm:
-        c = ax.pcolormesh(comap.ra, comap.dec, plotmap,
-                          norm=SymLogNorm(linthresh=1, linscale=0.5,
-                                          vmin=vext[0], vmax=vext[1]),
-                          cmap='PiYG')
-    else:
-        c = ax.pcolormesh(comap.ra, comap.dec, plotmap, cmap='PiYG_r')
-    ax.set_xlabel('RA (deg)')
-    ax.set_ylabel('Dec (deg)')
-
-    cbar = fig.colorbar(c, ax=ax, extend='both')
-    cbar.ax.set_ylabel(r'$T_b \ (\mu K)$')
-
-    return 0
-
 """ SETUP FOR SIMS/BOOTSTRAPS """
 def field_zbin_stack_output(galidxs, comap, galcat, params):
 
