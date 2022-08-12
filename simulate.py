@@ -38,6 +38,7 @@ def load_raw_sim(file):
     # just go ahead and flip the frequency axis here:
     #  rearrange so frequency axis is first in the map
     rawsimmap.rawmap = np.swapaxes(rawsimmap.rawmap, 0, -1)
+    rawsimmap.rawmap = np.swapaxes(rawsimmap.rawmap, 1, 2)
     rawsimmap.freq = np.flip(rawsimmap.freq)
     rawsimmap.rawmap = np.flip(rawsimmap.rawmap, axis=0)
 

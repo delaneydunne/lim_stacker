@@ -5,10 +5,11 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import SymLogNorm
 import matplotlib.gridspec as gridspec
 from matplotlib import get_cmap
-from photutils.aperture import CircularAnnulus, CircularAperture, aperture_photometr
+from photutils.aperture import CircularAnnulus, CircularAperture, aperture_photometry
 import astropy.units as u
 import astropy.constants as const
 from astropy.coordinates import SkyCoord
+from astropy.convolution import convolve, Gaussian2DKernel, Box2DKernel
 import os
 import h5py
 import csv
@@ -23,13 +24,6 @@ cmap = get_cmap('twilight')
 """ CUBELET PLOTS """
 
 def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0):
-    """
-    plots spatial images of the 4 adjacent channels on either side of the central
-    channel of the cubelet. if offset != 0, offsets the central channel by offset.
-    if rad is set, will only include rad spaxels on either side of the central
-    spaxel. ext is the % of maximum used to set vmin/vmax, which will be centered
-    around zero always
-    """
 
     fig = plt.figure(figsize=(9,7))
     supgs = gridspec.GridSpec(1,1,figure=fig)
@@ -42,7 +36,8 @@ def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0):
         else:
             ext = 0.7
 
-    vmin, vmax = np.nanmin(cubelet)*ext, np.nanmax(cubelet)*ext
+    vext = np.max(np.abs((np.nanmin(cubelet), np.nanmax(cubelet))))
+    vmin, vmax = -vext*ext, vext*ext
 
     freqcent = int(cubelet.shape[0] / 2) + offset
     spaceext = cubelet.shape[1]
@@ -170,3 +165,111 @@ def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0):
     ax.legend(loc='upper left')
 
     ax.set_xlabel('Radius (arcmin)')
+
+    return fig
+
+def spaceweightmean(cubelet, rmslet):
+
+    ccubelet = np.ones_like(cubelet)
+    crmslet = np.ones_like(cubelet)
+
+    padcubelet = np.pad(cubelet, ((0,0), (1,1), (1,1)), 'constant', constant_values=np.nan)
+    padrmslet = np.pad(rmslet, ((0,0), (1,1), (1,1)), 'constant', constant_values=np.nan)
+
+    for i in range(cubelet.shape[1]):
+        for j in range(cubelet.shape[2]):
+
+            ii1, ii2 = i, i+3
+            ij1, ij2 = j, j+3
+
+            t, rms = st.weightmean(padcubelet[:,ii1:ii2,ij1:ij2], padrmslet[:,ii1:ii2,ij1:ij2], axis=(1,2))
+            ccubelet[:,i,j] = t
+            crmslet[:,i,j] = rms
+
+    return ccubelet, crmslet
+
+def specgridx(cubelet, rmslet, nextra=3, offset=0):
+
+    xkernel = Box2DKernel(3)
+    xcent = int(cubelet.shape[1] / 2)
+    nspax = nextra*2 + 1
+    spax = np.arange(nspax) + xcent - nextra
+
+    freqcent = int(cubelet.shape[0] / 2)
+
+    convcube, convrms = spaceweightmean(cubelet, rmslet)
+
+    xarr = convcube[:,:,xcent]
+    xrms = convrms[:,:,xcent]
+
+    fig, axs = plt.subplots(nspax, sharex=True, figsize=(5, nspax*1.5))
+
+    vext = np.max([np.abs(np.nanmin(xarr[:,spax])), np.abs(np.nanmax(xarr[:,spax]))])
+    vext = np.array((-vext, vext)) * 1e6 * 1.05
+
+    for i, spix in enumerate(spax):
+        axs[i].step(np.arange(len(xarr)), xarr[:,spix]*1e6, color='indigo', zorder=10, where='mid',
+                    label='{}'.format(str(spix)))
+        axs[i].bar(np.arange(len(xarr)), xrms[:,spix]*1e6, width=1, color='0.8', zorder=0, alpha=0.5)
+        axs[i].bar(np.arange(len(xarr)), -xrms[:,spix]*1e6, width=1, color='0.8', zorder=0, alpha=0.5)
+
+
+        axs[i].axhline(0, color='k', ls='--')
+
+        apmin, apmax = freqcent - 0.5, freqcent + 0.5
+
+        axs[i].fill_betweenx(vext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
+        axs[i].axvline(apmin, color='0.5', ls=':')
+        axs[i].axvline(apmax, color='0.5', ls=':')
+
+        axs[i].legend(loc='lower right')
+        axs[i].set_ylabel(r'$T_b$ ($\mu$K)')
+        axs[i].set_ylim(vext)
+
+    axs[-1].set_xlabel('Channel')
+
+    return fig
+
+def specgridy(cubelet, rmslet, nextra=3, offset=0):
+
+    xkernel = Box2DKernel(3)
+    ycent = int(cubelet.shape[1] / 2)
+    nspax = nextra*2 + 1
+    spax = np.arange(nspax) + ycent - nextra
+
+    freqcent = int(cubelet.shape[0] / 2)
+
+
+    convcube, convrms = spaceweightmean(cubelet, rmslet)
+
+
+    yarr = convcube[:,ycent,:]
+    yrms = convrms[:,ycent,:]
+
+    fig, axs = plt.subplots(nspax, sharex=True, figsize=(5, nspax*1.5))
+
+    vext = np.max([np.abs(np.nanmin(yarr[:,spax])), np.abs(np.nanmax(yarr[:,spax]))])
+    vext = np.array((-vext, vext)) * 1e6 * 1.05
+
+    for i, spix in enumerate(spax):
+        axs[i].step(np.arange(len(yarr)), yarr[:,spix]*1e6, color='indigo', zorder=10, where='mid',
+                    label='{}'.format(str(spix)))
+
+        axs[i].bar(np.arange(len(yarr)), yrms[:,spix]*1e6, width=1, color='0.8', zorder=0, alpha=0.5)
+        axs[i].bar(np.arange(len(yarr)), -yrms[:,spix]*1e6, width=1, color='0.8', zorder=0, alpha=0.5)
+
+        axs[i].axhline(0, color='k', ls='--')
+
+        apmin, apmax = freqcent-0.5, freqcent+0.5
+
+        axs[i].fill_betweenx(vext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=0, alpha=0.5)
+        axs[i].axvline(apmin, color='0.5', ls=':')
+        axs[i].axvline(apmax, color='0.5', ls=':')
+
+        axs[i].legend(loc='lower right')
+        axs[i].set_ylabel(r'$T_b$ ($\mu$K)')
+        axs[i].set_ylim(vext)
+
+    axs[-1].set_xlabel('Channel')
+
+    return fig
