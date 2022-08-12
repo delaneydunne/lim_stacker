@@ -554,7 +554,7 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
 
     # unsmoothed
     fig, ax = plt.subplots(1)
-    c = ax.imshow(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
+    c = ax.pcolormesh(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
     ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     cbar = fig.colorbar(c)
     cbar.ax.set_ylabel('Tb (uK)')
@@ -568,7 +568,7 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     vext = np.nanmax(smoothed_spacestack_gauss*1e6)
 
     fig, ax = plt.subplots(1)
-    c = ax.imshow(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
+    c = ax.pcolormesh(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
     ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     cbar = fig.colorbar(c)
     cbar.ax.set_ylabel('Tb (uK)')
@@ -629,7 +629,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
 
     freqax = fig.add_subplot(gs[-1,:])
 
-    c = axs[0,0].imshow(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
+    c = axs[0,0].pcolormesh(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
     axs[0,0].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     axs[0,0].set_title('Unsmoothed')
 
@@ -653,7 +653,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     # smoothed
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
     vext = np.nanmax(smoothed_spacestack_gauss*1e6)
-    c = axs[0,1].imshow(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
+    c = axs[0,1].pcolormesh(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
     axs[0,1].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     axs[0,1].set_title('Gaussian-smoothed')
 
