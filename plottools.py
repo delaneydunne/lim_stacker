@@ -77,6 +77,40 @@ def plot_chan(comap, channel, params, ext=0.95, smooth=False, lognorm=True):
 
     return fig
 
+""" SINGLE-CUTOUT PLOTS """
+def display_cutout(cutout, comap, params, save=None, ext=1.):
+
+    cutoutra = comap.ra[cutout.spacexidx[0]:cutout.spacexidx[1]+1]
+    cutoutdec = comap.dec[cutout.spaceyidx[0]:cutout.spaceyidx[1]+1]
+
+    beamra = comap.ra[cutout.xidx[0]:cutout.xidx[1]+1]
+    beamdec = comap.dec[cutout.yidx[0]:cutout.yidx[1]+1]
+
+    beamxidx = cutout.xidx - cutout.spacexidx[0]
+    beamyidx = cutout.yidx - cutout.spaceyidx[0]
+
+    beamcut = cutout.spacestack[beamxidx[0]:beamxidx[1]+1, beamyidx[0]:beamyidx[1]+1]
+
+    fig,ax = plt.subplots(1)
+    vext = np.max(np.abs((np.max(cutout.spacestack), np.min(cutout.spacestack)))) * ext
+    c = ax.pcolormesh(cutoutra, cutoutdec, cutout.spacestack, cmap='PiYG_r', vmin=-vext, vmax=vext)
+    ax.pcolormesh(beamra, beamdec, beamcut, cmap='PiYG_r', vmin=-vext, vmax=vext, ec='k')
+
+    ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Cutout Tb = {:.2e}".format(cutout.T))
+    ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Cutout RMS = {:.2e}".format(cutout.rms))
+    ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Catalogue frequency = {:.4f}".format(cutout.freq))
+
+    ax.set_xlabel('RA')
+    ax.set_ylabel('Dec')
+
+    ax.legend(loc='upper left')
+    fig.colorbar(c)
+
+    if save:
+        plt.savefig(save)
+
+    return fig, ax
+
 """ CUBELET PLOTS """
 def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0):
 
