@@ -78,7 +78,7 @@ def plot_chan(comap, channel, params, ext=0.95, smooth=False, lognorm=True):
     return fig
 
 """ SINGLE-CUTOUT PLOTS """
-def display_cutout(cutout, comap, params, save=None, ext=1.):
+def display_cutout(cutout, comap, params, save=None, ext=1.0):
 
     cutoutra = comap.ra[cutout.spacexidx[0]:cutout.spacexidx[1]+1]
     cutoutdec = comap.dec[cutout.spaceyidx[0]:cutout.spaceyidx[1]+1]
@@ -89,11 +89,25 @@ def display_cutout(cutout, comap, params, save=None, ext=1.):
     beamxidx = cutout.xidx - cutout.spacexidx[0]
     beamyidx = cutout.yidx - cutout.spaceyidx[0]
 
-    beamcut = cutout.spacestack[beamxidx[0]:beamxidx[1]+1, beamyidx[0]:beamyidx[1]+1]
+    try:
+        cutim = cutout.spacestack * 1e6
+    except:
+        # only want the beam for the axes that aren't being shown
+        lcfidx = (cutout.cubestack.shape[0] - params.freqwidth) // 2
+        cfidx = (lcfidx, lcfidx + params.freqwidth)
+
+        cutim, imrms = weightmean(cutout.cubestack[cfidx[0]:cfidx[1],:,:],
+                                     cutout.cubestackrms[cfidx[0]:cfidx[1],:,:], axis=0)
+        cutim *= 1e6
+        imrms *= 1e6
+
+    beamcut = cutim[beamxidx[0]:beamxidx[1], beamyidx[0]:beamyidx[1]]
 
     fig,ax = plt.subplots(1)
-    vext = np.max(np.abs((np.max(cutout.spacestack), np.min(cutout.spacestack)))) * ext
-    c = ax.pcolormesh(cutoutra, cutoutdec, cutout.spacestack, cmap='PiYG_r', vmin=-vext, vmax=vext)
+
+    vext = np.max(np.abs((np.nanmax(cutim), np.nanmin(cutim)))) * ext
+
+    c = ax.pcolormesh(cutoutra, cutoutdec, cutim, cmap='PiYG_r', vmin=-vext, vmax=vext)
     ax.pcolormesh(beamra, beamdec, beamcut, cmap='PiYG_r', vmin=-vext, vmax=vext, ec='k')
 
     ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Cutout Tb = {:.2e}".format(cutout.T))
@@ -109,7 +123,7 @@ def display_cutout(cutout, comap, params, save=None, ext=1.):
     if save:
         plt.savefig(save)
 
-    return fig, ax
+    return fig
 
 """ CUBELET PLOTS """
 def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0):
