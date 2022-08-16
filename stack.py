@@ -113,11 +113,6 @@ def single_cutout(idx, galcat, comap, params):
                        cutout.yidx[0]:cutout.yidx[1],
                        cutout.xidx[0]:cutout.xidx[1]]
 
-
-    if params.beamscale:
-        pixval = pixval*params.beam
-        rmsval = rmsval*params.beam
-
     # if all pixels are masked, lose the whole object
     if np.all(np.isnan(pixval)):
         return None

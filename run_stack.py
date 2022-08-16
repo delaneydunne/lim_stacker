@@ -58,14 +58,6 @@ params.plotfreq = True
 params.fieldcents = [SkyCoord(25.435*u.deg, 0.0*u.deg), SkyCoord(170.0*u.deg, 52.5*u.deg),
                      SkyCoord(226.0*u.deg, 55.0*u.deg)]
 
-params.beamscale=False
-# beamscale = np.array([[0.25, 0.5, 0.25],
-#                       [0.50, 1.0, 0.50],
-#                       [0.25, 0.5, 0.25]])
-# beamscale3d = np.tile(beamscale, (params.freqwidth, 1, 1))
-
-# params.beam = beamscale3d
-
 # save cubelets instead of spatial/spectral stacks separately
 # this will change how the data is saved and combined, so it doesn't overflow the RAM
 params.cubelet = True

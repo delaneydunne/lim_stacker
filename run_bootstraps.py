@@ -44,15 +44,8 @@ params.spacestackwidth = None # in pixels -- if you only want single T value fro
 params.freqstackwidth = None # number of channels. "" ""
 params.obsunits = False
 params.verbose = False
-# different methods for cutting out -- not yet implemented
-params.beamscale=False
-beamscale = np.array([[0.25, 0.5, 0.25],
-                      [0.50, 1.0, 0.50],
-                      [0.25, 0.5, 0.25]])
-beamscale3d = np.tile(beamscale, (params.freqwidth, 1, 1))
-params.beam = beamscale3d
 # plotting parameters
-params.savepath = 'beamscale_output'
+params.savepath = 'output'
 params.saveplots = False
 params.plotspace = False
 params.plotfreq = False
