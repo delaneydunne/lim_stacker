@@ -346,6 +346,82 @@ def make_output_pathnames(params, append=True):
 
     return
 
+""" OBJECT HANDLING FUNCTIONS """
+def catobj_in_chan(channel, cat, comap):
+    """
+    creates a new catalogue object containing only entries in the correct map channel
+    doesn't affect the og catalogue object
+    """
+
+    # if chan is already in trcat, just slice based on that
+    # otherwise have to map frequencies to channels and then slice
+    try:
+        inidx = np.where(cat.chan == channel)[0]
+
+    except:
+        obsfreq = nuem_to_nuobs(115.27, cat.z)
+
+        if trawmap.freqbe[0] < trawmap.freqbe[1]:
+            freqmin, freqmax = comap.freqbe[channel], comap.freqbe[channel+1]
+        else:
+            freqmin, freqmax = comap.freqbe[channel+1], comap.freqbe[channel]
+
+        inidx = np.where(np.logical_and(obsfreq < freqmax,
+                                        obsfreq >= freqmin))[0]
+
+    # slice out a new catalogue object only containing the entries in the correct
+    # map channel
+    chancat = empty_table()
+    try:
+        chancat.ra = cat.coords.ra.deg[inidx]
+    except:
+        chancat.ra = cat.ra[inidx]
+
+    try:
+        chancat.dec = cat.coords.dec.deg[inidx]
+    except:
+        chancat.dec = cat.dec[inidx]
+
+    # copy over all array parameters from the catalogue (from dongwoo chung)
+    # generic bc there are a couple of different ways the catalogue could be set up
+    # *** move this to a specific catalogue object
+    for i in dir(cat):
+        if i[0] == '_': continue
+
+        try:
+            setattr(chancat, i, getattr(cat, i)[inidx])
+        except TypeError:
+            pass
+
+    chancat.nobj = len(inidx)
+
+    return chancat
+
+def sort_cat(cat, attr):
+    """
+    sorts catalogue on its attribute attr
+    will order so that the max value is index zero
+    this is done in-place
+    """
+
+    # pull and sort the array
+    tosort = getattr(cat, attr)
+    sortidx = np.flip(np.argsort(tosort))
+
+    # temporary object to hold unsorted values
+    tempcat = cat.copy()
+
+    for i in dir(cat):
+        if i[0] == '_': continue
+
+        try:
+            setattr(cat, i, getattr(tempcat, i)[sortidx])
+        except TypeError:
+            pass
+
+    del(tempcat)
+    return cat
+
 
 """ SETUP FOR SIMS/BOOTSTRAPS """
 def field_zbin_stack_output(galidxs, comap, galcat, params):
