@@ -1,11 +1,11 @@
 from __future__ import print_function
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import SymLogNorm
 import astropy.units as u
 import astropy.constants as const
 from astropy.coordinates import SkyCoord
+from astropy.convolution import Gaussian2DKernel
 import os
+import sys
 import h5py
 import csv
 import warnings
@@ -27,6 +27,135 @@ class empty_table():
     def copy(self):
         """@brief Creates a copy of the table."""
         return copy.deepcopy(self)
+
+class parameters():
+    """
+    class creating a custom object used to hold the various stacking parameters
+    will autofill defaults
+    """
+
+    def __init__(self, paramfile=None):
+        """
+        assign each of the parameters a default value
+        if paramfile is passed, assign each of the parameters their value from paramfile
+        paramfile can have as many or as few of the inputs as need be
+        """
+
+        modpath = getattr(sys.modules['stacker.tools'], '__file__')
+        abspath = modpath.split('tools.py')[0]
+
+        # load defaults in from the separate file that should be in the same directory
+        # save them in a directory to do stuff with
+        default_dir = {}
+        with open(abspath+'param_defaults.py') as f:
+            for line in f:
+                try:
+                    (attr, val) = line.split()
+                    default_dir[attr] = val
+                except:
+                    continue
+
+        # if any of the parameters are not default, replace them here
+        if paramfile:
+            with open(paramfile) as f:
+                for line in f:
+                    # if the line in the file contains an actual parameter
+                    try:
+                        (attr, val) = line.split()
+                        # replace the default parameter value with the new one
+                        default_dir[attr] = val
+                    except:
+                        continue
+
+        self.dir = default_dir
+
+        # integer-valued parameters
+        for attr in ['xwidth', 'ywidth', 'freqwidth']:
+            try:
+                val = int(default_dir[attr])
+                setattr(self, attr, val)
+            except:
+                warnings.warn("Parameter '"+attr+"' should be an integer", RuntimeWarning)
+                setattr(self, attr, None)
+
+        # float-valued parameters
+        for attr in ['centfreq', 'beamwidth']:
+            try:
+                val = float(default_dir[attr])
+                setattr(self, attr, val)
+            except:
+                warnings.warn("Parameter '"+attr+"' should be a float", RuntimeWarning)
+                setattr(self, attr, None)
+
+        # boolean parameters
+        for attr in ['cubelet', 'obsunits', 'verbose', 'savedata', 'saveplots', 'plotspace', 'plotfreq']:
+            try:
+                val = bool(default_dir[attr])
+                setattr(self, attr, val)
+            except:
+                warnings.warn("Parameter '"+attr+"' should be boolean", RuntimeWarning)
+                setattr(self, attr, None)
+
+        # optional parameters
+        if self.savedata:
+            setattr(self, 'savepath', default_dir['savepath'])
+        else:
+            setattr(self, 'savepath', None)
+
+        if self.plotspace:
+            try:
+                setattr(self, 'spacestackwidth', int(default_dir['spacestackwidth']))
+            except:
+                warnings.warn("Parameter 'spacestackwidth' should be an integer", RuntimeWarning)
+        else:
+            setattr(self, 'savepath', None)
+
+        if self.plotfreq:
+            try:
+                setattr(self, 'freqstackwidth', int(default_dir['freqstackwidth']))
+            except:
+                warnings.warn("Parameter 'freqstackwidth' should be an integer", RuntimeWarning)
+        else:
+            setattr(self, 'savepath', None)
+
+
+        # centers of the COMAP fields
+        self.fieldcents = [
+            SkyCoord(25.435 * u.deg, 0.0 * u.deg),
+            SkyCoord(170.0 * u.deg, 52.5 * u.deg),
+            SkyCoord(226.0 * u.deg, 55.0 * u.deg)
+        ]
+        # kernel object for the beam
+        self.gauss_kernel = Gaussian2DKernel(self.beamwidth)
+
+    def make_output_pathnames(self, append=True):
+        """
+        Uses the input parameters to automatically make a directory to save data
+        with an informational name. If there's already a path name passed, uses that one
+        """
+
+        sinfo = '_x'+str(self.xwidth)+'f'+str(self.freqwidth)
+
+        if self.savepath and append:
+            outputdir = self.savepath + sinfo
+        elif not self.savepath:
+            outputdir = './stack' + sinfo
+        else:
+            outputdir = self.savepath
+
+        if not os.path.exists(outputdir):
+            os.makedirs(outputdir)
+
+        self.plotsavepath = outputdir + '/plots'
+        self.datasavepath = outputdir + '/data'
+
+        if self.saveplots:
+            # make the directories to store the plots and data
+            os.makedirs(self.plotsavepath, exist_ok=True)
+        if self.savedata:
+            os.makedirs(self.datasavepath, exist_ok=True)
+
+        return
 
 def printdict(dict):
     """
@@ -316,35 +445,7 @@ def field_cull_galaxy_cat(galdict, comap, maxsep=3*u.deg):
     galcat.nobj = len(fieldidx)
 
     return galcat
-
-def make_output_pathnames(params, append=True):
-    """
-    Uses the input parameters to automatically make a directory to save data
-    with an informational name. If there's already a path name passed, uses that one
-    """
-
-    sinfo = '_x'+str(params.xwidth)+'f'+str(params.freqwidth)
-
-    if params.savepath and append:
-        outputdir = params.savepath + sinfo
-    elif not params.savepath:
-        outputdir = './stack' + sinfo
-    else:
-        outputdir = params.savepath
-
-    if not os.path.exists(outputdir):
-        os.makedirs(outputdir)
-
-    params.plotsavepath = outputdir + '/plots'
-    params.datasavepath = outputdir + '/data'
-
-    if params.saveplots:
-        # make the directories to store the plots and data
-        os.makedirs(params.plotsavepath, exist_ok=True)
-    if params.savedata:
-        os.makedirs(params.datasavepath, exist_ok=True)
-
-    return
+    
 
 """ OBJECT HANDLING FUNCTIONS """
 def catobj_in_chan(channel, cat, comap):
