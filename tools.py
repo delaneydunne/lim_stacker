@@ -118,13 +118,6 @@ class parameters():
         else:
             setattr(self, 'savepath', None)
 
-
-        # centers of the COMAP fields
-        self.fieldcents = [
-            SkyCoord(25.435 * u.deg, 0.0 * u.deg),
-            SkyCoord(170.0 * u.deg, 52.5 * u.deg),
-            SkyCoord(226.0 * u.deg, 55.0 * u.deg)
-        ]
         # kernel object for the beam
         self.gauss_kernel = Gaussian2DKernel(self.beamwidth)
 
@@ -155,7 +148,6 @@ class parameters():
         if self.savedata:
             os.makedirs(self.datasavepath, exist_ok=True)
 
-        return
 
 def printdict(dict):
     """
@@ -319,15 +311,7 @@ def nuobs_to_nuem(nuobs, z):
     """
     nuem = nuobs * (1 + z)
     return nuem
-
-# def coord_to_pix(coords, comap):
-#     """
-#     given a coordinate value in degrees, return the (x,y) coordinates
-#     according to the map stored in comap
-#     """
-#     xval = (coords[0] - comap.ra[0]) / (comap.ra[1] - comap.ra[0])
-#     yval = (coords[1] - comap.dec[0]) / (comap.dec[1] - comap.dec[0])
-#     return (xval, yval)
+    
 
 """ SETUP FUNCTIONS """
 def load_map(file, reshape=True):
@@ -445,7 +429,7 @@ def field_cull_galaxy_cat(galdict, comap, maxsep=3*u.deg):
     galcat.nobj = len(fieldidx)
 
     return galcat
-    
+
 
 """ OBJECT HANDLING FUNCTIONS """
 def catobj_in_chan(channel, cat, comap):
