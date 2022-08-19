@@ -149,6 +149,182 @@ class parameters():
             os.makedirs(self.datasavepath, exist_ok=True)
 
 
+class catalogue():
+    """
+    class creating a custom object used to hold galaxy catalogues
+    must pass a .npz file to load in data
+    """
+
+    def __init__(self):
+        pass
+
+    def load(self, inputfile, load_all=False):
+        """
+        load in data from a .npz catalogue file
+        file must have redshift, coordinates -- all other entries in the file will only
+        be loaded if load_all=True
+        """
+        with np.load(inputfile) as f:
+
+            inputdict = dict(f)
+
+            # redshifts
+            try:
+                self.z = inputdict.pop('z')
+            except:
+                try:
+                    self.z = inputdict.pop('redshift')
+                except:
+                    warnings.warn('No redshift in input catalogue', RuntimeWarning)
+
+            # coordinates
+            try:
+                self.coords = SkyCoord(inputdict.pop('ra')*u.deg, inputdict.pop('dec')*u.deg)
+            except:
+                warnings.warn('No RA/Dec in input catalogue', RuntimeWarning)
+
+            if load_all:
+                if len(inputdict) != 0:
+                    for attr in inputdict.keys():
+                        setattr(self, attr, inputdict[attr])
+
+            self.nobj = len(self.z)
+
+    def copy(self):
+        """
+        creates a deep copy of the object (ie won't overwrite original)
+        """
+        return copy.deepcopy(self)
+
+
+    def subset(self, subidx, in_place=False):
+        """
+        cuts catalogue down to only the catalogue entries at subidx
+        """
+
+        if in_place:
+            for i in dir(self):
+                if i[0] == '_': continue
+                try:
+                    vals = getattr(self, i)[subidx]
+                    setattr(self, i, vals)
+                except TypeError:
+                    pass
+            self.nobj = len(subidx)
+
+        else:
+            subset = self.copy()
+            for i in dir(self):
+                if i[0] == '_': continue
+                try:
+                    vals = getattr(self, i)[subidx]
+                    setattr(subset, i, vals)
+                except TypeError:
+                    pass
+            subset.nobj = len(subidx)
+            return subset
+
+    def sort(self, attr):
+        """
+        sorts catalogue on its attribute attr
+        will order so that the max value is index zero
+        """
+
+        # pull and sort the array
+        tosort = getattr(self, attr)
+        sortidx = np.flip(np.argsort(tosort))
+
+        for i in dir(self):
+            if i[0] == '_': continue
+
+            try:
+                val = getattr(self, i)[sortidx]
+                setattr(self, i, val)
+            except TypeError:
+                pass
+
+    def set_nuobs(self, params):
+        """
+        find observed frequency of each catalogue object
+        """
+        self.freq = nuem_to_nuobs(params.centfreq, self.z)
+
+    def set_chan(self, comap, params):
+        """
+        find the frequency channel that each catalogue object will fall into in comap
+        """
+        try:
+            freq = self.freq
+        except AttributeError:
+            self.set_nuobs(params)
+
+        pixfreq = []
+        for i in range(self.nobj):
+            objpixfreq = np.max(np.where(comap.freqbe < self.freq[i])[0])
+            pixfreq.append(objpixfreq)
+
+        self.chan = np.array(pixfreq)
+
+    def cull_to_chan(self, comap, params, chan, in_place=False):
+        """
+        return a subset of the original cat containing only objects in the passed channel chan
+        """
+        # if chan isn't already in the catalogue, put it in
+        try:
+            catchans = self.chan
+        except AttributeError:
+            self.set_chan(comap, params)
+
+        # indices of catalogue objects corresponding to chan
+        inidx = np.where(self.chan == chan)[0]
+
+        # either return a new catalogue object or cut the original one with only
+        # objects in chan
+        if in_place:
+            self.subset(inidx, in_place=True)
+
+        else:
+            return self.subset(inidx)
+
+
+    def cull_to_map(self, comap, params, maxsep = 3*u.deg, in_place=False):
+        """
+        return a subset of the original cat containing only objects that fall into
+        comap
+        """
+
+        # objects which fall into the field spatially
+        fieldsep = self.coords.separation(comap.fieldcent)
+        fieldxbool = fieldsep < maxsep
+
+        # objects which fall into the field spectrally
+        try:
+            fieldzbool = np.logical_and(self.freq > comap.flims[0], self.freq < comap.flims[1])
+        except AttributeError:
+            self.set_nuobs(params)
+            fieldzbool = np.logical_and(self.freq > comap.flims[0], self.freq < comap.flims[1])
+
+        fieldidx = np.where(np.logical_and(fieldxbool, fieldzbool))[0]
+
+        # either return a new catalogue object or cut the original one with only objects
+        # in the field
+        if in_place:
+            self.subset(fieldidx, in_place=True)
+            self.idx = fieldidx
+        else:
+            mapcat = self.subset(fieldidx)
+            mapcat.idx = fieldidx
+
+            return mapcat
+
+    """ RA/DEC CONVENIENCE FUNCTIONS """
+    def ra(self):
+        return self.coords.ra.deg
+
+    def dec(self):
+        return self.coords.dec.deg
+
+
 def printdict(dict):
     """
     print a python dict to terminal, testing each variable to see if it has units
@@ -311,7 +487,7 @@ def nuobs_to_nuem(nuobs, z):
     """
     nuem = nuobs * (1 + z)
     return nuem
-    
+
 
 """ SETUP FUNCTIONS """
 def load_map(file, reshape=True):
