@@ -135,6 +135,61 @@ def simcoords_to_mapcoords(insimobj, mapobj, insimcat):
 
     return outsimobj, mapobj, outsimcat
 
+""" SETUP FUNCTIONS """
+def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None):
+    """
+    wrapper function to load in data (and match its WCS) for a simulated stack run
+    """
+
+    # if a raw file and a pipeline file are both given, load them all in
+    if rawsimfile:
+        # map objects setup
+        pipemap = load_map(pipemapfile)
+        rawmap = load_raw_sim(rawsimfile)
+
+        # catalogue object setup
+        cat = catalogue()
+        cat.load(catfile, load_all=True)
+        cat.match_wcs(rawmap, pipemap, params)
+
+    else:
+        # if only a raw file is given (ie. the simulation is not from the oslo pipeline)
+        pipemap = load_raw_sim(pipemapfile)
+
+        # catalogue object setup
+        cat = catalogue()
+        cat.load(catfile)
+
+    # sort the catalogue on Lco if available
+    try:
+        cat.sort('Lco')
+        cat.del_extras()
+    except AttributeError:
+        cat.del_extras()
+
+    # trim the catalogue to match the pipeline map
+    cat.cull_to_map(pipemap, params, maxsep=2*u.deg, in_place=True)
+
+    return pipemap, cat
+
+def sim_setup(pipemapfiles, catfiles, params, rawsimfiles=None):
+    """
+    wrapper to set up multiple simulated COMAP fields at once
+    """
+
+    pipemaps = []
+    cats = []
+    for i in range(len(pipemapfiles)):
+        if rawsimfiles:
+            pipemap, cat = sim_field_setup(pipemapfiles[i], catfiles[i],
+                                           params, rawsimfile=rawsimfiles[i])
+        else:
+            pipemap, cat = sim_field_setup(pipemapfiles[i], catfiles[i], params)
+
+        pipemaps.append(pipemap)
+        cats.append(cat)
+
+    return pipemaps, cats
 
 
 """ FUNCTIONS FOR SAVING SIMS"""

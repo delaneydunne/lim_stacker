@@ -242,6 +242,9 @@ class catalogue():
             try:
                 val = getattr(self, i)[sortidx]
                 setattr(self, i, val)
+            except IndexError:
+                val = getattr(self, i)
+                setattr(self, i, val)
             except TypeError:
                 pass
 
@@ -266,6 +269,29 @@ class catalogue():
             pixfreq.append(objpixfreq)
 
         self.chan = np.array(pixfreq)
+
+    def set_pix(self, comap, params):
+        """
+        find x and y index of the location of each catalogue object in the map
+        will also find freq if not already set
+        """
+        x = []
+        y = []
+        for i in range(self.nobj):
+            objx = np.max(np.where(comap.rabe < self.ra()[i])[0])
+            objy = np.max(np.where(comap.decbe < self.dec()[i])[0])
+
+            x.append(objx)
+            y.append(objy)
+
+        self.x = np.array(x)
+        self.y = np.array(y)
+
+        try:
+            _ = self.chan
+        except AttributeError:
+            self.set_chan(comap, params)
+
 
     def cull_to_chan(self, comap, params, chan, in_place=False):
         """
@@ -327,13 +353,63 @@ class catalogue():
         return self.coords.dec.deg
 
     """ COORDINATE MATCHING FUNCTIONS (SIMULATIONS) """
-    def set_pix():
+    def match_wcs(self, inmap, outmap, params, in_place=True):
+        """
+        for simulations -- will adjust the catalogue wcs from matching one map to matching another
+        only adjusts ra/dec -- frequency axes should be identical between the two already unless
+        inmap is more finely sampled than outmap
+        """
+
+        # if the catalogue hasn't already been mapped to inmap, do so
+        try:
+            _ = self.x
+        except AttributeError:
+            self.set_pix(inmap, params)
+
+        # check the frequency axis
+        if len(inmap.freq) > len(outmap.freq):
+            # if the difference isn't integer we've got a problem
+            if len(inmap.freq) % len(outmap.freq) != 0:
+                warnings.warn('mismatch in number of channels between input and output map',
+                              RuntimeWarning)
+                return
+
+            subchan_factor = len(inmap.freq) // len(outmap.freq)
+            # frequency entries in the catalogue should be fine -- it's just chan
+            # that needs to change
+            # floor to the nearest integer channel number
+            self.chan = self.chan // subchan_factor
+
+        # change the catalogue ra/dec from matching inmap to matching outmap
+        ra = self.ra() + inmap.radiff/2 - inmap.ra[0] + outmap.ra[0]
+        dec = self.dec() + inmap.decdiff/2 - inmap.dec[0] + outmap.dec[0]
+
+        # map ra and dec
+        if in_place:
+            self.coords = SkyCoord(ra*u.deg, dec*u.deg)
+            return
+
+        else:
+            outcat = self.copy()
+            outcat.coords = SkyCoord(ra*u.deg, dec*u.deg)
+            return outcat
+
+    def del_extras(self):
+        for attr in ['Lco', 'M', 'nhalo', 'nu', 'vx', 'vy', 'vz', 'x_pos',
+                     'y_pos', 'z_pos', 'zformation']:
+            try:
+                delattr(self, attr)
+            except AttributeError:
+                continue
+
+    """ TODOS """
+    def print(self):
         """
         ***
         """
         pass
 
-    def match_pix():
+    def dump(self):
         """
         ***
         """
