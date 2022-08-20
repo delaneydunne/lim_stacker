@@ -2,6 +2,7 @@ from __future__ import absolute_import, print_function
 from .tools import *
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from astropy.coordinates import SkyCoord
@@ -412,11 +413,132 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
 
 
     """ PLOTS """
-    if params.savedata or params.saveplots:
-        make_output_pathnames(params)
-
     if params.saveplots:
         catalogue_plotter(galcatlist, fieldcatidx, params)
+
+    if params.spacestackwidth and params.plotspace:
+        spatial_plotter(stackim, params, cmap=cmap)
+
+    if params.freqstackwidth and params.plotfreq:
+        spectral_plotter(stackspec, params)
+
+    if params.spacestackwidth and params.freqstackwidth and params.plotspace and params.plotfreq:
+        combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
+
+    """ SAVE DATA """
+    if params.savedata:
+        # save the output values
+        ovalfile = params.datasavepath + '/output_values.csv'
+        # strip the values of their units before saving them (otherwise really annoying
+        # to read out on the other end)
+        outputvals_nu = dict_saver(outputvals, ovalfile)
+
+        idxfile = params.datasavepath + '/included_cat_indices.npz'
+        np.savez(idxfile, field1=fieldcatidx[0], field2=fieldcatidx[1], field3=fieldcatidx[2])
+
+        if params.spacestackwidth:
+            imfile = params.datasavepath + '/stacked_image.npz'
+            np.savez(imfile, T=stackim, rms=imrms)
+
+        if params.freqstackwidth:
+            specfile = params.datasavepath + '/stacked_spectrum.npz'
+            np.savez(specfile, T=stackspec, rms=specrms)
+
+        if params.cubelet:
+            cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
+            np.savez(cubefile, T=cubestack, rms=cuberms)
+
+    if params.cubelet:
+        return outputvals, stackim, stackspec, fieldcatidx, cubestack, cuberms
+    else:
+        return outputvals, stackim, stackspec, fieldcatidx
+
+def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
+    """
+    wrapper to perform a full stack on all available values in the catalogue.
+    will plot if desired
+    """
+
+    # dict to store stacked values
+    outputvals = {}
+
+    # get the cutouts for the field
+    if params.cubelet:
+        allcutouts, cubestack, cuberms = field_get_cutouts(comap, galcat, params, field=field)
+    else:
+        allcutouts = field_get_cutouts(comap, galcat, params, field=fields[i])
+
+    if params.verbose:
+        print('Field complete')
+
+    # number of objects
+    nobj = fieldlen = len(allcutouts)
+    outputvals['nobj'] = nobj
+    if params.verbose:
+        print('number of objects in field is: {}'.format(fieldlen))
+
+    # unzip all your cutout objects
+    cutlistdict = unzip(allcutouts)
+
+    # put into physical units if requested
+    if params.obsunits:
+        allou = observer_units(cutlistdict['T'], cutlistdict['rms'], cutlistdict['z'],
+                               cutlistdict['freq'], params)
+
+
+        linelumstack, dlinelumstack = weightmean(allou['L'], allou['dL'])
+        rhoh2stack, drhoh2stack = weightmean(allou['rho'], allou['drho'])
+
+        outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
+        outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
+        outputvals['nuobs_mean'], outputvals['z_mean'] = allou['nuobs_mean'], allou['z_mean']
+
+    # split indices up by field for easy access later
+    fieldcatidx = cutlistdict['catidx']
+
+    # overall stack for T value
+    stacktemp, stackrms = weightmean(cutlistdict['T'], cutlistdict['rms'])
+    outputvals['T'], outputvals['rms'] = stacktemp, stackrms
+
+    """ EXTRA STACKS """
+    # if cubelets returned, do all three stack versions
+    if params.spacestackwidth and params.freqstackwidth:
+        if params.cubelet:
+            # only want the beam for the axes that aren't being shown
+            lcfidx = (cubestack.shape[0] - params.freqwidth) // 2
+            cfidx = (lcfidx, lcfidx + params.freqwidth)
+
+            lcxidx = (cubestack.shape[1] - params.xwidth) // 2
+            cxidx = (lcxidx, lcxidx + params.xwidth)
+
+            stackim, imrms = weightmean(cubestack[cfidx[0]:cfidx[1],:,:],
+                                        cuberms[cfidx[0]:cfidx[1],:,:], axis=0)
+            stackspec, specrms = weightmean(cubestack[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
+                                            cuberms[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
+                                            axis=(1,2))
+        else:
+            stackim, imrms = weightmean(cutlistdict['cubestack'][:,cfidx[0]:cfidx[1],:,:],
+                                        cutlistdict['cubestackrms'][:,cfidx[0]:cfidx[1],:,:],
+                                        axis=(0,1))
+            stackspec, specrms = weightmean(cutlistdict['cubestack'][:,:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
+                                            cutlistdict['cubestackrms'][:,:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
+                                            axis=(0,2,3))
+    elif params.spacestackwidth and not params.freqstackwidth:
+        # overall spatial stack
+        stackim, imrms = weightmean(cutlistdict['spacestack'], cutlistdict['spacestackrms'], axis=0)
+        stackspec, specrms = None, None
+    elif params.freqstackwidth and not params.spacestackwidth:
+        # overall frequency stack
+        stackspec, specrms = weightmean(cutlistdict['freqstack'], cutlistdict['freqstackrms'], axis=0)
+        stackim, imrms = None, None
+    else:
+        stackim, imrms = None, None
+        stackspec, specrms = None, None
+
+
+    """ PLOTS """
+    if params.saveplots:
+        field_catalogue_plotter(galcat, fieldcatidx, params)
 
     if params.spacestackwidth and params.plotspace:
         spatial_plotter(stackim, params, cmap=cmap)
@@ -535,11 +657,11 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
 
     # corners for the beam rectangle
     if params.xwidth % 2 == 0:
-        rectmin = params.spacestackwidth - params.xwidth/2 - 0.5
-        rectmax = params.spacestackwidth + params.xwidth/2 - 0.5
-    else:
         rectmin = params.spacestackwidth - params.xwidth/2
         rectmax = params.spacestackwidth + params.xwidth/2
+    else:
+        rectmin = params.spacestackwidth - params.xwidth // 2
+        rectmax = params.spacestackwidth + params.xwidth // 2 + 1
 
     xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
     ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
@@ -602,11 +724,11 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
 
     # corners for the beam rectangle
     if params.xwidth % 2 == 0:
-        rectmin = params.spacestackwidth - params.xwidth/2 - 0.5
-        rectmax = params.spacestackwidth + params.xwidth/2 - 0.5
-    else:
         rectmin = params.spacestackwidth - params.xwidth/2
         rectmax = params.spacestackwidth + params.xwidth/2
+    else:
+        rectmin = params.spacestackwidth - params.xwidth // 2
+        rectmax = params.spacestackwidth + params.xwidth // 2 + 1
 
     xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
     ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
@@ -715,3 +837,22 @@ def catalogue_plotter(catlist, goodcatidx, params):
         fig.savefig(params.plotsavepath + '/catalogue_object_distribution.png')
 
     return 0
+
+def field_catalogue_plotter(cat, goodcatidx, params):
+
+    fig, ax = plt.subplots(1)
+
+    fieldz = cat.z[goodcatidx]
+    fieldcoord = cat.coords[goodcatidx]
+
+    c = ax.scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4)
+    ax.set_xlabel('RA (deg)')
+    ax.set_ylabel('Dec (deg)')
+
+    cbar = fig.colorbar(c)
+    cbar.ax.set_ylabel('Redshift')
+
+    if params.saveplots:
+        fig.savefig(params.plotsavepath + '/catalogue_object_distribution.png')
+
+    return fig

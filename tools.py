@@ -99,6 +99,7 @@ class parameters():
         # optional parameters
         if self.savedata:
             setattr(self, 'savepath', default_dir['savepath'])
+            self.make_output_pathnames()
         else:
             setattr(self, 'savepath', None)
 
@@ -189,6 +190,7 @@ class catalogue():
                         setattr(self, attr, inputdict[attr])
 
             self.nobj = len(self.z)
+            #*** TYPE OF CATALOGUE FLAG?
 
     def copy(self):
         """
@@ -287,7 +289,7 @@ class catalogue():
             return self.subset(inidx)
 
 
-    def cull_to_map(self, comap, params, maxsep = 3*u.deg, in_place=False):
+    def cull_to_map(self, comap, params, maxsep = 2*u.deg, in_place=False):
         """
         return a subset of the original cat containing only objects that fall into
         comap
@@ -323,6 +325,19 @@ class catalogue():
 
     def dec(self):
         return self.coords.dec.deg
+
+    """ COORDINATE MATCHING FUNCTIONS (SIMULATIONS) """
+    def set_pix():
+        """
+        ***
+        """
+        pass
+
+    def match_pix():
+        """
+        ***
+        """
+        pass
 
 
 def printdict(dict):
@@ -554,6 +569,9 @@ def load_map(file, reshape=True):
     return comap
 
 def setup(mapfiles, cataloguefile, params):
+    """
+    wrapper function to load in data and set up objects for a stack run
+    """
     maplist = []
     for mapfile in mapfiles:
         mapinst = load_map(mapfile)
@@ -576,6 +594,22 @@ def setup(mapfiles, cataloguefile, params):
         catlist.append(catinst)
 
     return maplist, catlist
+
+def field_setup(mapfile, catfile, params):
+    """
+    wrapper function to set up for a single-field stack run
+    """
+    # load in the map
+    mapinst = load_map(mapfile)
+
+    # load in the catalogue
+    catinst = catalogue()
+    catinst.load(catfile)
+
+    # clip the catalogue to the field
+    catinst.cull_to_map(mapinst, params, maxsep=2*u.deg, in_place=True)
+
+    return mapinst, catinst
 
 def field_cull_galaxy_cat(galdict, comap, maxsep=3*u.deg):
     """
