@@ -141,24 +141,18 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None):
     wrapper function to load in data (and match its WCS) for a simulated stack run
     """
 
+    # load in main map and main catalogue
+    pipemap = maps(pipemapfile)
+    cat = catalogue(catfile, load_all=True)
+
     # if a raw file and a pipeline file are both given, load them all in
+    # if only a raw file is given then the simulation is not from the oslo pipeline
     if rawsimfile:
         # map objects setup
-        pipemap = load_map(pipemapfile)
-        rawmap = load_raw_sim(rawsimfile)
+        rawmap = maps(rawsimfile)
 
-        # catalogue object setup
-        cat = catalogue()
-        cat.load(catfile, load_all=True)
+        # match catalogue wcs
         cat.match_wcs(rawmap, pipemap, params)
-
-    else:
-        # if only a raw file is given (ie. the simulation is not from the oslo pipeline)
-        pipemap = load_raw_sim(pipemapfile)
-
-        # catalogue object setup
-        cat = catalogue()
-        cat.load(catfile)
 
     # sort the catalogue on Lco if available
     try:
@@ -168,7 +162,7 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None):
         cat.del_extras()
 
     # trim the catalogue to match the pipeline map
-    cat.cull_to_map(pipemap, params, maxsep=2*u.deg, in_place=True)
+    cat.cull_to_map(pipemap, params, maxsep=2*u.deg)
 
     return pipemap, cat
 

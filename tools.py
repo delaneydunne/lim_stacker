@@ -156,8 +156,11 @@ class catalogue():
     must pass a .npz file to load in data
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, inputfile=None, load_all=False):
+        if inputfile:
+            self.load(inputfile, load_all=load_all)
+        else:
+            pass
 
     def load(self, inputfile, load_all=False):
         """
@@ -199,7 +202,7 @@ class catalogue():
         return copy.deepcopy(self)
 
 
-    def subset(self, subidx, in_place=False):
+    def subset(self, subidx, in_place=True):
         """
         cuts catalogue down to only the catalogue entries at subidx
         """
@@ -293,7 +296,7 @@ class catalogue():
             self.set_chan(comap, params)
 
 
-    def cull_to_chan(self, comap, params, chan, in_place=False):
+    def cull_to_chan(self, comap, params, chan, in_place=True):
         """
         return a subset of the original cat containing only objects in the passed channel chan
         """
@@ -315,7 +318,7 @@ class catalogue():
             return self.subset(inidx)
 
 
-    def cull_to_map(self, comap, params, maxsep = 2*u.deg, in_place=False):
+    def cull_to_map(self, comap, params, maxsep = 2*u.deg):
         """
         return a subset of the original cat containing only objects that fall into
         comap
@@ -336,14 +339,8 @@ class catalogue():
 
         # either return a new catalogue object or cut the original one with only objects
         # in the field
-        if in_place:
-            self.subset(fieldidx, in_place=True)
-            self.idx = fieldidx
-        else:
-            mapcat = self.subset(fieldidx)
-            mapcat.idx = fieldidx
-
-            return mapcat
+        self.subset(fieldidx, in_place=True)
+        self.idx = fieldidx
 
     """ RA/DEC CONVENIENCE FUNCTIONS """
     def ra(self):
@@ -353,7 +350,7 @@ class catalogue():
         return self.coords.dec.deg
 
     """ COORDINATE MATCHING FUNCTIONS (SIMULATIONS) """
-    def match_wcs(self, inmap, outmap, params, in_place=True):
+    def match_wcs(self, inmap, outmap, params):
         """
         for simulations -- will adjust the catalogue wcs from matching one map to matching another
         only adjusts ra/dec -- frequency axes should be identical between the two already unless
@@ -381,18 +378,12 @@ class catalogue():
             self.chan = self.chan // subchan_factor
 
         # change the catalogue ra/dec from matching inmap to matching outmap
-        ra = self.ra() + inmap.radiff/2 - inmap.ra[0] + outmap.ra[0]
-        dec = self.dec() + inmap.decdiff/2 - inmap.dec[0] + outmap.dec[0]
+        ra = self.ra() + inmap.xstep/2 - inmap.ra[0] + outmap.ra[0]
+        dec = self.dec() + inmap.ystep/2 - inmap.dec[0] + outmap.dec[0]
 
         # map ra and dec
-        if in_place:
-            self.coords = SkyCoord(ra*u.deg, dec*u.deg)
-            return
+        self.coords = SkyCoord(ra*u.deg, dec*u.deg)
 
-        else:
-            outcat = self.copy()
-            outcat.coords = SkyCoord(ra*u.deg, dec*u.deg)
-            return outcat
 
     def del_extras(self):
         for attr in ['Lco', 'M', 'nhalo', 'nu', 'vx', 'vy', 'vz', 'x_pos',
@@ -409,11 +400,12 @@ class catalogue():
         """
         pass
 
-    def dump(self):
+    def dump(self, outfile):
         """
-        ***
+        save the catalogue info in a file readable by catalogue again
         """
-        pass
+        np.savez(outfile, z=self.z, ra=self.ra(), dec=self.dec())
+
 
 
 class maps():
@@ -421,8 +413,16 @@ class maps():
     class containing a custom object used to hold a 3-D LIM map and its associated metadata
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, inputfile=None, reshape=True):
+        if inputfile:
+            if inputfile[-2:] == 'h5':
+                self.load(inputfile, reshape=reshape)
+            elif inputfile[-3:] == 'npz':
+                self.load_sim(inputfile)
+            else:
+                warnings.warn('Unrecognized input file type', RuntimeWarning)
+        else:
+            pass
 
     def load(self, inputfile, reshape=True):
         # this is the COMAP pipeline format currently -- would have to change this if
@@ -521,7 +521,7 @@ class maps():
 
 
     """ COORDINATE MATCHING FUNCTIONS (FOR SIMULATIONS) """
-    def rebin_freq(self, goalmap, in_place=True):
+    def rebin_freq(self, goalmap):
         """
         simulation pipeline takes a map that's more finely sampled in the frequency axis than
         the science resolution. This will rebin input maps to match the output ones
@@ -549,40 +549,21 @@ class maps():
             rebinrms = None
 
         # tack these new arrays on
-        if in_place:
-            self.map = rebinmap
-            if rebinrms:
-                self.rms = rebinrms
-        else:
-            outmap = self.copy()
-            outmap.map = rebinmap
-            if rebinrms:
-                self.rms = rebinrms
+        self.map = rebinmap
+        if rebinrms:
+            self.rms = rebinrms
 
         # also do the frequency axis
-        rebinfreq = self.freq[::chan_factor]
-        rebinfreqbe = self.freqbe[::chan_factor]
-        rebinfstep = rebinfreq[1] - rebinfreq[0]
-
-        if in_place:
-            self.freq = rebinfreq
-            self.freqbe = rebinfreqbe
-            self.fstep = rebinfstep
-
-        else:
-            outmap.freq = rebinfreq
-            outmap.freqbe = rebinfreqbe
-            outmap.fstep = rebinfstep
-
-        if not in_place:
-            return outmap
+        self.freq = self.freq[::chan_factor]
+        self.freqbe = self.freqbe[::chan_factor]
+        self.fstep = rebinfreq[1] - rebinfreq[0]
 
 
-    def match_wcs(self, goalmap, params, in_place=True):
+    def match_wcs(self, goalmap, params):
         """
         for simulations -- will adjust the map wcs from whatever is already in self to wcs matching
         that of goalmap. frequency axis should already be identical unless self is more finely sampled
-        than goalmap. if in_place=False will return a copy
+        than goalmap. will always do this in place
         """
 
         # first make sure the sizes are the same for each map
@@ -590,31 +571,40 @@ class maps():
             warnings.warn('Input/output WCS axes have different dimensions', RuntimeWarning)
             pass
 
-        # if in_place is true, just replace the relevant axes
-        if in_place:
-            self.ra = goalmap.ra
-            self.rabe = goalmap.rabe
-            self.dec = goalmap.dec
-            self.decbe = goalmap.dec
+        #  just replace the relevant axes
+        self.ra = goalmap.ra
+        self.rabe = goalmap.rabe
+        self.dec = goalmap.dec
+        self.decbe = goalmap.dec
 
-        else:
-            # otherwise, make a copy and return it
-            outmap = self.copy()
-            outmap.ra = goalmap.ra
-            outmap.rabe = goalmap.rabe
-            outmap.dec = goalmap.dec
-            outmap.decbe = goalmap.decbe
+        # also give self the field center given in goalmap
+        self.fieldcent = goalmap.fieldcent
 
         # rebin the freq axis if necessary
         if len(self.freq) != len(goalmap.freq):
-            if in_place:
-                self.rebin_freq(goalmap, in_place=True)
-            else:
-                outmap.rebin_freq(goalmap, in_place=True)
+            self.rebin_freq(goalmap)
 
-        # return outmap if needbe
-        if not in_place:
-            return outmap
+
+    def dump(self, outfile):
+        """
+        save the map object to an h5 file formatted like the COMAP pipeline output
+        """
+
+        # undo the coordinate shift so it doesn't happen twice when it's reloaded
+        outfreq = self.freq + self.fstep / 2
+        outra = self.ra + self.xstep / 2
+        outdec = self.dec + self.ystep / 2
+
+        # save to hdf5 file (slightly more barebones than the actual output)
+        with h5py.File(outfile, 'w') as f:
+            dset = f.create_dataset('map_coadd', data = self.sim, dtype='float64')
+            dset = f.create_dataset('rms_coadd', data = self.rms, dtype='float64')
+            dset = f.create_dataset('freq', data = outfreq, dtype='float64')
+            dset = f.create_dataset('x', data = outra, dtype='float64')
+            dset = f.create_dataset('y', data = outdec, dtype='float64')
+
+            patchcent = (self.fieldcent.ra.deg, self.fieldcent.dec.deg)
+            dset = f.create_dataset('patch_center', data = patchcent, dtype='float64')
 
 
 def printdict(dict):
@@ -782,92 +772,15 @@ def nuobs_to_nuem(nuobs, z):
 
 
 """ SETUP FUNCTIONS """
-def load_map(file, reshape=True):
-    """
-    loads in a file in the COMAP format, storing everything as arrays in the map class.
-    COMAP data are stored with coordinates as the CENTER of each pixel
-    """
-    # *** give maps their own special class at some point?
-
-    comap = empty_table() # creates empty class to put map info into
-
-    with h5py.File(file, 'r') as mapfile:
-        maptemparr = np.array(mapfile.get('map_coadd'))
-        rmstemparr = np.array(mapfile.get('rms_coadd'))
-        comap.freq = np.array(mapfile.get('freq'))
-        comap.ra = np.array(mapfile.get('x'))
-        comap.dec = np.array(mapfile.get('y'))
-
-        patch_cent = np.array(mapfile.get('patch_center'))
-        comap.fieldcent = SkyCoord(patch_cent[0]*u.deg, patch_cent[1]*u.deg)
-
-    # mark pixels with zero rms and mask them in the rms/map arrays (how the pipeline stores infs)
-    comap.badpix = np.where(rmstemparr < 1e-10)
-    maptemparr[comap.badpix] = np.nan
-    rmstemparr[comap.badpix] = np.nan
-
-    comap.map = maptemparr
-    comap.rms = rmstemparr
-
-    if reshape:
-        # also reshape into 3 dimensions instead of separating sidebands
-        comap.freq = np.reshape(comap.freq, 4*64)
-        comap.map = np.reshape(comap.map, (4*64, len(comap.ra), len(comap.dec)))
-        comap.rms = np.reshape(comap.rms, (4*64, len(comap.ra), len(comap.dec)))
-
-    # 1-pixel width for each of the axes
-    comap.fstep = comap.freq[1] - comap.freq[0]
-    comap.xstep = comap.ra[1] - comap.ra[0]
-    comap.ystep = comap.dec[1] - comap.dec[0]
-
-    # housekeeping for the arrays - give each axis an index array as well
-    comap.x = np.arange(len(comap.ra))
-    comap.y = np.arange(len(comap.dec))
-
-    # rearrange so that the stored coordinate coordinate arrays correspond to the
-    # bottom right (etc.) of the voxel (currently they're the center)
-    comap.freq = comap.freq - comap.fstep / 2
-    comap.ra = comap.ra - comap.xstep / 2
-    comap.dec = comap.dec - comap.ystep / 2
-
-    # bin edges for each axis for convenience
-    comap.freqbe = np.append(comap.freq, comap.freq[-1] + comap.fstep)
-    comap.rabe = np.append(comap.ra, comap.ra[-1] + comap.xstep)
-    comap.decbe = np.append(comap.dec, comap.dec[-1] + comap.ystep)
-
-
-    # limits on each axis for easy testing
-    comap.flims = (np.min(comap.freq), np.max(comap.freq))
-    comap.xlims = (np.min(comap.ra), np.max(comap.ra))
-    comap.ylims = (np.min(comap.dec), np.max(comap.dec))
-
-    # *** any other per-field info we need
-
-    return comap
-
 def setup(mapfiles, cataloguefile, params):
     """
     wrapper function to load in data and set up objects for a stack run
     """
     maplist = []
-    for mapfile in mapfiles:
-        mapinst = load_map(mapfile)
-
-        # calculate the appropriate redshift limits from the freq axis
-        zlims = freq_to_z(params.centfreq, np.array(mapinst.flims))
-        mapinst.zlims = np.sort(zlims)
-
-        maplist.append(mapinst)
-
-    catdict = {}
-    with np.load(cataloguefile) as catfile:
-        catdict['z'] = catfile['z']
-        catdict['ra'] = catfile['ra']
-        catdict['dec'] = catfile['dec']
-
     catlist = []
     for i in range(len(mapfiles)):
-        catinst = field_cull_galaxy_cat(catdict, maplist[i])
+        mapinst, catinst = field_setup(mapfiles[i], catfiles[i], params)
+        maplist.append(mapinst)
         catlist.append(catinst)
 
     return maplist, catlist
@@ -877,122 +790,16 @@ def field_setup(mapfile, catfile, params):
     wrapper function to set up for a single-field stack run
     """
     # load in the map
-    mapinst = load_map(mapfile)
+    mapinst = maps(mapfile)
 
     # load in the catalogue
-    catinst = catalogue()
-    catinst.load(catfile)
+    catinst = catalogue(catfile)
 
     # clip the catalogue to the field
-    catinst.cull_to_map(mapinst, params, maxsep=2*u.deg, in_place=True)
+    catinst.cull_to_map(mapinst, params, maxsep=2*u.deg)
 
     return mapinst, catinst
 
-def field_cull_galaxy_cat(galdict, comap, maxsep=3*u.deg):
-    """
-    takes the full version of the catalogue to be stacked on and cuts to all objects within some
-    radius of the given field center
-    """
-    # *** get rid of skycoord dependence
-    # allow you to carry around other arbitrary parameters? ****
-    fieldcent = comap.fieldcent
-    zlims = np.array(comap.zlims)
-
-    # pull only objects in the field
-    fieldcoords = SkyCoord(galdict['ra']*u.deg, galdict['dec']*u.deg)
-    fieldsep = fieldcoords.separation(fieldcent)
-    fieldidx = np.where(fieldsep < maxsep)[0]
-
-    fieldz_cut = galdict['z'][fieldidx]
-    fieldidx = fieldidx[np.where(np.logical_and(fieldz_cut > zlims[0], fieldz_cut < zlims[1]))[0]]
-
-    # save to cat object
-    galcat = empty_table()
-    galcat.coords = fieldcoords[fieldidx]
-    galcat.z = galdict['z'][fieldidx]
-    galcat.idx = fieldidx
-
-    # number objects in cat
-    galcat.nobj = len(fieldidx)
-
-    return galcat
-
-
-""" OBJECT HANDLING FUNCTIONS """
-def catobj_in_chan(channel, cat, comap):
-    """
-    creates a new catalogue object containing only entries in the correct map channel
-    doesn't affect the og catalogue object
-    """
-
-    # if chan is already in trcat, just slice based on that
-    # otherwise have to map frequencies to channels and then slice
-    try:
-        inidx = np.where(cat.chan == channel)[0]
-
-    except:
-        obsfreq = nuem_to_nuobs(115.27, cat.z)
-
-        if trawmap.freqbe[0] < trawmap.freqbe[1]:
-            freqmin, freqmax = comap.freqbe[channel], comap.freqbe[channel+1]
-        else:
-            freqmin, freqmax = comap.freqbe[channel+1], comap.freqbe[channel]
-
-        inidx = np.where(np.logical_and(obsfreq < freqmax,
-                                        obsfreq >= freqmin))[0]
-
-    # slice out a new catalogue object only containing the entries in the correct
-    # map channel
-    chancat = empty_table()
-    try:
-        chancat.ra = cat.coords.ra.deg[inidx]
-    except:
-        chancat.ra = cat.ra[inidx]
-
-    try:
-        chancat.dec = cat.coords.dec.deg[inidx]
-    except:
-        chancat.dec = cat.dec[inidx]
-
-    # copy over all array parameters from the catalogue (from dongwoo chung)
-    # generic bc there are a couple of different ways the catalogue could be set up
-    # *** move this to a specific catalogue object
-    for i in dir(cat):
-        if i[0] == '_': continue
-
-        try:
-            setattr(chancat, i, getattr(cat, i)[inidx])
-        except TypeError:
-            pass
-
-    chancat.nobj = len(inidx)
-
-    return chancat
-
-def sort_cat(cat, attr):
-    """
-    sorts catalogue on its attribute attr
-    will order so that the max value is index zero
-    this is done in-place
-    """
-
-    # pull and sort the array
-    tosort = getattr(cat, attr)
-    sortidx = np.flip(np.argsort(tosort))
-
-    # temporary object to hold unsorted values
-    tempcat = cat.copy()
-
-    for i in dir(cat):
-        if i[0] == '_': continue
-
-        try:
-            setattr(cat, i, getattr(tempcat, i)[sortidx])
-        except TypeError:
-            pass
-
-    del(tempcat)
-    return cat
 
 
 """ SETUP FOR SIMS/BOOTSTRAPS """
