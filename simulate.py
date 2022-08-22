@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore", message="divide by zero encountered in true_di
 
 
 """ SETUP FUNCTIONS """
-def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None):
+def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=None):
     """
     wrapper function to load in data (and match its WCS) for a simulated stack run
     """
@@ -47,21 +47,33 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None):
     # trim the catalogue to match the pipeline map
     cat.cull_to_map(pipemap, params, maxsep=2*u.deg)
 
+    # if an output filename is passed, dump the wcs-matched catalogue
+    if outcatfile:
+        cat.dump(outcatfile)
+
     return pipemap, cat
 
-def sim_setup(pipemapfiles, catfiles, params, rawsimfiles=None):
+def sim_setup(pipemapfiles, catfiles, params, rawsimfiles=None, outcatfiles=None):
     """
     wrapper to set up multiple simulated COMAP fields at once
     """
+    # list of nones if not saving files
+    if not outcatfiles:
+        outcatfiles = []
+        for i in range(len(pipemapfiles)):
+            outcatfiles.append(None)
 
+    # just loop through file list and run sim_field_setup on each
     pipemaps = []
     cats = []
     for i in range(len(pipemapfiles)):
         if rawsimfiles:
             pipemap, cat = sim_field_setup(pipemapfiles[i], catfiles[i],
-                                           params, rawsimfile=rawsimfiles[i])
+                                           params, rawsimfile=rawsimfiles[i],
+                                           outcatfile=outcatfiles[i])
         else:
-            pipemap, cat = sim_field_setup(pipemapfiles[i], catfiles[i], params)
+            pipemap, cat = sim_field_setup(pipemapfiles[i], catfiles[i], params,
+                                           outcatfile=outcatfiles[i])
 
         pipemaps.append(pipemap)
         cats.append(cat)
@@ -70,7 +82,7 @@ def sim_setup(pipemapfiles, catfiles, params, rawsimfiles=None):
 
 
 """SIGNAL-INJECTION WRAPPERS"""
-# **** HAVEN'T BEEN UPDATED TO NEW OBJECTS YET 
+# **** HAVEN'T BEEN UPDATED TO NEW OBJECTS YET
 def sim_inject_field(datfile, simfile, catfile, outfile=None, scale=1.):
     """
     wrapper function -- loads in an actual COMAP map and a simulated halo luminosity LIM
