@@ -414,6 +414,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
 
     """ PLOTS """
     if params.saveplots:
+        # just in case this was done elsewhere in the file structure
+        params.make_output_pathnames()
         catalogue_plotter(galcatlist, fieldcatidx, params)
 
     if params.spacestackwidth and params.plotspace:
@@ -538,6 +540,8 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
 
     """ PLOTS """
     if params.saveplots:
+        # just in case this was accidentally done elsewhere in the dir structure
+        params.make_output_pathnames()
         field_catalogue_plotter(galcat, fieldcatidx, params)
 
     if params.spacestackwidth and params.plotspace:

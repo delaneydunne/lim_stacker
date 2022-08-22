@@ -53,22 +53,41 @@ def plot_mom0(comap, params, ext=0.95, lognorm=True, smooth=False):
 
     return fig
 
-def plot_chan(comap, channel, params, ext=0.95, smooth=False, lognorm=True):
+def plot_chan(comap, channel, params, cat=None, ext=0.95, smooth=False, lognorm=True):
+    """
+    plot a single channel of the input intensity map
+    if cat is passed, will also scatter plot objects in the catalogue in that channel
+    """
 
     fig,ax = plt.subplots(1)
 
+    # plot the map
     plotmap = comap.map[channel,:,:] * 1e6
+    # convovle with the beam if smooth=True
     if smooth:
         plotmap = convolve(plotmap, params.gauss_kernel)
 
+    # limits of the colourmap (ext is the passed factor by which they're multiplied)
     vext = (np.nanmin(plotmap)*ext, np.nanmax(plotmap)*ext)
+    # log colourscale
     if lognorm:
         c = ax.pcolormesh(comap.ra, comap.dec, plotmap,
                           norm=SymLogNorm(linthresh=1, linscale=0.5,
                                           vmin=vext[0], vmax=vext[1]),
                           cmap='PiYG_r')
+    # normal colourscale
     else:
         c = ax.pcolormesh(comap.ra, comap.dec, plotmap, cmap='PiYG_r')
+
+    # if a catalogue is passed, scatter plot
+    if cat:
+        # catalogue objects in the given channel
+        chancat = cat.cull_to_chan(comap, params, channel, in_place=False)
+        # scatter plot them
+        ax.scatter(chancat.ra(), chancat.dec(), color='k', s=2)
+
+
+    # labels and stuff
     ax.set_xlabel('RA (deg)')
     ax.set_ylabel('Dec (deg)')
 

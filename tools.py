@@ -315,7 +315,7 @@ class catalogue():
             self.subset(inidx, in_place=True)
 
         else:
-            return self.subset(inidx)
+            return self.subset(inidx, in_place=False)
 
 
     def cull_to_map(self, comap, params, maxsep = 2*u.deg):
