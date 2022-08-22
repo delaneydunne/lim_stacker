@@ -772,19 +772,6 @@ def nuobs_to_nuem(nuobs, z):
 
 
 """ SETUP FUNCTIONS """
-def setup(mapfiles, cataloguefile, params):
-    """
-    wrapper function to load in data and set up objects for a stack run
-    """
-    maplist = []
-    catlist = []
-    for i in range(len(mapfiles)):
-        mapinst, catinst = field_setup(mapfiles[i], catfiles[i], params)
-        maplist.append(mapinst)
-        catlist.append(catinst)
-
-    return maplist, catlist
-
 def field_setup(mapfile, catfile, params):
     """
     wrapper function to set up for a single-field stack run
@@ -799,6 +786,21 @@ def field_setup(mapfile, catfile, params):
     catinst.cull_to_map(mapinst, params, maxsep=2*u.deg)
 
     return mapinst, catinst
+
+def setup(mapfiles, cataloguefile, params):
+    """
+    wrapper function to load in data and set up objects for a stack run
+    """
+    maplist = []
+    catlist = []
+    for i in range(len(mapfiles)):
+        mapinst, catinst = field_setup(mapfiles[i], cataloguefile, params)
+        maplist.append(mapinst)
+        catlist.append(catinst)
+
+    return maplist, catlist
+
+
 
 
 

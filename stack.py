@@ -598,9 +598,9 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
 
     onesiglimvals = Tvals + rmsvals
 
-    Sact = (Tvals*u.K).to(u.Jy, equivalencies=u.brightness_temperature(omega_B, nuobsvals))
-    Ssig = (onesiglimvals*u.K).to(u.Jy, equivalencies=u.brightness_temperature(omega_B, nuobsvals))
-    Srms = (rmsvals*u.K).to(u.Jy, equivalencies=u.brightness_temperature(omega_B, nuobsvals))
+    Sact = (Tvals*u.K).to(u.Jy, equivalencies=u.brightness_temperature(nuobsvals, omega_B))
+    Ssig = (onesiglimvals*u.K).to(u.Jy, equivalencies=u.brightness_temperature(nuobsvals, omega_B))
+    Srms = (rmsvals*u.K).to(u.Jy, equivalencies=u.brightness_temperature(nuobsvals, omega_B))
 
     # channel widths in km/s
     delnus = (31.25*u.MHz*params.freqwidth / nuobsvals * const.c).to(u.km/u.s)
