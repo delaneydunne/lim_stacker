@@ -378,8 +378,8 @@ class catalogue():
             self.chan = self.chan // subchan_factor
 
         # change the catalogue ra/dec from matching inmap to matching outmap
-        ra = self.ra() + inmap.xstep/2 - inmap.ra[0] + outmap.ra[0]
-        dec = self.dec() + inmap.ystep/2 - inmap.dec[0] + outmap.dec[0]
+        ra = self.ra() - inmap.ra[0] + outmap.ra[0]
+        dec = self.dec() - inmap.dec[0] + outmap.dec[0]
 
         # map ra and dec
         self.coords = SkyCoord(ra*u.deg, dec*u.deg)
@@ -394,7 +394,7 @@ class catalogue():
                 continue
 
     """ TODOS """
-    def print(self):
+    def info(self):
         """
         ***
         """
@@ -605,6 +605,12 @@ class maps():
 
             patchcent = (self.fieldcent.ra.deg, self.fieldcent.dec.deg)
             dset = f.create_dataset('patch_center', data = patchcent, dtype='float64')
+
+    def info(self):
+        """
+        ***
+        """
+        pass
 
 
 def printdict(dict):
