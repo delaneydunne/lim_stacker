@@ -416,6 +416,207 @@ class catalogue():
         pass
 
 
+class maps():
+    """
+    class containing a custom object used to hold a 3-D LIM map and its associated metadata
+    """
+
+    def __init__(self):
+        pass
+
+    def load(self, inputfile, reshape=True):
+        # this is the COMAP pipeline format currently -- would have to change this if
+        # using some other file format
+        self.type = 'data'
+
+        # load in from file
+        with h5py.File(inputfile, 'r') as file:
+            maptemparr = np.array(file.get('map_coadd'))
+            rmstemparr = np.array(file.get('rms_coadd'))
+            self.freq = np.array(file.get('freq'))
+            self.ra = np.array(file.get('x'))
+            self.dec = np.array(file.get('y'))
+
+            patch_cent = np.array(file.get('patch_center'))
+            self.fieldcent = SkyCoord(patch_cent[0]*u.deg, patch_cent[1]*u.deg)
+
+        # mark pixels with zero rms and mask them in the rms/map arrays (how the pipeline stores infs)
+        self.badpix = np.where(rmstemparr < 1e-10)
+        maptemparr[self.badpix] = np.nan
+        rmstemparr[self.badpix] = np.nan
+
+        self.map = maptemparr
+        self.rms = rmstemparr
+
+        if reshape:
+            # also reshape into 3 dimensions instead of separating sidebands
+            self.freq = np.reshape(self.freq, 4*64)
+            self.map = np.reshape(self.map, (4*64, len(self.ra), len(self.dec)))
+            self.rms = np.reshape(self.rms, (4*64, len(self.ra), len(self.dec)))
+
+        # build the other convenience coordinate arrays, make sure the coordinates map to
+        # the correct part of the voxel
+        self.setup_coordinates()
+
+
+    def load_sim(self, inputfile):
+        """
+        loads in a limlam_mocker simulation in raw format instead of a pipeline simulation
+        will not adjust coordinates or anything, but will format the output object to be
+        identical to the regular data objects
+        """
+        self.type = 'raw simulation'
+
+        # load in from file
+        with np.load(inputfile, allow_pickle=True) as simfile:
+            # sims output uK, data in K. stack functions all deal w K so convert
+            self.map = simfile['map_cube'] / 1e6
+            # these are bin CENTERS also
+            self.freq = simfile['map_frequencies']
+            self.ra = simfile['map_pixel_ra']
+            self.dec = simfile['map_pixel_dec']
+
+        # flip frequency axis and rearrange so freq axis is the first in the map
+        self.map = np.swapaxes(self.map, 0, -1)
+        self.map = np.swapaxes(self.map, 1, 2)
+        self.freq = np.flip(self.freq)
+        self.map = np.flip(self.map, axis=0)
+
+        # build the other convenience coordinate arrays, make sure the coordinates map to
+        # the correct part of the voxel
+        self.setup_coordinates()
+
+
+    def setup_coordinates(self):
+        """
+        takes an input map (in the correct orientation) and adds the binedge, bin center, etc
+        coordinate arrays
+        """
+
+        # 1-pixel width for each of the axes
+        self.fstep = self.freq[1] - self.freq[0]
+        self.xstep = self.ra[1] - self.ra[0]
+        self.ystep = self.dec[1] - self.dec[0]
+
+        # housekeeping for the arrays - give each axis an index array as well
+        self.x = np.arange(len(self.ra))
+        self.y = np.arange(len(self.dec))
+
+        # rearrange so that the stored coordinate coordinate arrays correspond to the
+        # bottom right (etc.) of the voxel (currently they're the center)
+        self.freq = self.freq - self.fstep / 2
+        self.ra = self.ra - self.xstep / 2
+        self.dec = self.dec - self.ystep / 2
+
+        # bin edges for each axis for convenience
+        self.freqbe = np.append(self.freq, self.freq[-1] + self.fstep)
+        self.rabe = np.append(self.ra, self.ra[-1] + self.xstep)
+        self.decbe = np.append(self.dec, self.dec[-1] + self.ystep)
+
+        # limits on each axis for easy testing
+        self.flims = (np.min(self.freq), np.max(self.freq))
+        self.xlims = (np.min(self.ra), np.max(self.ra))
+        self.ylims = (np.min(self.dec), np.max(self.dec))
+
+
+
+    """ COORDINATE MATCHING FUNCTIONS (FOR SIMULATIONS) """
+    def rebin_freq(self, goalmap, in_place=True):
+        """
+        simulation pipeline takes a map that's more finely sampled in the frequency axis than
+        the science resolution. This will rebin input maps to match the output ones
+        """
+
+        # first test to make sure the desired rebinning makes sense
+        if len(self.freq) < len(goalmap.freq):
+            warnings.warn('Input frequency axis less finely-sampled than goal map', RuntimeWarning)
+
+        elif len(self.freq) % len(goalmap.freq) != 0:
+            warnings.warn('Input number of channels is not an integer multiple of goal', RuntimeWarning)
+
+        chan_factor = len(self.freq) // len(goalmap.freq)
+
+        # if the map is real (i.e. there exists an RMS map), weightmean to combine the map
+        try:
+            inmap = self.map.reshape((chan_factor, -1, len(self.ra), len(self.dec)))
+            inrms = self.rms.reshape((chan_factor, -1, len(self.ra), len(self.dec)))
+            rebinmap, rebinrms = weightmean(inmap, inrms, axis=0)
+
+        except AttributeError:
+            # otherwise just a regular mean
+            inmap = self.map.reshape((chan_factor, -1, len(self.ra), len(self.dec)))
+            rebinmap = np.nanmean(inmap, axis=0)
+            rebinrms = None
+
+        # tack these new arrays on
+        if in_place:
+            self.map = rebinmap
+            if rebinrms:
+                self.rms = rebinrms
+        else:
+            outmap = self.copy()
+            outmap.map = rebinmap
+            if rebinrms:
+                self.rms = rebinrms
+
+        # also do the frequency axis
+        rebinfreq = self.freq[::chan_factor]
+        rebinfreqbe = self.freqbe[::chan_factor]
+        rebinfstep = rebinfreq[1] - rebinfreq[0]
+
+        if in_place:
+            self.freq = rebinfreq
+            self.freqbe = rebinfreqbe
+            self.fstep = rebinfstep
+
+        else:
+            outmap.freq = rebinfreq
+            outmap.freqbe = rebinfreqbe
+            outmap.fstep = rebinfstep
+
+        if not in_place:
+            return outmap
+
+
+    def match_wcs(self, goalmap, params, in_place=True):
+        """
+        for simulations -- will adjust the map wcs from whatever is already in self to wcs matching
+        that of goalmap. frequency axis should already be identical unless self is more finely sampled
+        than goalmap. if in_place=False will return a copy
+        """
+
+        # first make sure the sizes are the same for each map
+        if len(self.ra) != len(goalmap.ra) or len(self.dec) != len(goalmap.dec):
+            warnings.warn('Input/output WCS axes have different dimensions', RuntimeWarning)
+            pass
+
+        # if in_place is true, just replace the relevant axes
+        if in_place:
+            self.ra = goalmap.ra
+            self.rabe = goalmap.rabe
+            self.dec = goalmap.dec
+            self.decbe = goalmap.dec
+
+        else:
+            # otherwise, make a copy and return it
+            outmap = self.copy()
+            outmap.ra = goalmap.ra
+            outmap.rabe = goalmap.rabe
+            outmap.dec = goalmap.dec
+            outmap.decbe = goalmap.decbe
+
+        # rebin the freq axis if necessary
+        if len(self.freq) != len(goalmap.freq):
+            if in_place:
+                self.rebin_freq(goalmap, in_place=True)
+            else:
+                outmap.rebin_freq(goalmap, in_place=True)
+
+        # return outmap if needbe
+        if not in_place:
+            return outmap
+
+
 def printdict(dict):
     """
     print a python dict to terminal, testing each variable to see if it has units
