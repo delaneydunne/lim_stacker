@@ -28,6 +28,14 @@ class empty_table():
         """@brief Creates a copy of the table."""
         return copy.deepcopy(self)
 
+    def print(self):
+        attrlist = []
+        for i in dir(self):
+            if i[0]=='_': continue
+            elif i == 'copy': continue
+        else: attrlist.append(i)
+        print(attrlist)
+
 class parameters():
     """
     class creating a custom object used to hold the various stacking parameters
