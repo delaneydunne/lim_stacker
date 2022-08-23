@@ -429,7 +429,7 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
 
     if params.plotcubelet:
-        plot_cubelet(cubestack, cuberms, params)
+        cubelet_plotter(cubestack, cuberms, params)
 
     """ SAVE DATA """
     if params.savedata:
@@ -556,6 +556,9 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
 
     if params.spacestackwidth and params.freqstackwidth and params.plotspace and params.plotfreq:
         combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
+
+    if params.plotcubelet:
+        cubelet_plotter(cubestack, cuberms, params)
 
     """ SAVE DATA """
     if params.savedata:

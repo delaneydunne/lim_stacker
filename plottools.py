@@ -397,7 +397,7 @@ def specgridy(cubelet, rmslet, nextra=3, offset=0):
     return fig
 
 """ WRAPPER FOR CUBELET PLOTS """
-def plot_cubelet(cubelet, rmslet, params):
+def cubelet_plotter(cubelet, rmslet, params):
     """
     wrapper function to make extra diagnostic plots of the output cubelet from a stack
     """
