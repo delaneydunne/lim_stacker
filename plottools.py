@@ -395,3 +395,247 @@ def specgridy(cubelet, rmslet, nextra=3, offset=0):
     axs[-1].set_xlabel('Channel')
 
     return fig
+
+""" WRAPPER FOR CUBELET PLOTS """
+def plot_cubelet(cubelet, rmslet, params):
+    """
+    wrapper function to make extra diagnostic plots of the output cubelet from a stack
+    """
+
+    # if saving plots, set up the directory structure
+    if params.saveplots:
+        outputdir = params.savepath + '_x'+str(params.xwidth)+'f'+str(params.freqwidth)
+
+        params.cubesavepath = outputdir + '/plots/cubelet'
+
+        if not os.path.exists(params.cubesavepath):
+            os.makedirs(params.cubesavepath)
+
+    # plot a 9x9 grid of spatial images of adjacent channels to the central one
+    changridfig = changrid(cubelet, params)
+    if params.saveplots:
+        changridfig.savefig(params.cubesavepath+'/channel_grid.png')
+
+    # radial profile of the stack in the central and adjacent channels
+    radproffig = radprofoverplot(cubelet, rmslet, params)
+    if params.saveplots:
+        radproffig.savefig(params.cubesavepath+'/radial_profiles.png')
+
+    # 9x1 grid of spectra in adjacent spatial pixels to center of stack
+    #  x-axis
+    xspecfig = specgridx(cubelet, rmslet)
+    if params.saveplots:
+        xspecfig.savefig(params.cubesavepath+'/spectral_profiles_x.png')
+
+    #  y-axis
+    yspecfig = specgridx(cubelet, rmslet)
+    if params.saveplots:
+        yspecfig.savefig(params.cubesavepath+'/spectral_profiles_y.png')
+
+    return
+
+
+""" STACK OUTPUT PLOTS """
+def spatial_plotter(stackim, params, cmap='PiYG_r'):
+
+    # corners for the beam rectangle
+    if params.xwidth % 2 == 0:
+        rectmin = params.spacestackwidth - params.xwidth/2
+        rectmax = params.spacestackwidth + params.xwidth/2
+    else:
+        rectmin = params.spacestackwidth - params.xwidth // 2
+        rectmax = params.spacestackwidth + params.xwidth // 2 + 1
+
+    xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
+    ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
+
+    vext = np.nanmax(np.abs([np.nanmin(stackim*1e6), np.nanmax(stackim*1e6)]))
+    vmin,vmax = -vext, vext
+
+    # unsmoothed
+    fig, ax = plt.subplots(1)
+    c = ax.pcolormesh(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
+    ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
+    cbar = fig.colorbar(c)
+    cbar.ax.set_ylabel('Tb (uK)')
+
+    if params.saveplots:
+        fig.savefig(params.plotsavepath+'/angularstack_unsmoothed.png')
+
+    # smoothed
+    smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
+
+    vext = np.nanmax(smoothed_spacestack_gauss*1e6)
+
+    fig, ax = plt.subplots(1)
+    c = ax.pcolormesh(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
+    ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
+    cbar = fig.colorbar(c)
+    cbar.ax.set_ylabel('Tb (uK)')
+
+    if params.saveplots:
+        fig.savefig(params.plotsavepath+'/angularstack_smoothed.png')
+
+    return 0
+
+def spectral_plotter(stackspec, params):
+    fig, ax = plt.subplots(1)
+    if params.freqwidth % 2 == 0:
+        freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
+    else:
+        freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
+
+    ax.step(freqarr, stackspec*1e6,
+            color='indigo', zorder=10, where='mid')
+    ax.set_xlabel(r'$\Delta_\nu$ [GHz]')
+    ax.set_ylabel(r'T$_b$ [$\mu$K]')
+    ax.set_title('Stacked over {} Spatial Pixels'.format((params.xwidth)**2))
+
+    ax.axhline(0, color='k', ls='--')
+    ax.axvline(0, color='k', ls='--')
+
+    # show which channels contribute to the stack
+    ax.axvline(0 - params.freqwidth / 2 * 31.25e-3, color='0.7', ls=':')
+    ax.axvline(0 + params.freqwidth / 2 * 31.25e-3, color='0.7', ls=':')
+
+    if params.saveplots:
+        fig.savefig(params.plotsavepath + '/frequencystack.png')
+
+    return 0
+
+def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None):
+
+    # corners for the beam rectangle
+    if params.xwidth % 2 == 0:
+        rectmin = params.spacestackwidth - params.xwidth/2
+        rectmax = params.spacestackwidth + params.xwidth/2
+    else:
+        rectmin = params.spacestackwidth - params.xwidth // 2
+        rectmax = params.spacestackwidth + params.xwidth // 2 + 1
+
+    xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
+    ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
+
+    vext = np.nanmax(np.abs([np.nanmin(stackim*1e6), np.nanmax(stackim*1e6)]))
+    vmin,vmax = -vext, vext
+
+    # plot with all three stack representations
+    gs_kw = dict(width_ratios=[1,1], height_ratios=[3,2])
+    fig,axs = plt.subplots(2,2, figsize=(7,5), gridspec_kw=gs_kw)
+    gs = axs[0,-1].get_gridspec()
+
+    for ax in axs[1,:]:
+        ax.remove()
+
+    freqax = fig.add_subplot(gs[-1,:])
+
+    c = axs[0,0].pcolormesh(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
+    axs[0,0].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
+    axs[0,0].set_title('Unsmoothed')
+
+    axs[0,0].tick_params(axis='y',
+                            labelleft=False,
+                            labelright=False,
+                            left=False,
+                            right=False)
+    axs[0,0].tick_params(axis='x',
+                         labeltop=False,
+                         labelbottom=False,
+                         top=False,
+                         bottom=False)
+
+    divider = make_axes_locatable(axs[0,0])
+    cax0 = divider.new_horizontal(size='5%', pad=0.05)
+    fig.add_axes(cax0)
+    cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
+    cbar.ax.set_ylabel(r'$T_b$ ($\mu$K)')
+
+    # smoothed
+    smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
+    vext = np.nanmax(smoothed_spacestack_gauss*1e6)
+    c = axs[0,1].pcolormesh(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
+    axs[0,1].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
+    axs[0,1].set_title('Gaussian-smoothed')
+
+    axs[0,1].tick_params(axis='y',
+                            labelleft=False,
+                            labelright=False,
+                            left=False,
+                            right=False)
+    axs[0,1].tick_params(axis='x',
+                         labeltop=False,
+                         labelbottom=False,
+                         top=False,
+                         bottom=False)
+
+    divider = make_axes_locatable(axs[0,1])
+    cax0 = divider.new_horizontal(size='5%', pad=0.05)
+    fig.add_axes(cax0)
+    cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
+    cbar.ax.set_ylabel(r'$T_b$ ($\mu$K)')
+
+    if params.freqwidth % 2 == 0:
+        freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
+    else:
+        freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
+    freqax.step(freqarr, stackspec*1e6,
+                color='indigo', zorder=10, where='mid')
+    freqax.axhline(0, color='k', ls='--')
+    freqax.axvline(0, color='k', ls='--')
+    # show which channels contribute to the stack
+    freqax.axvline(0 - params.freqwidth / 2 * 31.25e-3, color='0.7', ls=':')
+    freqax.axvline(0 + params.freqwidth / 2 * 31.25e-3, color='0.7', ls=':')
+    freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
+    freqax.set_ylabel(r'T$_b$ [$\mu$K]')
+
+    if stackresult:
+        fig.suptitle('$T_b = {:.3f}\\pm {:.3f}$ $\\mu$K'.format(*stackresult))
+
+    if params.saveplots:
+        fig.savefig(params.plotsavepath + '/combinedstackim.png')
+
+    return 0
+
+
+def catalogue_plotter(catlist, goodcatidx, params):
+
+    fig,axs = plt.subplots(1,3, figsize=(13,4))
+    fields = ['Field 1', 'Field 2', 'Field 3']
+
+    for i in range(3):
+        fieldz = catlist[i].z[goodcatidx[i]]
+        fieldcoord = catlist[i].coords[goodcatidx[i]]
+
+        c = axs[i].scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4)
+        axs[i].set_xlabel('Dec (deg)')
+        axs[i].set_title(fields[i]+' ('+str(len(goodcatidx[i]))+' objects)')
+
+    axs[0].set_ylabel('RA (deg)')
+    divider = make_axes_locatable(axs[2])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cbar = fig.colorbar(c, cax=cax)
+    cbar.ax.set_ylabel('Redshift')
+
+    if params.saveplots:
+        fig.savefig(params.plotsavepath + '/catalogue_object_distribution.png')
+
+    return 0
+
+def field_catalogue_plotter(cat, goodcatidx, params):
+
+    fig, ax = plt.subplots(1)
+
+    fieldz = cat.z[goodcatidx]
+    fieldcoord = cat.coords[goodcatidx]
+
+    c = ax.scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4)
+    ax.set_xlabel('RA (deg)')
+    ax.set_ylabel('Dec (deg)')
+
+    cbar = fig.colorbar(c)
+    cbar.ax.set_ylabel('Redshift')
+
+    if params.saveplots:
+        fig.savefig(params.plotsavepath + '/catalogue_object_distribution.png')
+
+    return fig

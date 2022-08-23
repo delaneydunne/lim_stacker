@@ -96,13 +96,18 @@ class parameters():
                 setattr(self, attr, None)
 
         # boolean parameters
-        for attr in ['cubelet', 'obsunits', 'verbose', 'savedata', 'saveplots', 'plotspace', 'plotfreq']:
+        for attr in ['cubelet', 'obsunits', 'verbose', 'savedata', 'saveplots', 'plotspace', 'plotfreq', 'plotcubelet']:
             try:
                 val = bool(default_dir[attr])
                 setattr(self, attr, val)
             except:
                 warnings.warn("Parameter '"+attr+"' should be boolean", RuntimeWarning)
                 setattr(self, attr, None)
+
+        # make sure you're not trying to plot a cubelet if you're not actually making one
+        if not self.cubelet:
+            self.plotcubelet = False
+            warnings.warn("plotcubelet==True when cubelet==False -- set plotcubelet to False", RuntimeWarning)
 
         # optional parameters
         if self.savedata:
@@ -144,6 +149,16 @@ class parameters():
             outputdir = './stack' + sinfo
         else:
             outputdir = self.savepath
+
+        # if the default one was accidentally saved, get rid of it
+        if self.savepath != 'stack_output'+sinfo and os.path.exists('stack_output'+sinfo):
+                os.rmdir('stack_output'+sinfo+'/data')
+                os.rmdir('stack_output'+sinfo+'/plots')
+                os.rmdir('stack_output'+sinfo)
+        elif self.savepath != 'stack_output' and os.path.exists('stack_output'):
+            os.rmdir('stack_output/data')
+            os.rmdir('stack_output/plots')
+            os.rmdir('stack_output')
 
         if not os.path.exists(outputdir):
             os.makedirs(outputdir)

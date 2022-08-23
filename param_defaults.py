@@ -33,9 +33,11 @@ saveplots True
 plotspace True
 # RADIUS of the output diagnostic spatial images in pixels
 # only used if plotspace == True
-spacestackwidth 10
+spacestackwidth 20
  # do the spectral plot
 plotfreq True
 # TOTAL number of channels to include in the diagnostic spectral images
 # only used if plotfreq == True
-freqstackwidth 10
+freqstackwidth 40
+# extra diagnostic plots for the cubelet output
+plotcubelet True
