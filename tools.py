@@ -149,6 +149,38 @@ class parameters():
         if self.savedata:
             os.makedirs(self.datasavepath, exist_ok=True)
 
+    def info(self):
+        """
+        quick printer to give a summary of the settings of a params object
+        """
+        print("Parameters object for an intensity-mapping stack run")
+        print("-------------")
+        print("Stack parameters")
+        print("-------------")
+        print("\t (xwidth, ywidth, freqwidth): ({},{},{})".format(self.xwidth,
+                                                                  self.ywidth,
+                                                                  self.freqwidth))
+        print("-------------")
+        print("Map parameters")
+        print("-------------")
+        print("\t Central frequency: {}".format(self.centfreq))
+        print("\t Beam STD (pix): {}".format(self.beamwidth))
+        print("-------------")
+        print("Stacking metaparameters")
+        print("-------------")
+        print("\t Cubelet stacking: {}".format(self.cubelet))
+        print("\t Returning observer units: {}".format(self.obsunits))
+        print("\t Verbose output: {}".format(self.verbose))
+        print("\t Saving stack data: {}".format(self.savedata))
+        if self.savedata:
+            print("\t\t to path: "+self.datasavepath)
+        print("\t Saving plots: {}".format(self.saveplots))
+        if self.saveplots:
+            print("\t\t to path: "+self.plotsavepath)
+        print("\t Radius of output spatial image: {} pix".format(self.spacestackwidth))
+        print("\t Diameter of output spectrum: {} channels".format(self.freqstackwidth))
+        print("-------------")
+
 
 class catalogue():
     """
