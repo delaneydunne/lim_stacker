@@ -207,6 +207,7 @@ class parameters():
         print("\t Saving plots: {}".format(self.saveplots))
         if self.saveplots:
             print("\t\t to path: "+self.plotsavepath)
+        print("\t\t extra cubelet plots: {}".format(self.plotcubelet))
         print("\t Radius of output spatial image: {} pix".format(self.spacestackwidth))
         print("\t Diameter of output spectrum: {} channels".format(self.freqstackwidth))
         print("-------------")
@@ -907,11 +908,16 @@ def field_setup(mapfile, catfile, params):
 def setup(mapfiles, cataloguefile, params):
     """
     wrapper function to load in data and set up objects for a stack run
+    accepts either a list of per-field catalogue files or one big one
+    if there's only one map file, use field_setup
     """
     maplist = []
     catlist = []
     for i in range(len(mapfiles)):
-        mapinst, catinst = field_setup(mapfiles[i], cataloguefile, params)
+        if isinstance(cataloguefile, (list, tuple, np.ndarray)):
+            mapinst, catinst = field_setup(mapfiles[i], cataloguefile[i], params)
+        else:
+            mapinst, catinst = field_setup(mapfiles[i], cataloguefile, params)
         maplist.append(mapinst)
         catlist.append(catinst)
 
