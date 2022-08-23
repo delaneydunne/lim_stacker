@@ -295,14 +295,16 @@ def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
                     cutout.__delattr__('cubestackrms')
 
             cutoutlist.append(cutout)
-            field_nobj += 1
+            if goalnobj:
+                field_nobj += 1
 
-            if field_nobj == goalnobj:
-                print("Hit goal number of {} cutouts".format(goalnobj))
-                if params.cubelet:
-                    return cutoutlist, cubestack, cuberms
-                else:
-                    return cutoutlist
+                if field_nobj == goalnobj:
+                    if params.verbose:
+                        print("Hit goal number of {} cutouts".format(goalnobj))
+                    if params.cubelet:
+                        return cutoutlist, cubestack, cuberms
+                    else:
+                        return cutoutlist
 
         if params.verbose:
             if i % 100 == 0:
@@ -492,11 +494,20 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
     # dict to store stacked values
     outputvals = {}
 
+    # if the stacker should stop after a certain number of cutouts are made
+    if params.goalnumcutouts:
+        if isinstance(params.goalnumcutouts, (list, tuple, np.ndarray)):
+            warnings.warn('List of goalncutouts given but only stacking one field', RuntimeWarning)
+            params.goalnumcutouts = params.goalnumcutouts[0]
+
     # get the cutouts for the field
     if params.cubelet:
-        allcutouts, cubestack, cuberms = field_get_cutouts(comap, galcat, params, field=field)
+        allcutouts, cubestack, cuberms = field_get_cutouts(comap, galcat, params,
+                                                           field=field,
+                                                           goalnobj = params.goalnumcutouts)
     else:
-        allcutouts = field_get_cutouts(comap, galcat, params, field=fields[i])
+        allcutouts = field_get_cutouts(comap, galcat, params, field=field,
+                                       goalnobj = params.goalnumcutouts)
 
     if params.verbose:
         print('Field complete')

@@ -132,6 +132,18 @@ class parameters():
         else:
             setattr(self, 'savepath', None)
 
+        # number of cutouts can be either a list or an int
+        if default_dir['goalnumcutouts'][0] == '[':
+            ncuts = default_dir['goalnumcutouts'][1:-1].split(',')
+            self.goalnumcutouts = [int(val) for val in ncuts]
+        elif int(default_dir['goalnumcutouts']) == 0:
+            self.goalnumcutouts = None
+        else:
+            try:
+                setattr(self, 'goalnumcutouts', int(default_dir['goalnumcutouts']))
+            except:
+                self.goalnumcutouts = None
+
         # kernel object for the beam
         self.gauss_kernel = Gaussian2DKernel(self.beamwidth)
 

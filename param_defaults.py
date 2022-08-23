@@ -27,7 +27,7 @@ savedata True
 savepath stack_output
 # for simulations -- to hit a target number of objects exactly
 # to split this up by field, pass a list [n_field1, n_field2, n_field3]
-goalnumcutouts None
+goalnumcutouts [200,100,100]
 
 """ plotting parameters """
 # save plots to disk
