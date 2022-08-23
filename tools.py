@@ -425,12 +425,39 @@ class catalogue():
             except AttributeError:
                 continue
 
-    """ TODOS """
     def info(self):
         """
-        ***
+        prints a quick summary of what's going on in the catalogue (so you don't
+        have to print(dir()) every time)
         """
-        pass
+        # directory containing all the attributes in the catalogue
+        catdir = dir(self)
+
+        print("Catalogue object for an intensity-mapping stack run")
+        print("Contains {} total objects".format(self.nobj))
+        print("-------------")
+        if 'Lco' in catdir:
+            _ = self.Lco
+            print("Halo luminosities in range {:.3e} to {:.3e}".format(np.min(self.Lco),
+                                                                       np.max(self.Lco)))
+        else:
+            print("No halo mass/luminosity information")
+        print("-------------")
+        print("RA in range {:.3f} to {:.3f} deg".format(np.min(self.ra()), np.max(self.ra())))
+        print("Dec in range {:.3f} to {:.3f} deg".format(np.min(self.dec()), np.max(self.dec())))
+        print("Redshift in range {:.3e} to {:.3e}".format(np.min(self.z), np.max(self.z)))
+        print("-------------")
+        print("Catalogue also includes:")
+        for i in catdir:
+            if i[0] == '_': continue
+            elif i == 'coords': continue
+            elif i == 'nobj': continue
+            elif i == 'z': continue
+
+            elif isinstance(getattr(self, i), np.ndarray):
+                print(i + ": ({}, {})".format(np.min(getattr(self, i)), np.max(getattr(self, i))))
+        print("-------------")
+
 
     def dump(self, outfile):
         """
