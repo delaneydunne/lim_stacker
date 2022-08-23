@@ -430,7 +430,7 @@ def cubelet_plotter(cubelet, rmslet, params):
         xspecfig.savefig(params.cubesavepath+'/spectral_profiles_x.png')
 
     #  y-axis
-    yspecfig = specgridx(cubelet, rmslet)
+    yspecfig = specgridy(cubelet, rmslet)
     if params.saveplots:
         yspecfig.savefig(params.cubesavepath+'/spectral_profiles_y.png')
 
