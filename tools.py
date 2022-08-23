@@ -152,13 +152,20 @@ class parameters():
 
         # if the default one was accidentally saved, get rid of it
         if self.savepath != 'stack_output'+sinfo and os.path.exists('stack_output'+sinfo):
+            try:
                 os.rmdir('stack_output'+sinfo+'/data')
                 os.rmdir('stack_output'+sinfo+'/plots')
                 os.rmdir('stack_output'+sinfo)
+            except:
+                pass
+
         elif self.savepath != 'stack_output' and os.path.exists('stack_output'):
-            os.rmdir('stack_output/data')
-            os.rmdir('stack_output/plots')
-            os.rmdir('stack_output')
+            try:
+                os.rmdir('stack_output/data')
+                os.rmdir('stack_output/plots')
+                os.rmdir('stack_output')
+            except:
+                pass
 
         if not os.path.exists(outputdir):
             os.makedirs(outputdir)
@@ -188,7 +195,7 @@ class parameters():
         print("-------------")
         print("\t Central frequency: {}".format(self.centfreq))
         print("\t Beam STD (pix): {}".format(self.beamwidth))
-        print("-------------")
+        print(""-------------")
         print("Stacking metaparameters")
         print("-------------")
         print("\t Cubelet stacking: {}".format(self.cubelet))

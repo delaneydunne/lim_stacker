@@ -3,6 +3,8 @@ from .tools import *
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import SymLogNorm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.patches import Rectangle
 import matplotlib.gridspec as gridspec
 from photutils.aperture import CircularAnnulus, CircularAperture, aperture_photometry
 import astropy.units as u

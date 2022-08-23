@@ -4,14 +4,11 @@ from .plottools import *
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from astropy.coordinates import SkyCoord
 from astropy.cosmology import FlatLambdaCDM
 import astropy.units as u
 import astropy.constants as const
 from astropy.convolution import convolve, Gaussian2DKernel, Tophat2DKernel
-from astropy.coordinates import SkyCoord
 import warnings
 import csv
 warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
