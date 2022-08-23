@@ -136,8 +136,6 @@ class parameters():
         if default_dir['goalnumcutouts'][0] == '[':
             ncuts = default_dir['goalnumcutouts'][1:-1].split(',')
             self.goalnumcutouts = [int(val) for val in ncuts]
-        elif int(default_dir['goalnumcutouts']) == 0:
-            self.goalnumcutouts = None
         else:
             try:
                 setattr(self, 'goalnumcutouts', int(default_dir['goalnumcutouts']))
