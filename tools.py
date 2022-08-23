@@ -195,7 +195,7 @@ class parameters():
         print("-------------")
         print("\t Central frequency: {}".format(self.centfreq))
         print("\t Beam STD (pix): {}".format(self.beamwidth))
-        print(""-------------")
+        print("-------------")
         print("Stacking metaparameters")
         print("-------------")
         print("\t Cubelet stacking: {}".format(self.cubelet))
