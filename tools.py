@@ -33,7 +33,7 @@ class empty_table():
         for i in dir(self):
             if i[0]=='_': continue
             elif i == 'copy': continue
-        else: attrlist.append(i)
+            else: attrlist.append(i)
         print(attrlist)
 
 class parameters():
