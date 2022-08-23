@@ -147,12 +147,16 @@ def display_cutout(cutout, comap, params, save=None, ext=1.0):
     return fig
 
 """ CUBELET PLOTS """
-def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0):
+def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0,
+             cmap=None, symm=True, clims=None):
 
     fig = plt.figure(figsize=(9,7))
     supgs = gridspec.GridSpec(1,1,figure=fig)
     gs = gridspec.GridSpecFromSubplotSpec(3, 3, subplot_spec=supgs[0])
     axs = gs.subplots(sharex='col', sharey='row')
+
+    if not cmap:
+        cmap = 'PiYG_r'
 
     if not ext:
         if smooth:
@@ -160,8 +164,13 @@ def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0):
         else:
             ext = 0.7
 
-    vext = np.max(np.abs((np.nanmin(cubelet), np.nanmax(cubelet))))
-    vmin, vmax = -vext*ext, vext*ext
+    if symm:
+        vext = np.max(np.abs((np.nanmin(cubelet), np.nanmax(cubelet))))
+        vmin, vmax = -vext*ext, vext*ext
+    elif clims:
+        vmin, vmax = clims[0], clims[1]
+    else:
+        vmin, vmax = np.nanmin(cubelet)*ext, np.nanmax(cubelet)*ext
 
     freqcent = int(cubelet.shape[0] / 2) + offset
     spaceext = cubelet.shape[1]
@@ -191,7 +200,7 @@ def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0):
             else:
                 plotim = cubelet[chan,xyext[0]:xyext[1],xyext[0]:xyext[1]]
 
-            c = axs[i,j].pcolormesh(plotim, cmap='PiYG_r', vmin=vmin, vmax=vmax)
+            c = axs[i,j].pcolormesh(plotim, cmap=cmap, vmin=vmin, vmax=vmax)
             axs[i,j].set_title('channel '+str(chan), fontsize='small')
             axs[i,j].set_aspect(aspect=1)
             axs[i,j].set_xticks([])
@@ -420,7 +429,7 @@ def cubelet_plotter(cubelet, rmslet, params):
     # smoothed version of this
     smchangridfig = changrid(cubelet, params, smooth=True)
     if params.saveplots:
-        changridfig.savefig(params.cubesavepath+'/channel_grid_smoothed.png')
+        smchangridfig.savefig(params.cubesavepath+'/channel_grid_smoothed.png')
 
     # radial profile of the stack in the central and adjacent channels
     radproffig = radprofoverplot(cubelet, rmslet, params)

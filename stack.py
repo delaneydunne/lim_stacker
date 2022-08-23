@@ -260,11 +260,14 @@ def single_cutout(idx, galcat, comap, params):
 
     return cutout
 
-def field_get_cutouts(comap, galcat, params, field=None):
+def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
     """
     wrapper to return all cutouts for a single field
     """
     ti = 0
+    # if we're keeping track of the number of cutouts
+    if goalnobj:
+        field_nobj = 0
     cubestack, cuberms = None, None
     cutoutlist = []
     for i in range(galcat.nobj):
@@ -292,6 +295,14 @@ def field_get_cutouts(comap, galcat, params, field=None):
                     cutout.__delattr__('cubestackrms')
 
             cutoutlist.append(cutout)
+            field_nobj += 1
+
+            if field_nobj == goalnobj:
+                print("Hit goal number of {} cutouts".format(goalnobj))
+                if params.cubelet:
+                    return cutoutlist, cubestack, cuberms
+                else:
+                    return cutoutlist
 
         if params.verbose:
             if i % 100 == 0:
@@ -308,6 +319,19 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     will plot if desired
     """
     fields = [1,2,3]
+
+    # for simulations -- if the stacker should stop after a certain number
+    # of cutouts. set this up to be robust against per-field or total vals
+    if params.goalnumcutouts:
+        if isinstance(params.goalnumcutouts, (int, float)):
+            numcutoutlist = [params.goalnumcutouts // len(maplist),
+                             params.goalnumcutouts // len(maplist),
+                             params.goalnumcutouts // len(maplist)]
+        else:
+            numcutoutlist = params.goalnumcutouts
+    else:
+        numcutoutslist = [None, None, None]
+
     # dict to store stacked values
     outputvals = {}
 
@@ -321,12 +345,15 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
             fieldcutouts, fieldcubestack, fieldcuberms = field_get_cutouts(maplist[i],
                                                                            galcatlist[i],
                                                                            params,
-                                                                           field=fields[i])
+                                                                           field=fields[i],
+                                                                           goalnobj=numcutoutlist[i])
             if isinstance(fieldcubestack, np.ndarray):
                 cubestacks.append(fieldcubestack)
                 cubermss.append(fieldcuberms)
         else:
-            fieldcutouts = field_get_cutouts(maplist[i], galcatlist[i], params, field=fields[i])
+            fieldcutouts = field_get_cutouts(maplist[i], galcatlist[i], params,
+                                             field=fields[i],
+                                             goalnobj=numcutoutlist[i])
         fieldlens.append(len(fieldcutouts))
         allcutouts = allcutouts + fieldcutouts
 

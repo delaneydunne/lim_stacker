@@ -25,6 +25,9 @@ verbose True
 savedata True
 # file path for saving the stack data
 savepath stack_output
+# for simulations -- to hit a target number of objects exactly
+# to split this up by field, pass a list [n_field1, n_field2, n_field3]
+goalnumcutouts None
 
 """ plotting parameters """
 # save plots to disk
