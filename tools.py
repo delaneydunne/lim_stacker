@@ -667,9 +667,31 @@ class maps():
 
     def info(self):
         """
-        ***
+        prints out information about the map object
         """
-        pass
+        if self.type == 'data':
+            print("Map object read in from an actual pipeline run")
+        elif self.type == 'raw simulation':
+            print(" Map object from a raw limlam_mocker simulation")
+        else:
+            print("Map object from unknown source")
+        print("-------------")
+        print("Field Center:")
+        print("({:.3f}, {:.3f}) deg".format(self.fieldcent.ra.deg, self.fieldcent.dec.deg))
+        print("-------------")
+        print("WCS:")
+        print("map shape is (freq, Dec, RA) ({}, {}, {})".format(*self.map.shape))
+        print("RA extent: ({:.3f}, {:.3f}) deg".format(np.max(self.rabe), np.min(self.rabe)))
+        print("\t step size: {:.3f} deg".format(self.xstep))
+        print("Dec extent: ({:.3f}, {:.3f}) deg".format(np.max(self.decbe), np.min(self.decbe)))
+        print("\t step size: {:.3f} deg".format(self.ystep))
+        print("Frequency extent: ({:.3f}, {:.3f}) GHz".format(np.max(self.freqbe), np.min(self.freqbe)))
+        print("\t channel width: {:.3f} GHz".format(self.fstep))
+        print("-------------")
+        print("Map extent:")
+        print("Max T: {:.3e} uK".format(np.nanmax(self.map)*1e6))
+        print("Min T: {:.3e} uK".format(np.nanmin(self.map)*1e6))
+        print("-------------")
 
 
 def printdict(dict):
