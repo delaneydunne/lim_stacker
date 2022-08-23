@@ -416,7 +416,11 @@ def cubelet_plotter(cubelet, rmslet, params):
     # plot a 9x9 grid of spatial images of adjacent channels to the central one
     changridfig = changrid(cubelet, params)
     if params.saveplots:
-        changridfig.savefig(params.cubesavepath+'/channel_grid.png')
+        changridfig.savefig(params.cubesavepath+'/channel_grid_unsmoothed.png')
+    # smoothed version of this
+    smchangridfig = changrid(cubelet, params, smooth=True)
+    if params.saveplots:
+        changridfig.savefig(params.cubesavepath+'/channel_grid_smoothed.png')
 
     # radial profile of the stack in the central and adjacent channels
     radproffig = radprofoverplot(cubelet, rmslet, params)
@@ -474,6 +478,7 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     cbar = fig.colorbar(c)
     cbar.ax.set_ylabel('Tb (uK)')
+    ax.set_aspect(aspect=1)
 
     if params.saveplots:
         fig.savefig(params.plotsavepath+'/angularstack_smoothed.png')
@@ -551,6 +556,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     fig.add_axes(cax0)
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
     cbar.ax.set_ylabel(r'$T_b$ ($\mu$K)')
+    axs[0,0].set_aspect(aspect=1)
 
     # smoothed
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
@@ -575,6 +581,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     fig.add_axes(cax0)
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
     cbar.ax.set_ylabel(r'$T_b$ ($\mu$K)')
+    axs[0,1].set_aspect(aspect=1)
 
     if params.freqwidth % 2 == 0:
         freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
