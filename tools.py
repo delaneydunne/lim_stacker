@@ -49,7 +49,7 @@ class parameters():
         paramfile can have as many or as few of the inputs as need be
         """
 
-        modpath = getattr(sys.modules['stacker.tools'], '__file__')
+        modpath = getattr(sys.modules['lim_stacker.tools'], '__file__')
         abspath = modpath.split('tools.py')[0]
 
         # load defaults in from the separate file that should be in the same directory
