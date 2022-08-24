@@ -33,34 +33,8 @@ galcatfile = 'BOSS_quasars/cutquasarcat.npz'
 
 """ PARAMETERS """
 # set up a params class that you can just pass around
-params = st.empty_table()
-params.xwidth = 3 # number of x pixels to average between when getting the cutout T
-params.ywidth = params.xwidth # number of y pixels to average between when getting the cutout T
-params.freqwidth = 1 # number of freq pixels to average between when getting the cutout T
-
-params.centfreq = 115.27 # rest frequency CO(1-0)
-params.beamwidth = 1 # when smoothing to the synthesized beam, std of gaussian kernel
-params.gauss_kernel = Gaussian2DKernel(params.beamwidth)
-params.tophat_kernel = Tophat2DKernel(params.beamwidth)
-params.spacestackwidth = 10 # in pixels -- if you only want single T value from each cutout, set to None
-params.freqstackwidth = 10 # number of channels. "" ""
-
-params.obsunits = True
-params.verbose = True
-
-params.savedata = True
-params.savepath = 'boss_2006'
-
-# plotting parameters
-params.saveplots = True
-params.plotspace = True
-params.plotfreq = True
-params.fieldcents = [SkyCoord(25.435*u.deg, 0.0*u.deg), SkyCoord(170.0*u.deg, 52.5*u.deg),
-                     SkyCoord(226.0*u.deg, 55.0*u.deg)]
-
-# save cubelets instead of spatial/spectral stacks separately
-# this will change how the data is saved and combined, so it doesn't overflow the RAM
-params.cubelet = True
+# if you'd like to use non-default values, pass a file to st.parameters()
+params = st.parameters()
 
 """ SETUP """
 comaplist, qsolist = st.setup(mapfiles, galcatfile, params)
