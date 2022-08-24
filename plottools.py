@@ -473,6 +473,7 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
     cbar = fig.colorbar(c)
     cbar.ax.set_ylabel('Tb (uK)')
+    ax.set_aspect(aspect=1)
 
     if params.saveplots:
         fig.savefig(params.plotsavepath+'/angularstack_unsmoothed.png')
