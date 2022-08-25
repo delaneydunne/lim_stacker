@@ -286,7 +286,7 @@ class catalogue():
                 try:
                     vals = getattr(self, i)[subidx]
                     setattr(self, i, vals)
-                except TypeError:
+                except (TypeError, IndexError):
                     pass
             self.nobj = len(subidx)
 

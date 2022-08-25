@@ -18,6 +18,63 @@ warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
 
+""" CATALOGUE SELECTION FUNCTIONS """
+def random_mass_subset(cat, params, seed=12345, massbins=3, in_place=True):
+    """
+    Function to make a more realistic selection of haloes from the full simulation
+    peak-patch catalogue -- it will split the haloes into 'massbins' number of
+    bins, and then pull params.goalnumcutouts haloes randomly from the top mass
+    bin.
+    """
+
+    # how many objects are in the top mass bin
+    bincutoff = cat.nobj // massbins
+
+    if in_place:
+        # sort the catalogue on mass (in descending order)
+        try:
+            cat.sort('M')
+        except AttributeError:
+            warnings.warn("There aren't any mass values in the input catalogue", RuntimeWarning)
+            return
+        # clip out the top mass bin
+        cat.subset(np.arange(bincutoff))
+
+    else:
+        # make a copy of the catalogue and sort it on mass
+        cutcat = cat.copy()
+        try:
+            cutcat.sort('M')
+        except AttributeError:
+            warnings.warn("There aren't any mass values in the input catalogue", RuntimeWarning)
+            return
+        # clip out the top mass bin
+        cutcat.subset(np.arange(bincutoff))
+
+    # random number generator
+    rng = np.random.default_rng(seed)
+
+    # get random indices within the top mass bin
+    randidx = rng.integers(0, bincutoff, int(params.goalnumcutouts*4))
+    # remove duplicates (making sure there are still enough indices)
+    # returning twice as many objects as necessary because some will fall outside the map 
+    # goodrandidx will be sorted in ascending order so the catalogue will stay sorted on mass
+    try:
+        goodrandidx = np.unique(randidx)[:int(params.goalnumcutouts*2)]
+    except:
+        randidx = rng.integers(0, bincutoff, int(params.goalnumcutouts*8))
+        goodrandidx = np.unique(randidx)[:int(params.goalnumcutouts*2)]
+
+    if in_place:
+        cat.subset(goodrandidx)
+        return
+    else:
+        cutcat.subset(goodrandidx)
+        return cutcat
+
+
+
+
 """ SETUP FUNCTIONS """
 def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=None):
     """
@@ -46,6 +103,9 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=No
 
     # trim the catalogue to match the pipeline map
     cat.cull_to_map(pipemap, params, maxsep=2*u.deg)
+
+    if params.goalnumcutouts:
+        random
 
     # if an output filename is passed, dump the wcs-matched catalogue
     if outcatfile:
