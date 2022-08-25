@@ -332,7 +332,7 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         else:
             numcutoutlist = params.goalnumcutouts
     else:
-        numcutoutslist = [None, None, None]
+        numcutoutlist = [None, None, None]
 
     # dict to store stacked values
     outputvals = {}
