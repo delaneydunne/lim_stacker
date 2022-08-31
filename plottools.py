@@ -212,7 +212,7 @@ def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0,
 
     return fig
 
-def radprof(cubelet, params, chan=None):
+def radprof(cubelet, rmslet, params, chan=None):
     """
     gets the integrated Tb in circular annuli extending radially outwards from
     the central spaxel in a given channel
@@ -228,28 +228,26 @@ def radprof(cubelet, params, chan=None):
     if not chan:
         chan = freqcent
 
+    im, imrms = cubelet[chan,:,:], rmslet[chan,:,:]
+
     # central circular aperture
     cent = CircularAperture((spacecent, spacecent), 0.5)
     centmask = cent.to_mask()
+    centim, centrms = weightmean(centmask.cutout(im), centmask.cutout(imrms), axis=(0,1))
 
     # the rest of the annuli
-    aplist = [cent]
+    meanlist = [centim]
+    rmsmeanlist = [centrms]
     for r in np.arange(spacecent - 1) + 1.5:
         aper = CircularAnnulus((spacecent, spacecent), r-1, r)
-        aplist.append(aper)
+        apmask = aper.to_mask()#.to_image(im.shape)
+        apim, aprms = weightmean(apmask.cutout(im), apmask.cutout(imrms), axis=(0,1))
+        meanlist.append(apim)
+        rmsmeanlist.append(aprms)
 
-    proftable = aperture_photometry(cubelet[chan,:,:], aplist)
+    return np.array(meanlist), np.array(rmsmeanlist)
 
-    sumlist = []
-    for i in np.arange(len(aplist)):
-        val = float(proftable['aperture_sum_'+str(i)])
-        sumlist.append(val)
-
-    sumarr = np.array(sumlist)
-
-    return sumarr
-
-def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0):
+def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0, profsum=False):
     """
     plots the radial profile of the central frequency channel (offset by offset
     if nonzero), and nextra channels on either side of the central one. will
@@ -267,15 +265,17 @@ def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0):
 
     chanprofs = []
     for i, chan in enumerate(chans):
-        chanprof = radprof(cubelet, params, chan=chan)
+        chanprof, rmsprof = radprof(cubelet, rmslet, params, chan=chan)
+
+        if profsum:
+            chanprof = np.cumsum(chanprof)
+
         chanprofs.append(chanprof)
 
         if chan == freqcent:
             ax.step(np.arange(len(chanprof))*2, chanprof*1e6, zorder=20, where='mid',
                     color=cmap(carr[i]), lw=3, label='Channel {}'.format(str(chan)))
 
-            rmsprof = radprof(rmslet, params, chan=chan)
-            print(rmsprof)
             ax.fill_between(np.arange(len(chanprof))*2, (chanprof-rmsprof)*1e6, (chanprof+rmsprof)*1e6,
                             color='0.9', zorder=0)
         else:
@@ -290,12 +290,9 @@ def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0):
 
     chanprofs = np.stack(chanprofs)
 
-    axext = np.max(np.abs((np.nanmax(chanprofs), np.nanmin(chanprofs)))) * 1.05 * 1e6
-    ax.set_ylim((-axext, axext))
-
     ax.set_ylabel(r'$T_b$ ($\mu$K)')
 
-    ax.legend(loc='upper left')
+    ax.legend(loc='upper right')
 
     ax.set_xlabel('Radius (arcmin)')
 
