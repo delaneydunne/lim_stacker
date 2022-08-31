@@ -57,7 +57,7 @@ def random_mass_subset(cat, params, seed=12345, massbins=3, in_place=True):
     # get random indices within the top mass bin
     randidx = rng.integers(0, bincutoff, int(params.goalnumcutouts*4))
     # remove duplicates (making sure there are still enough indices)
-    # returning twice as many objects as necessary because some will fall outside the map 
+    # returning twice as many objects as necessary because some will fall outside the map
     # goodrandidx will be sorted in ascending order so the catalogue will stay sorted on mass
     try:
         goodrandidx = np.unique(randidx)[:int(params.goalnumcutouts*2)]
@@ -97,15 +97,16 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=No
     # sort the catalogue on Lco if available
     try:
         cat.sort('Lco')
+
+        if params.goalnumcutouts:
+            random_mass_subset(cat, params)
+
         cat.del_extras()
     except AttributeError:
         cat.del_extras()
 
     # trim the catalogue to match the pipeline map
     cat.cull_to_map(pipemap, params, maxsep=2*u.deg)
-
-    if params.goalnumcutouts:
-        random
 
     # if an output filename is passed, dump the wcs-matched catalogue
     if outcatfile:
