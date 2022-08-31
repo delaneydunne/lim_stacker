@@ -94,6 +94,10 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=No
         # match catalogue wcs
         cat.match_wcs(rawmap, pipemap, params)
 
+
+    # trim the catalogue to match the pipeline map
+    cat.cull_to_map(pipemap, params, maxsep=2*u.deg)
+
     # sort the catalogue on Lco if available
     try:
         cat.sort('Lco')
@@ -104,9 +108,6 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=No
         cat.del_extras()
     except AttributeError:
         cat.del_extras()
-
-    # trim the catalogue to match the pipeline map
-    cat.cull_to_map(pipemap, params, maxsep=2*u.deg)
 
     # if an output filename is passed, dump the wcs-matched catalogue
     if outcatfile:
