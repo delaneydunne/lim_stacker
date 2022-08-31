@@ -231,14 +231,14 @@ def radprof(cubelet, rmslet, params, chan=None):
     im, imrms = cubelet[chan,:,:], rmslet[chan,:,:]
 
     # central circular aperture
-    cent = CircularAperture((spacecent, spacecent), 0.5)
+    cent = CircularAperture((spacecent, spacecent), 1.5)
     centmask = cent.to_mask()
     centim, centrms = weightmean(centmask.cutout(im), centmask.cutout(imrms), axis=(0,1))
 
     # the rest of the annuli
     meanlist = [centim]
     rmsmeanlist = [centrms]
-    for r in np.arange(spacecent - 1) + 1.5:
+    for r in np.arange(spacecent - 2) + 2.5:
         aper = CircularAnnulus((spacecent, spacecent), r-1, r)
         apmask = aper.to_mask()#.to_image(im.shape)
         apim, aprms = weightmean(apmask.cutout(im), apmask.cutout(imrms), axis=(0,1))
@@ -272,15 +272,18 @@ def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0, profsum=False):
 
         chanprofs.append(chanprof)
 
+        xaxis = np.arange(len(chanprof))*2 + 2
+        xaxis[0] = 0
+
         if chan == freqcent:
-            ax.step(np.arange(len(chanprof))*2, chanprof*1e6, zorder=20, where='mid',
+            ax.step(xaxis, chanprof*1e6, zorder=20, where='mid',
                     color=cmap(carr[i]), lw=3, label='Channel {}'.format(str(chan)))
 
-            ax.fill_between(np.arange(len(chanprof))*2, (chanprof-rmsprof)*1e6, (chanprof+rmsprof)*1e6,
+            ax.fill_between(xaxis, (chanprof-rmsprof)*1e6, (chanprof+rmsprof)*1e6,
                             color='0.9', zorder=0)
         else:
 
-            ax.step(np.arange(len(chanprof))*2, chanprof*1e6, zorder=10, where='mid',
+            ax.step(xaxis, chanprof*1e6, zorder=10, where='mid',
                     color=cmap(carr[i]), label='Channel {}'.format(str(chan)))
 
     ax.axhline(0, color='k', ls='--')
@@ -295,6 +298,7 @@ def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0, profsum=False):
     ax.legend(loc='upper right')
 
     ax.set_xlabel('Radius (arcmin)')
+    ax.set_xlim((-2, 20))
 
     return fig
 
