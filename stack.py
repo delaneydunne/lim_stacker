@@ -630,14 +630,15 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
 
     # actual beam FWHP is a function of frequency - listed values are 4.9,4.5,4.4 arcmin at 26, 30, 34GHz
     # set up a function to interpolate on
-    beamthetavals = np.array([4.9,4.5,4.4])
-    beamthetafreqs = np.array([26, 30, 34])
+    # beamthetavals = np.array([4.9,4.5,4.4])
+    # beamthetafreqs = np.array([26, 30, 34])
 
-    beamsigma = 2*u.arcmin
+    # beamthetas = np.interp(nuobsvals, beamthetafreqs, beamthetavals)*u.arcmin
+    # omega_Bs = 1.33*beamthetas**2
+
+    # the 'beam' here is actually the stack aperture size
+    beamsigma = params.xwidth / 2 * 2*u.arcmin
     omega_B = (2 / np.sqrt(2*np.log(2)))*np.pi*beamsigma**2
-
-    beamthetas = np.interp(nuobsvals, beamthetafreqs, beamthetavals)*u.arcmin
-    omega_Bs = 1.33*beamthetas**2
 
     nuobsvals = nuobsvals*u.GHz
     meannuobs = np.nanmean(nuobsvals)
@@ -671,8 +672,8 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     mh2obs = linelumact * alphaco
     mh2rms = linelumrms * alphaco
 
-    nu1 = nuobsvals - 0.5*0.0625*u.GHz
-    nu2 = nuobsvals + 0.5*0.0625*u.GHz
+    nu1 = nuobsvals - params.freqwidth/2*0.0625*u.GHz
+    nu2 = nuobsvals + params.freqwidth/2*0.0625*u.GHz
 
     z = (params.centfreq*u.GHz - nuobsvals) / nuobsvals
     z1 = (params.centfreq*u.GHz - nu1) / nu1
@@ -682,7 +683,7 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
 
     # proper volume at each voxel
-    volus = ((cosmo.kpc_proper_per_arcmin(z1) * 4*u.arcmin).to(u.Mpc))**2 * distdiff
+    volus = ((cosmo.kpc_proper_per_arcmin(z1) * params.xwidth*2*u.arcmin).to(u.Mpc))**2 * distdiff
 
     rhous = mh2us / volus
     rhousobs = mh2obs / volus
