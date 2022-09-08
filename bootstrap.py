@@ -117,7 +117,10 @@ def random_stacker_setup(maplist, galcatlist, params):
     params.saveplots = False
     params.plotspace = False
     params.plotfreq = False
-    outvals, actim, actspec, actcatidx = stacker(maplist, galcatlist, params)
+    if params.cubelet:
+        outvals, actim, actspec, actcatidx, cube, cuberms = stacker(maplist, galcatlist, params)
+    else:
+        outvals, actim, actspec, actcatidx = stacker(maplist, galcatlist, params)
 
     params.saveplots = saveplots
     params.plotspace = plotspace
