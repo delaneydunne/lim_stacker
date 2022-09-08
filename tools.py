@@ -183,6 +183,13 @@ class parameters():
         self.plotsavepath = outputdir + '/plots'
         self.datasavepath = outputdir + '/data'
 
+        # if bootstrapping, adjust those file names too
+        try:
+            self.itersavefile = outputdir + '/' + self.itersavefile
+            self.nitersavefile = outputdir + '/' + self.nitersavefile
+        except:
+            pass
+
         if self.saveplots:
             # make the directories to store the plots and data
             os.makedirs(self.plotsavepath, exist_ok=True)
@@ -297,7 +304,7 @@ class catalogue():
                 try:
                     vals = getattr(self, i)[subidx]
                     setattr(subset, i, vals)
-                except TypeError:
+                except (TypeError, IndexError):
                     pass
             subset.nobj = len(subidx)
             return subset
@@ -354,7 +361,11 @@ class catalogue():
         x = []
         y = []
         for i in range(self.nobj):
-            objx = np.max(np.where(comap.rabe < self.ra()[i])[0])
+            # account for SkyCoord doing 2pi rotations on its own now
+            ra = self.ra()[i]
+            if ra > 250:
+                ra -= 360
+            objx = np.max(np.where(comap.rabe < ra)[0])
             objy = np.max(np.where(comap.decbe < self.dec()[i])[0])
 
             x.append(objx)
@@ -656,7 +667,7 @@ class maps():
         # also do the frequency axis
         self.freq = self.freq[::chan_factor]
         self.freqbe = self.freqbe[::chan_factor]
-        self.fstep = rebinfreq[1] - rebinfreq[0]
+        self.fstep = self.freq[1] - self.freq[0]
 
 
     def match_wcs(self, goalmap, params):

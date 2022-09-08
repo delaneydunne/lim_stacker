@@ -113,7 +113,7 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=No
     if outcatfile:
         cat.dump(outcatfile)
 
-    return pipemap, cat
+    return pipemap, cat, rawmap
 
 def sim_setup(pipemapfiles, catfiles, params, rawsimfiles=None, outcatfiles=None):
     """

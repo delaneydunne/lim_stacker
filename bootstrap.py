@@ -47,13 +47,30 @@ def bin_get_rand_cutouts(ncutouts, binzlims, comap, galcat, params, field=None, 
 
     cutoutlist = []
     ngoodcuts = 0
+    ti = 0
     for i in range(len(randz)):
         cutout = single_cutout(i, randcat, comap, params)
 
         # if it passed the tests, keep it
+        # if it passed all the tests, keep it
         if cutout:
-            if field:
-                cutout.field = field
+
+            if params.cubelet:
+                if ti == 0:
+                    cubestack = cutout.cubestack
+                    cuberms = cutout.cubestackrms
+                    # delete the 3d arrays
+                    cutout.__delattr__('cubestack')
+                    cutout.__delattr__('cubestackrms')
+                    ti = 1
+                else:
+                    scstack = np.stack((cubestack, cutout.cubestack))
+                    scrms = np.stack((cuberms, cutout.cubestackrms))
+                    cubestack, cuberms = weightmean(scstack, scrms, axis=0)
+                    # delete the 3d arrays
+                    cutout.__delattr__('cubestack')
+                    cutout.__delattr__('cubestackrms')
+
             cutoutlist.append(cutout)
             ngoodcuts += 1
 
@@ -134,10 +151,10 @@ def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False, seed=N
     Tvals = []
     rmsvals = []
     catidxs = []
-    if params.spacestackwidth:
+    if params.plotspace:
         spacestack = []
         spacerms = []
-    if params.freqstackwidth:
+    if params.plotfreq:
         freqstack = []
         freqrms = []
     for cut in allcutouts:
@@ -145,11 +162,11 @@ def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False, seed=N
         rmsvals.append(cut.rms)
         catidxs.append(cut.catidx)
 
-        if params.spacestackwidth:
+        if params.plotspace:
             spacestack.append(cut.spacestack)
             spacerms.append(cut.spacestackrms)
 
-        if params.freqstackwidth:
+        if params.plotfreq:
             freqstack.append(cut.freqstack)
             freqrms.append(cut.freqstackrms)
 
@@ -157,10 +174,10 @@ def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False, seed=N
     Tvals = np.array(Tvals)
     rmsvals = np.array(rmsvals)
     catidxs = np.array(catidxs)
-    if params.spacestackwidth:
+    if params.plotspace:
         spacestack = np.array(spacestack)
         spacerms = np.array(spacerms)
-    if params.freqstackwidth:
+    if params.plotfreq:
         freqstack = np.array(freqstack)
         freqrms = np.array(freqrms)
 
@@ -176,13 +193,13 @@ def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False, seed=N
     stacktemp, stackrms = weightmean(Tvals, rmsvals)
 
     # overall spatial stack
-    if params.spacestackwidth:
+    if params.plotspace:
         stackim, imrms = weightmean(spacestack, spacerms, axis=0)
     else:
         stackspec, imrms = None, None
 
     # overall frequency stack
-    if params.freqstackwidth:
+    if params.plotfreq:
         stackspec, specrms = weightmean(freqstack, freqrms, axis=0)
     else:
         stackim, imrms = None, None
@@ -201,7 +218,6 @@ def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False, seed=N
         combined_plotter(stackim, stackspec, params)
 
     return stacktemp, stackrms, stackim, stackspec, fieldcatidx
-
 
 def n_random_stacks(nstacks, actidxlist, maplist, galcatlist, params, verbose=True):
     """
