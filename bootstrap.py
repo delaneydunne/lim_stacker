@@ -222,6 +222,51 @@ def random_stacker(actcatidx, maplist, galcatlist, params, verbose=False, seed=N
 
     return stacktemp, stackrms, stackim, stackspec, fieldcatidx
 
+def field_random_stacker(actcatidx, mapinst, galcatinst, params, verbose=False, seed=None):
+    if verbose:
+
+        print("need {} total cutouts".format(len(actcatidx)))
+    allcutouts = field_get_rand_cutouts(actcatidx, mapinst,
+                                          galcatinst, params,
+                                          verbose=verbose,
+                                          seed=seed)
+
+    Tvals = []
+    rmsvals = []
+    catidxs = []
+    if params.plotspace:
+        spacestack = []
+        spacerms = []
+    if params.plotfreq:
+        freqstack = []
+        freqrms = []
+    for cut in allcutouts:
+        Tvals.append(cut.T)
+        rmsvals.append(cut.rms)
+        catidxs.append(cut.catidx)
+
+        if params.plotspace:
+            spacestack.append(cut.spacestack)
+            spacerms.append(cut.spacestackrms)
+
+        if params.plotfreq:
+            freqstack.append(cut.freqstack)
+            freqrms.append(cut.freqstackrms)
+
+    # put everything into numpy arrays for ease
+    Tvals = np.array(Tvals)
+    rmsvals = np.array(rmsvals)
+    catidxs = np.array(catidxs)
+    if params.plotspace:
+        spacestack = np.array(spacestack)
+        spacerms = np.array(spacerms)
+    if params.plotfreq:
+        freqstack = np.array(freqstack)
+        freqrms = np.array(freqrms)
+
+    return stacktemp, stackrms
+
+
 def n_random_stacks(nstacks, actidxlist, maplist, galcatlist, params, verbose=True):
     """
     wrapper to perform n different stacks on random locations to match the original
@@ -272,13 +317,15 @@ def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False):
     ax.plot(xarr, gauss(xarr, *opt), color='darkorange')
 
     ax.axvline(opt[1], color='0.3', ls=':', label="From Bootstrap")
-    rect = Rectangle((opt[1] - opt[2], -1), 2*opt[2], 1200, color='0.3', alpha=0.4)
+    rect = Rectangle((opt[1] - opt[2], -1), 2*opt[2], 1500, color='0.3', alpha=0.4)
     ax.add_patch(rect)
 
     ax.axvline(actT, color='k', ls='--', label="From Map RMS")
     rect = Rectangle((actT-actrms, -1), 2*actrms,
-                      1200, color='k', alpha=0.4)
+                      1500, color='k', alpha=0.4)
     ax.add_patch(rect)
+
+    ax.set_ylim((0., np.max(counts)*1.05))
 
     ax.legend()
 
