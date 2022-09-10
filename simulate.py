@@ -54,22 +54,16 @@ def random_mass_subset(cat, params, seed=12345, massbins=3, in_place=True):
     # random number generator
     rng = np.random.default_rng(seed)
 
-    # get random indices within the top mass bin
-    randidx = rng.integers(0, bincutoff, int(params.goalnumcutouts*4))
-    # remove duplicates (making sure there are still enough indices)
-    # returning twice as many objects as necessary because some will fall outside the map
-    # goodrandidx will be sorted in ascending order so the catalogue will stay sorted on mass
-    try:
-        goodrandidx = np.unique(randidx)[:int(params.goalnumcutouts*2)]
-    except:
-        randidx = rng.integers(0, bincutoff, int(params.goalnumcutouts*8))
-        goodrandidx = np.unique(randidx)[:int(params.goalnumcutouts*2)]
+    # shuffle the top mass bin -- the code will pull indices in order, so this will
+    # mean a random subset of the top mass bin is used to get the goal number of objects
+    indices = np.arange(bincutoff)
+    rng.shuffle(indices)
 
     if in_place:
-        cat.subset(goodrandidx)
+        cat.subset(indices)
         return
     else:
-        cutcat.subset(goodrandidx)
+        cutcat.subset(indices)
         return cutcat
 
 

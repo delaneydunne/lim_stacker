@@ -121,6 +121,9 @@ def single_cutout(idx, galcat, comap, params):
     if np.isnan(Tbval):
         return None
 
+    # Tbval = np.nansum(pixval)
+    # Tbrms = np.sqrt(np.nansum(rmsval**2))
+
     cutout.T = Tbval
     cutout.rms = Tbrms
 
@@ -222,6 +225,8 @@ def single_cutout(idx, galcat, comap, params):
 
         # collapse along freq axis to get a spatial map
         spacestack, rmsspacestack = weightmean(spixval, srmsval, axis=0)
+        # spacestack = np.nansum(spixval, axis=0)
+        # rmsspacestack = np.sqrt(np.nansum(srmsval**2, axis=0))
         cutout.spacestack = spacestack
         cutout.spacestackrms = rmsspacestack
 
@@ -255,6 +260,8 @@ def single_cutout(idx, galcat, comap, params):
 
         # collapse along spatial axes to get a spectral profile
         freqstack, rmsfreqstack = weightmean(fpixval, frmsval, axis=(1,2))
+        # freqstack = np.nansum(fpixval, axis=(1,2))
+        # rmsfreqstack = np.sqrt(np.nansum(frmsval**2, axis=(1,2)))
         cutout.freqstack = freqstack
         cutout.freqstackrms = rmsfreqstack
 
