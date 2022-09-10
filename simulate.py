@@ -70,7 +70,7 @@ def random_mass_subset(cat, params, seed=12345, massbins=3, in_place=True):
 
 
 """ SETUP FUNCTIONS """
-def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=None):
+def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=None, return_raw=False):
     """
     wrapper function to load in data (and match its WCS) for a simulated stack run
     """
@@ -107,7 +107,10 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=No
     if outcatfile:
         cat.dump(outcatfile)
 
-    return pipemap, cat, rawmap
+    if return_raw:
+        return pipemap, cat, rawmap
+    else:
+        return pipemap, cat
 
 def sim_setup(pipemapfiles, catfiles, params, rawsimfiles=None, outcatfiles=None):
     """
