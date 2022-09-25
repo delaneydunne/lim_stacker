@@ -454,6 +454,8 @@ def cubelet_plotter(cubelet, rmslet, params):
 """ STACK OUTPUT PLOTS """
 def spatial_plotter(stackim, params, cmap='PiYG_r'):
 
+    plt.style.use('seaborn-poster')
+
     # corners for the beam rectangle
     if params.xwidth % 2 == 0:
         rectmin = params.spacestackwidth - params.xwidth/2
@@ -468,28 +470,77 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     vext = np.nanmax(np.abs([np.nanmin(stackim*1e6), np.nanmax(stackim*1e6)]))
     vmin,vmax = -vext, vext
 
-    # unsmoothed
-    fig, ax = plt.subplots(1)
+    """ unsmoothed """
+    fig, ax = plt.subplots(1, figsize=(6,4), tight_layout=True)
     c = ax.pcolormesh(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
-    ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
-    cbar = fig.colorbar(c)
-    cbar.ax.set_ylabel('Tb (uK)')
+    ax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
+
+    # scale bar
+    topright = (params.spacestackwidth*2) + 1 - 2
+    ax.plot((2, 12), (topright, topright), color='k', lw=2)
+    ax.errorbar((2,12), (topright, topright), yerr=1, color='k', fmt='none')
+    ax.text(5, topright-4, '20`', fontsize='xx-large', fontweight='bold')
+
+    # tidying
     ax.set_aspect(aspect=1)
 
+    # turn off ticks
+    ax.tick_params(axis='y',
+                            labelleft=False,
+                            labelright=False,
+                            left=False,
+                            right=False)
+    ax.tick_params(axis='x',
+                         labeltop=False,
+                         labelbottom=False,
+                         top=False,
+                         bottom=False)
+
+    # colorbar
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cbar = fig.colorbar(c, cax=cax)
+    cbar.ax.set_ylabel(r'$T_b$ ($\mu$K)')#, fontsize='large')
+
+    # save plots if passed
     if params.saveplots:
         fig.savefig(params.plotsavepath+'/angularstack_unsmoothed.png')
 
-    # smoothed
+    """ smoothed """
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
 
     vext = np.nanmax(smoothed_spacestack_gauss*1e6)
 
-    fig, ax = plt.subplots(1)
+    fig, ax = plt.subplots(1, figsize=(6,4), tight_layout=True)
     c = ax.pcolormesh(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
-    ax.plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
-    cbar = fig.colorbar(c)
-    cbar.ax.set_ylabel('Tb (uK)')
+    ax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
+
+    # scale bar
+    topright = (params.spacestackwidth*2) + 1 - 2
+    ax.plot((2, 12), (topright, topright), color='k', lw=2)
+    ax.errorbar((2,12), (topright, topright), yerr=1, color='k', fmt='none')
+    ax.text(5, topright-4, '20`', fontsize='xx-large', fontweight='bold')
+
+    # tidying
     ax.set_aspect(aspect=1)
+
+    # remove ticks
+    ax.tick_params(axis='y',
+                            labelleft=False,
+                            labelright=False,
+                            left=False,
+                            right=False)
+    ax.tick_params(axis='x',
+                         labeltop=False,
+                         labelbottom=False,
+                         top=False,
+                         bottom=False)
+
+    # colorbar
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cbar = fig.colorbar(c, cax=cax)
+    cbar.ax.set_ylabel(r'$T_b$ ($\mu$K)')#, fontsize='large')
 
     if params.saveplots:
         fig.savefig(params.plotsavepath+'/angularstack_smoothed.png')
@@ -497,7 +548,10 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     return 0
 
 def spectral_plotter(stackspec, params):
-    fig, ax = plt.subplots(1)
+
+    plt.style.use('seaborn-poster')
+
+    fig, ax = plt.subplots(1, figsize=(9,3), constrained_layout=True)
     if params.freqwidth % 2 == 0:
         freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
     else:
@@ -507,7 +561,7 @@ def spectral_plotter(stackspec, params):
             color='indigo', zorder=10, where='mid')
     ax.set_xlabel(r'$\Delta_\nu$ [GHz]')
     ax.set_ylabel(r'T$_b$ [$\mu$K]')
-    ax.set_title('Stacked over {} Spatial Pixels'.format((params.xwidth)**2))
+#     ax.set_title('Stacked over {} Spatial Pixels'.format((params.xwidth)**2))
 
     ax.axhline(0, color='k', ls='--')
     ax.axvline(0, color='k', ls='--')
@@ -635,6 +689,41 @@ def catalogue_plotter(catlist, goodcatidx, params):
     cax = divider.append_axes('right', size='5%', pad=0.05)
     cbar = fig.colorbar(c, cax=cax)
     cbar.ax.set_ylabel('Redshift')
+
+    if params.saveplots:
+        fig.savefig(params.plotsavepath + '/catalogue_object_distribution.png')
+
+    return 0
+
+def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True):
+
+    fig,axs = plt.subplots(1,3, figsize=(9,3), tight_layout=True)
+
+    plt.style.use('seaborn-ticks')
+
+    fields = ['Field 1', 'Field 2', 'Field 3']
+
+    for i in range(3):
+        fieldz = catlist[i].z[goodcatidx[i]]
+        fieldcoord = catlist[i].coords[goodcatidx[i]]
+
+        axs[i].pcolormesh(maplist[i].ra, maplist[i].dec, np.log10(np.nanmean(maplist[i].rms, axis=0)),
+                          zorder=0, cmap='Greys', vmin=-3, vmax=-0.8)
+        c = axs[i].scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4, s=2)
+
+        axs[i].set_xlabel('Dec (deg)')#, fontsize='large')
+        if printnobjs:
+            axs[i].set_title(fields[i]+' ('+str(len(goodcatidx[i]))+' objects)')
+        else:
+            axs[i].set_title(fields[i])
+
+        axs[i].set_axis_on()
+
+    axs[0].set_ylabel('RA (deg)')#, fontsize='large')
+    divider = make_axes_locatable(axs[2])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cbar = fig.colorbar(c, cax=cax)
+    cbar.ax.set_ylabel('Redshift')#, fontsize='large')
 
     if params.saveplots:
         fig.savefig(params.plotsavepath + '/catalogue_object_distribution.png')

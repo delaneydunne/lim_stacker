@@ -552,7 +552,7 @@ class maps():
             self.fieldcent = SkyCoord(patch_cent[0]*u.deg, patch_cent[1]*u.deg)
 
         # mark pixels with zero rms and mask them in the rms/map arrays (how the pipeline stores infs)
-        self.badpix = np.where(rmstemparr < 1e-10)
+        self.badpix = np.where(np.logical_or(rmstemparr < 1e-10, rmstemparr > 0.01))
         maptemparr[self.badpix] = np.nan
         rmstemparr[self.badpix] = np.nan
 
