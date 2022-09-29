@@ -183,8 +183,8 @@ def single_cutout(idx, galcat, comap, params):
         # rotate randomly
         if params.rotate:
             cutout.rotangle = params.rng.integers(4) + 1
-            spacestack = np.rot90(spacestack, cutout.rotangle)
-            rmsspacestack = np.rot90(rmsspacestack, cutout.rotangle)
+            cpixval = np.rot90(cpixval, cutout.rotangle, axes=(1,2))
+            crmsval = np.rot90(crmsval, cutout.rotangle, axes=(1,2))
 
         cutout.cubestack = cpixval
         cutout.cubestackrms = crmsval
