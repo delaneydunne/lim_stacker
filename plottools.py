@@ -148,14 +148,54 @@ def display_cutout(cutout, comap, params, save=None, ext=1.0):
     return fig
 
 """ CUBELET PLOTS """
-def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0,
+def rebin_cubelet_freq(cubelet, rmslet, params):
+    """
+    function to collapse the cubelet along the frequency axis so each
+    channel is the (weighted) average of n=params.freqwidth channels
+    """
+
+    # central channel aperture minimum to maximum
+    if params.freqwidth % 2 == 0:
+        centapmin = params.freqstackwidth - params.freqwidth/2
+        centapmax = params.freqstackwidth + params.freqwidth/2
+    else:
+        centapmin = params.freqstackwidth - params.freqwidth // 2
+        centapmax = params.freqstackwidth + params.freqwidth // 2 + 1
+
+    spacer = np.arange(0, centapmin // params.freqwidth + 1)
+
+    apminarr = np.sort(centapmin - params.freqwidth * spacer)
+    apmaxarr = np.sort(centapmax + params.freqwidth * spacer)
+
+    apbearr = np.concatenate((apminarr, apmaxarr))
+
+    framelist = []
+    framermslist = []
+    for i in range(len(apbearr) - 1):
+        minidx, maxidx = apbearr[i], apbearr[i + 1]
+        apmean, aprms = weightmean(cubelet[minidx:maxidx,:,:], rmslet[minidx:maxidx], axis=0)
+        framelist.append(apmean)
+        framermslist.append(aprms)
+
+    collcubelet = np.stack(framelist)
+    collrmslet = np.stack(framermslist)
+
+    collparams = params.copy()
+    collparams.freqstackwidth = collcubelet.shape[0]
+    collparams.freqwidth = 1
+    collparams.oldfreqwidth = 3
+
+    return collcubelet, collrmslet, collparams
+
+
+def changrid(cubelet, rmslet, params, smooth=None, rad=None, ext=None, offset=0,
              cmap=None, symm=True, clims=None):
 
-    plt.style.use('default')
+    plt.style.use('seaborn-talk')
 
-    fig = plt.figure(figsize=(9,7))
+    fig = plt.figure(figsize=(9,7))#, constrained_layout=True)
     supgs = gridspec.GridSpec(1,1,figure=fig)
-    gs = gridspec.GridSpecFromSubplotSpec(3, 3, subplot_spec=supgs[0])
+    gs = gridspec.GridSpecFromSubplotSpec(3, 3, wspace=0.05, hspace=0.05, subplot_spec=supgs[0])
     axs = gs.subplots(sharex='col', sharey='row')
 
     if not cmap:
@@ -197,6 +237,7 @@ def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0,
         for j in range(3):
 
             chan = freqcent - 4 + i*3 + j
+            chanidx = i*3 + j - 4
 
             if smooth:
                 plotim = convolve(cubelet[chan,xyext[0]:xyext[1],xyext[0]:xyext[1]], params.gauss_kernel)
@@ -204,7 +245,8 @@ def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0,
                 plotim = cubelet[chan,xyext[0]:xyext[1],xyext[0]:xyext[1]]
 
             c = axs[i,j].pcolormesh(plotim, cmap=cmap, vmin=vmin, vmax=vmax)
-            axs[i,j].set_title('channel '+str(chan), fontsize='small')
+            axs[i,j].text(2,2, 'channel '+str(chanidx), fontsize='large', fontweight='bold',
+                          bbox={'facecolor': 'white', 'alpha': 0.8, 'pad': 3})
             axs[i,j].set_aspect(aspect=1)
             axs[i,j].set_xticks([])
             axs[i,j].set_yticks([])
@@ -257,14 +299,14 @@ def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0, profsum=False):
     also shade in the 1-sigma rms around the central channel
     """
 
-    plt.style.use('default')
+    plt.style.use('seaborn-talk')
 
     # indexing
     nchans = nextra*2 + 1
     freqcent = int(cubelet.shape[0] / 2) + offset
     chans = np.arange(nchans) + freqcent - nextra
 
-    fig, ax = plt.subplots(1, figsize=(7, 5))
+    fig, ax = plt.subplots(1, figsize=(7, 5), constrained_layout=True)
 
     carr = np.arange(len(chans)+3) / (len(chans) + 3) + 0.2
 
@@ -282,14 +324,14 @@ def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0, profsum=False):
 
         if chan == freqcent:
             ax.step(xaxis, chanprof*1e6, zorder=20, where='mid',
-                    color=cmap(carr[i]), lw=3, label='Channel {}'.format(str(chan)))
+                    color=cmap(carr[i]), lw=3, label='Channel {}'.format(str(i-nextra)))
 
             ax.fill_between(xaxis, (chanprof-rmsprof)*1e6, (chanprof+rmsprof)*1e6,
                             color='0.9', zorder=0)
         else:
 
             ax.step(xaxis, chanprof*1e6, zorder=10, where='mid',
-                    color=cmap(carr[i]), label='Channel {}'.format(str(chan)))
+                    color=cmap(carr[i]), label='Channel {}'.format(str(i-nextra)))
 
     ax.axhline(0, color='k', ls='--')
     ax.axvline(0, color='k', ls='--')
@@ -423,6 +465,12 @@ def cubelet_plotter(cubelet, rmslet, params):
     wrapper function to make extra diagnostic plots of the output cubelet from a stack
     """
 
+    # if necessary, collapse the cubelet along the frequency axis before plotting
+    if params.freqwidth > 1:
+        collclet, collrlet, collpars = rebin_cubelet_freq(cubelet, rmslet, params)
+    else:
+        collclet, collrlet, collpars = cubelet, rmslet, params
+
     # if saving plots, set up the directory structure
     if params.saveplots:
         outputdir = params.savepath + '_x'+str(params.xwidth)+'f'+str(params.freqwidth)
@@ -433,16 +481,16 @@ def cubelet_plotter(cubelet, rmslet, params):
             os.makedirs(params.cubesavepath)
 
     # plot a 9x9 grid of spatial images of adjacent channels to the central one
-    changridfig = changrid(cubelet, params)
+    changridfig = changrid(collclet, collrlet, collpars)
     if params.saveplots:
         changridfig.savefig(params.cubesavepath+'/channel_grid_unsmoothed.png')
     # smoothed version of this
-    smchangridfig = changrid(cubelet, params, smooth=True)
+    smchangridfig = changrid(collclet, collrlet, collpars, smooth=True)
     if params.saveplots:
         smchangridfig.savefig(params.cubesavepath+'/channel_grid_smoothed.png')
 
     # radial profile of the stack in the central and adjacent channels
-    radproffig = radprofoverplot(cubelet, rmslet, params)
+    radproffig = radprofoverplot(collclet, collrlet, collpars)
     if params.saveplots:
         radproffig.savefig(params.cubesavepath+'/radial_profiles.png')
 

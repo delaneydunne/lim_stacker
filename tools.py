@@ -202,6 +202,12 @@ class parameters():
         if self.savedata:
             os.makedirs(self.datasavepath, exist_ok=True)
 
+    def copy(self):
+        """
+        returns a deep copy of the params object (ie won't link back to the original)
+        """
+        return copy.deepcopy(self)
+
     def info(self):
         """
         quick printer to give a summary of the settings of a params object
