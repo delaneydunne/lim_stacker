@@ -19,6 +19,12 @@ beamwidth 1
 cubelet True
 # return physical units
 obsunits True
+# rotate each cubelet by a random pi/2 angle before stacking
+# this should help with asymmetric noise which is common when catalogue objects
+# tend to fall near the edge of the map
+rotate True
+# random seed for this random rotation
+rotseed 12345
 # verbose output when running
 verbose True
 # save the stack data

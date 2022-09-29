@@ -724,7 +724,7 @@ def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True)
 
     fig,axs = plt.subplots(1,3, figsize=(9,3), tight_layout=True)
 
-    if print_nobjs:
+    if printnobjs:
         plt.style.use('default')
     else:
         plt.style.use('seaborn-ticks')

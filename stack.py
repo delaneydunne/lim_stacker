@@ -180,6 +180,12 @@ def single_cutout(idx, galcat, comap, params):
                          padyidx[0]:padyidx[1],
                          padxidx[0]:padxidx[1]]
 
+        # rotate randomly
+        if params.rotate:
+            cutout.rotangle = params.rng.integers(4) + 1
+            spacestack = np.rot90(spacestack, cutout.rotangle)
+            rmsspacestack = np.rot90(rmsspacestack, cutout.rotangle)
+
         cutout.cubestack = cpixval
         cutout.cubestackrms = crmsval
 
@@ -227,6 +233,13 @@ def single_cutout(idx, galcat, comap, params):
         spacestack, rmsspacestack = weightmean(spixval, srmsval, axis=0)
         # spacestack = np.nansum(spixval, axis=0)
         # rmsspacestack = np.sqrt(np.nansum(srmsval**2, axis=0))
+
+        # rotate randomly
+        if params.rotate:
+            cutout.rotangle = params.rng.integers(4) + 1
+            spacestack = np.rot90(spacestack, cutout.rotangle)
+            rmsspacestack = np.rot90(rmsspacestack, cutout.rotangle)
+
         cutout.spacestack = spacestack
         cutout.spacestackrms = rmsspacestack
 
@@ -340,6 +353,10 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
             numcutoutlist = params.goalnumcutouts
     else:
         numcutoutlist = [None, None, None]
+
+    # set up for rotating each cutout randomly if that's set to happen
+    if params.rotate:
+        params.rng = np.random.default_rng(params.rotseed)
 
     # dict to store stacked values
     outputvals = {}
@@ -497,6 +514,10 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
     wrapper to perform a full stack on all available values in the catalogue.
     will plot if desired
     """
+
+    # set up for rotating each cutout randomly if that's set to happen
+    if params.rotate:
+        params.rng = np.random.default_rng(params.rotseed)
 
     # dict to store stacked values
     outputvals = {}
