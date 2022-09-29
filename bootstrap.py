@@ -24,6 +24,84 @@ warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
 
+def offset_bootstrap(niter, maplist, catlist, params):
+
+    if params.verbose:
+        print('starting actual stack for reference')
+
+    # initialize the output file
+    with open(params.itersavefile, 'w') as csvfile:
+        w = csv.writer(csvfile)
+        w.writerow(['T', 'rms'])
+
+    # run the actual stack purely to see how many cutouts you're going to need for each bootstrap
+    actcutlist, actim, actspec, actcatidx, actcube, actcuberms = st.stacker(maplist, catlist, params)
+
+    # set the goal numbers of cutouts
+    params.goalnumcutouts = ([len(catidx) for catidx in actcatidx])
+
+    # set up an rng for the offsets
+    offrng = np.random.default_rng(params.bootstrapseed)
+
+    # play with the output that's printed so you don't get every cutout for every stack
+    if params.verbose:
+        params.bootverbose = True
+        params.verbose = False
+        print('starting '+str(niter)+' random stack runs')
+    else:
+        params.bootverbose = False
+
+    outarrs = []
+    for i in range(niter):
+
+        # randomly offset each field's catalogue
+        offcatlist = []
+        for j in range(len(catlist)):
+
+            # make a catalogue of random offsets that shouldn't overlap with flux from the actual object
+            # 2* as big to make sure there are enough objects included to hit goalnumcutouts
+            randcatsize = (3,2*catlist[j].nobj)
+            randoffs = offrng.uniform(2,10,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
+
+            offcat = catlist[j].copy()
+
+            raoff = np.concatenate((catlist[j].ra(), catlist[j].ra())) + maplist[j].xstep*randoffs[0,:]
+            decoff = np.concatenate((catlist[j].dec(), catlist[j].dec())) + maplist[j].ystep*randoffs[1,:]
+            freqoff = np.concatenate((catlist[j].freq, catlist[j].freq)) + maplist[j].fstep*randoffs[2,:]
+            zoff = freq_to_z(params.centfreq, freqoff)
+
+            offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
+            offcat.freq = freqoff
+            offcat.z = zoff
+            offcat.nobj = 2*catlist[j].nobj
+
+            offcatlist.append(offcat)
+
+        # run the actual stack
+        outdict,_,_,_,_,_ = stacker(maplist, offcatlist, params)
+
+        outarr = np.array([outdict['T'], outdict['rms']])
+        outarrs.append(outarr)
+
+        if params.itersave:
+            if i % params.itersavestep == 0:
+                with open(params.itersavefile, 'a') as csvfile:
+                    w = csv.writer(csvfile)
+                    w.writerow(outarr)
+
+        if params.bootverbose:
+            if i % params.itersavestep == 0:
+                print('    done run '+str(i)+' of '+str(niter))
+
+        # just in case
+        plt.close('all')
+
+    # save the final output
+    outarrs = np.stack(outarrs)
+    np.savez(params.nitersavefile, T=outarrs[:,0], rms=outarrs[:,1])
+
+    return outarrs
+
 def bin_get_rand_cutouts(ncutouts, binzlims, comap, galcat, params, field=None, seed=None):
     """
     wrapper to return ncutout randomly located cutouts in a single field +
