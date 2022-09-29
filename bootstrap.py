@@ -23,7 +23,7 @@ warnings.filterwarnings("ignore", message="invalid value encountered in true_div
 warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
-def offset_and_stack(niter, maplist, catlist, params, offrng):
+def offset_and_stack(maplist, catlist, params, offrng):
     # randomly offset each field's catalogue
     offcatlist = []
     for j in range(len(catlist)):
