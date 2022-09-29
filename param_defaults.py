@@ -4,7 +4,7 @@ xwidth 3
 # number of pixels (Dec)
 ywidth 3
 # number of frequency channels at map freq resolution
-freqwidth 1
+freqwidth 3
 
 """ properties of the map """
 # CO(1-0) emitted frequency (GHz)

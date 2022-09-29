@@ -450,7 +450,7 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     if params.saveplots:
         # just in case this was done elsewhere in the file structure
         params.make_output_pathnames()
-        catalogue_plotter(galcatlist, fieldcatidx, params)
+        catalogue_overplotter(galcatlist, maplist, fieldcatidx, params)
 
     if params.spacestackwidth and params.plotspace:
         spatial_plotter(stackim, params, cmap=cmap)
