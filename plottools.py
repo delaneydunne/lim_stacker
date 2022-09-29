@@ -26,7 +26,7 @@ cmap = plt.get_cmap('twilight')
 
 
 """ MAP PLOTTING FUNCTIONS """
-def plot_mom0(comap, params, ext=0.95, lognorm=True, smooth=False):
+def plot_mom0(comap, params, ext=0.95, lognorm=True, smooth=False, cmap='PiYG_r'):
 
     """
     unsure about the transpose thing
@@ -44,9 +44,9 @@ def plot_mom0(comap, params, ext=0.95, lognorm=True, smooth=False):
         c = ax.pcolormesh(comap.ra, comap.dec, moment0,
                           norm=SymLogNorm(linthresh=1, linscale=0.5,
                                           vmin=vext[0], vmax=vext[1]),
-                          cmap='PiYG_r')
+                          cmap=cmap)
     else:
-        c = ax.pcolormesh(comap.ra, comap.dec, moment0.T, cmap='PiYG_r')
+        c = ax.pcolormesh(comap.ra, comap.dec, moment0.T, cmap=cmap)
     ax.set_xlabel('RA (deg)')
     ax.set_ylabel('Dec (deg)')
 
@@ -55,7 +55,8 @@ def plot_mom0(comap, params, ext=0.95, lognorm=True, smooth=False):
 
     return fig
 
-def plot_chan(comap, channel, params, cat=None, ext=0.95, smooth=False, lognorm=True):
+def plot_chan(comap, channel, params, cat=None, ext=0.95, smooth=False, lognorm=True,
+              cmap='PiYG_r'):
     """
     plot a single channel of the input intensity map
     if cat is passed, will also scatter plot objects in the catalogue in that channel
@@ -76,10 +77,10 @@ def plot_chan(comap, channel, params, cat=None, ext=0.95, smooth=False, lognorm=
         c = ax.pcolormesh(comap.ra, comap.dec, plotmap,
                           norm=SymLogNorm(linthresh=1, linscale=0.5,
                                           vmin=vext[0], vmax=vext[1]),
-                          cmap='PiYG_r')
+                          cmap=cmap)
     # normal colourscale
     else:
-        c = ax.pcolormesh(comap.ra, comap.dec, plotmap, cmap='PiYG_r')
+        c = ax.pcolormesh(comap.ra, comap.dec, plotmap, cmap=cmap)
 
     # if a catalogue is passed, scatter plot
     if cat:
@@ -149,6 +150,8 @@ def display_cutout(cutout, comap, params, save=None, ext=1.0):
 """ CUBELET PLOTS """
 def changrid(cubelet, params, smooth=None, rad=None, ext=None, offset=0,
              cmap=None, symm=True, clims=None):
+
+    plt.style.use('default')
 
     fig = plt.figure(figsize=(9,7))
     supgs = gridspec.GridSpec(1,1,figure=fig)
@@ -254,6 +257,8 @@ def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0, profsum=False):
     also shade in the 1-sigma rms around the central channel
     """
 
+    plt.style.use('default')
+
     # indexing
     nchans = nextra*2 + 1
     freqcent = int(cubelet.shape[0] / 2) + offset
@@ -324,6 +329,8 @@ def spaceweightmean(cubelet, rmslet):
 
 def specgridx(cubelet, rmslet, nextra=3, offset=0):
 
+    plt.style.use('default')
+
     xkernel = Box2DKernel(3)
     xcent = int(cubelet.shape[1] / 2)
     nspax = nextra*2 + 1
@@ -365,6 +372,8 @@ def specgridx(cubelet, rmslet, nextra=3, offset=0):
     return fig
 
 def specgridy(cubelet, rmslet, nextra=3, offset=0):
+
+    plt.style.use('default')
 
     xkernel = Box2DKernel(3)
     ycent = int(cubelet.shape[1] / 2)
@@ -577,6 +586,8 @@ def spectral_plotter(stackspec, params):
 
 def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None):
 
+    plt.style.use('default')
+
     # corners for the beam rectangle
     if params.xwidth % 2 == 0:
         rectmin = params.spacestackwidth - params.xwidth/2
@@ -673,6 +684,8 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
 
 def catalogue_plotter(catlist, goodcatidx, params):
 
+    plt.style.use('default')
+
     fig,axs = plt.subplots(1,3, figsize=(13,4))
     fields = ['Field 1', 'Field 2', 'Field 3']
 
@@ -731,6 +744,8 @@ def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True)
     return 0
 
 def field_catalogue_plotter(cat, goodcatidx, params):
+
+    plt.style.use('default')
 
     fig, ax = plt.subplots(1)
 
