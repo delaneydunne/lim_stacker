@@ -115,7 +115,7 @@ class parameters():
                 setattr(self, 'rotseed', int(default_dir['rotseed']))
             except:
                 warnings.warn("Missing random seed for rotation. Using 12345 as default", RuntimeWarning)
-                
+
         if self.savedata:
             setattr(self, 'savepath', default_dir['savepath'])
             self.make_output_pathnames()
@@ -550,6 +550,7 @@ class maps():
         with h5py.File(inputfile, 'r') as file:
             maptemparr = np.array(file.get('map_coadd'))
             rmstemparr = np.array(file.get('rms_coadd'))
+            hittemparr = np.array(file.get('nhit_coadd'))
             self.freq = np.array(file.get('freq'))
             self.ra = np.array(file.get('x'))
             self.dec = np.array(file.get('y'))
@@ -558,18 +559,24 @@ class maps():
             self.fieldcent = SkyCoord(patch_cent[0]*u.deg, patch_cent[1]*u.deg)
 
         # mark pixels with zero rms and mask them in the rms/map arrays (how the pipeline stores infs)
-        self.badpix = np.where(np.logical_or(rmstemparr < 1e-10, rmstemparr > 0.01))
+        mapbadpix = np.logical_or(rmstemparr < 1e-10, rmstemparr > 0.01)
+        # also mark anything with less than 10 000 hits (another way to clean off map edges)
+        hitbadpix = hittemparr < 10000
+        self.badpix = np.where(np.logical_or(mapbadpix, hitbadpix))
         maptemparr[self.badpix] = np.nan
         rmstemparr[self.badpix] = np.nan
+        hittemparr[self.badpix] = 0
 
         self.map = maptemparr
         self.rms = rmstemparr
+        self.hit = hittemparr
 
         if reshape:
             # also reshape into 3 dimensions instead of separating sidebands
             self.freq = np.reshape(self.freq, 4*64)
             self.map = np.reshape(self.map, (4*64, len(self.ra), len(self.dec)))
             self.rms = np.reshape(self.rms, (4*64, len(self.ra), len(self.dec)))
+            self.hit = np.reshape(self.rms, (4*64, len(self.ra), len(self.dec)))
 
         # build the other convenience coordinate arrays, make sure the coordinates map to
         # the correct part of the voxel
