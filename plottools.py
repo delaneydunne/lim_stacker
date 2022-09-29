@@ -581,7 +581,7 @@ def spectral_plotter(stackspec, params):
     apmin, apmax = 0 - params.freqwidth / 2 * 31.25e-3, 0 + params.freqwidth / 2 * 31.25e-3
     ax.axvline(apmin, color='0.7', ls=':')
     ax.axvline(apmax, color='0.7', ls=':')
-    axs[i].fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
+    ax.fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
 
 
     if params.saveplots:
@@ -679,7 +679,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     # show which channels contribute to the stack
     freqax.axvline(apmin,  color='0.7', ls=':')
     freqax.axvline(apmax, color='0.7', ls=':')
-    axs[i].fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
+    freqax.fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
     freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
     freqax.set_ylabel(r'T$_b$ [$\mu$K]')
 
