@@ -96,7 +96,7 @@ class parameters():
                 setattr(self, attr, None)
 
         # boolean parameters
-        for attr in ['cubelet', 'obsunits', 'verbose', 'savedata', 'saveplots', 'plotspace', 'plotfreq', 'plotcubelet']:
+        for attr in ['cubelet', 'obsunits', 'rotate', 'verbose', 'savedata', 'saveplots', 'plotspace', 'plotfreq', 'plotcubelet']:
             try:
                 val = bool(default_dir[attr])
                 setattr(self, attr, val)
@@ -110,6 +110,12 @@ class parameters():
             warnings.warn("plotcubelet==True when cubelet==False -- set plotcubelet to False", RuntimeWarning)
 
         # optional parameters
+        if self.rotate:
+            try:
+                setattr(self, 'rotseed', int(default_dir['rotseed']))
+            except:
+                warnings.warn("Missing random seed for rotation. Using 12345 as default", RuntimeWarning)
+                
         if self.savedata:
             setattr(self, 'savepath', default_dir['savepath'])
             self.make_output_pathnames()
