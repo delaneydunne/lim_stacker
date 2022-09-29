@@ -23,6 +23,35 @@ warnings.filterwarnings("ignore", message="invalid value encountered in true_div
 warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
+def offset_and_stack(niter, maplist, catlist, params, offrng):
+    # randomly offset each field's catalogue
+    offcatlist = []
+    for j in range(len(catlist)):
+
+        # make a catalogue of random offsets that shouldn't overlap with flux from the actual object
+        # 2* as big to make sure there are enough objects included to hit goalnumcutouts
+        randcatsize = (3,2*catlist[j].nobj)
+        randoffs = offrng.uniform(2,10,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
+
+        offcat = catlist[j].copy()
+
+        raoff = np.concatenate((catlist[j].ra(), catlist[j].ra())) + maplist[j].xstep*randoffs[0,:]
+        decoff = np.concatenate((catlist[j].dec(), catlist[j].dec())) + maplist[j].ystep*randoffs[1,:]
+        freqoff = np.concatenate((catlist[j].freq, catlist[j].freq)) + maplist[j].fstep*randoffs[2,:]
+        zoff = freq_to_z(params.centfreq, freqoff)
+
+        offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
+        offcat.freq = freqoff
+        offcat.z = zoff
+        offcat.nobj = 2*catlist[j].nobj
+
+        offcatlist.append(offcat)
+
+    # run the actual stack
+    outdict,_,_,_,_,_ = stacker(maplist, offcatlist, params)
+
+    return np.array([outdict['T'], outdict['rms']])
+
 
 def offset_bootstrap(niter, maplist, catlist, params):
 
@@ -54,33 +83,8 @@ def offset_bootstrap(niter, maplist, catlist, params):
     outarrs = []
     for i in range(niter):
 
-        # randomly offset each field's catalogue
-        offcatlist = []
-        for j in range(len(catlist)):
-
-            # make a catalogue of random offsets that shouldn't overlap with flux from the actual object
-            # 2* as big to make sure there are enough objects included to hit goalnumcutouts
-            randcatsize = (3,2*catlist[j].nobj)
-            randoffs = offrng.uniform(2,10,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
-
-            offcat = catlist[j].copy()
-
-            raoff = np.concatenate((catlist[j].ra(), catlist[j].ra())) + maplist[j].xstep*randoffs[0,:]
-            decoff = np.concatenate((catlist[j].dec(), catlist[j].dec())) + maplist[j].ystep*randoffs[1,:]
-            freqoff = np.concatenate((catlist[j].freq, catlist[j].freq)) + maplist[j].fstep*randoffs[2,:]
-            zoff = freq_to_z(params.centfreq, freqoff)
-
-            offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
-            offcat.freq = freqoff
-            offcat.z = zoff
-            offcat.nobj = 2*catlist[j].nobj
-
-            offcatlist.append(offcat)
-
-        # run the actual stack
-        outdict,_,_,_,_,_ = stacker(maplist, offcatlist, params)
-
-        outarr = np.array([outdict['T'], outdict['rms']])
+        # randomly offset each field's catalogue and stack it
+        outarr = offset_and_stack(niter, maplist, catlist, params, offrng)
         outarrs.append(outarr)
 
         if params.itersave:
