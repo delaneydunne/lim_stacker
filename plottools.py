@@ -327,7 +327,7 @@ def spaceweightmean(cubelet, rmslet):
 
     return ccubelet, crmslet
 
-def specgridx(cubelet, rmslet, nextra=3, offset=0):
+def specgridx(cubelet, rmslet, params, nextra=3, offset=0):
 
     plt.style.use('default')
 
@@ -357,7 +357,7 @@ def specgridx(cubelet, rmslet, nextra=3, offset=0):
 
         axs[i].axhline(0, color='k', ls='--')
 
-        apmin, apmax = freqcent - 0.5, freqcent + 0.5
+        apmin, apmax = freqcent - params.freqwidth/2, freqcent + params.freqwidth/2
 
         axs[i].fill_betweenx(vext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
         axs[i].axvline(apmin, color='0.5', ls=':')
@@ -371,7 +371,7 @@ def specgridx(cubelet, rmslet, nextra=3, offset=0):
 
     return fig
 
-def specgridy(cubelet, rmslet, nextra=3, offset=0):
+def specgridy(cubelet, rmslet, params, nextra=3, offset=0):
 
     plt.style.use('default')
 
@@ -403,7 +403,7 @@ def specgridy(cubelet, rmslet, nextra=3, offset=0):
 
         axs[i].axhline(0, color='k', ls='--')
 
-        apmin, apmax = freqcent-0.5, freqcent+0.5
+        apmin, apmax = freqcent - params.freqwidth/2, freqcent + params.freqwidth/2
 
         axs[i].fill_betweenx(vext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=0, alpha=0.5)
         axs[i].axvline(apmin, color='0.5', ls=':')
@@ -448,12 +448,12 @@ def cubelet_plotter(cubelet, rmslet, params):
 
     # 9x1 grid of spectra in adjacent spatial pixels to center of stack
     #  x-axis
-    xspecfig = specgridx(cubelet, rmslet)
+    xspecfig = specgridx(cubelet, rmslet, params)
     if params.saveplots:
         xspecfig.savefig(params.cubesavepath+'/spectral_profiles_x.png')
 
     #  y-axis
-    yspecfig = specgridy(cubelet, rmslet)
+    yspecfig = specgridy(cubelet, rmslet, params)
     if params.saveplots:
         yspecfig.savefig(params.cubesavepath+'/spectral_profiles_y.png')
 
@@ -575,9 +575,14 @@ def spectral_plotter(stackspec, params):
     ax.axhline(0, color='k', ls='--')
     ax.axvline(0, color='k', ls='--')
 
+    yext = ax.get_ylim()
+
     # show which channels contribute to the stack
-    ax.axvline(0 - params.freqwidth / 2 * 31.25e-3, color='0.7', ls=':')
-    ax.axvline(0 + params.freqwidth / 2 * 31.25e-3, color='0.7', ls=':')
+    apmin, apmax = 0 - params.freqwidth / 2 * 31.25e-3, 0 + params.freqwidth / 2 * 31.25e-3
+    ax.axvline(apmin, color='0.7', ls=':')
+    ax.axvline(apmax, color='0.7', ls=':')
+    axs[i].fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
+
 
     if params.saveplots:
         fig.savefig(params.plotsavepath + '/frequencystack.png')
@@ -667,9 +672,14 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
                 color='indigo', zorder=10, where='mid')
     freqax.axhline(0, color='k', ls='--')
     freqax.axvline(0, color='k', ls='--')
+
+    yext = freqax.get_ylim()
+    apmin, apmax = 0 - params.freqwidth / 2 * 31.25e-3, 0 + params.freqwidth / 2 * 31.25e-3
+
     # show which channels contribute to the stack
-    freqax.axvline(0 - params.freqwidth / 2 * 31.25e-3, color='0.7', ls=':')
-    freqax.axvline(0 + params.freqwidth / 2 * 31.25e-3, color='0.7', ls=':')
+    freqax.axvline(apmin,  color='0.7', ls=':')
+    freqax.axvline(apmax, color='0.7', ls=':')
+    axs[i].fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
     freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
     freqax.set_ylabel(r'T$_b$ [$\mu$K]')
 
