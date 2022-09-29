@@ -582,6 +582,7 @@ def spectral_plotter(stackspec, params):
     ax.axvline(apmin, color='0.7', ls=':')
     ax.axvline(apmax, color='0.7', ls=':')
     ax.fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
+    ax.set_ylim(yext)
 
 
     if params.saveplots:
@@ -682,6 +683,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     freqax.fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
     freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
     freqax.set_ylabel(r'T$_b$ [$\mu$K]')
+    freqax.set_ylim(yext)
 
     if stackresult:
         fig.suptitle('$T_b = {:.3f}\\pm {:.3f}$ $\\mu$K'.format(*stackresult))
@@ -722,7 +724,10 @@ def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True)
 
     fig,axs = plt.subplots(1,3, figsize=(9,3), tight_layout=True)
 
-    plt.style.use('seaborn-ticks')
+    if print_nobjs:
+        plt.style.use('default')
+    else:
+        plt.style.use('seaborn-ticks')
 
     fields = ['Field 1', 'Field 2', 'Field 3']
 
