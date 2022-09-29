@@ -735,8 +735,10 @@ def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True)
         fieldz = catlist[i].z[goodcatidx[i]]
         fieldcoord = catlist[i].coords[goodcatidx[i]]
 
-        axs[i].pcolormesh(maplist[i].ra, maplist[i].dec, np.log10(np.nanmean(maplist[i].rms, axis=0)),
-                          zorder=0, cmap='Greys', vmin=-3, vmax=-0.8)
+        logrms = np.log10(np.nanmean(maplist[i].rms, axis=0))
+        vmax = np.nanmax(logrms) * 0.8
+        axs[i].pcolormesh(maplist[i].ra, maplist[i].dec, logrms, vmax=vmax,
+                          zorder=0, cmap='Greys')
         c = axs[i].scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4, s=2)
 
         axs[i].set_xlabel('Dec (deg)')#, fontsize='large')
