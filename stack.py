@@ -656,6 +656,10 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     unit change to physical units
     """
 
+    # main beam to full beam correction
+    Tvals = Tvals / 0.7
+    rmsvals = rmsvals / 0.7 
+
     # actual beam FWHP is a function of frequency - listed values are 4.9,4.5,4.4 arcmin at 26, 30, 34GHz
     # set up a function to interpolate on
     # beamthetavals = np.array([4.9,4.5,4.4])
