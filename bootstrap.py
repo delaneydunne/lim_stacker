@@ -420,4 +420,4 @@ def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False):
     if rethist:
         return p_og, npoints, counts, bincent
 
-    return p_og, npoints
+    return p_og, npoints, opt
