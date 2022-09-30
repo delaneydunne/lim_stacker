@@ -84,7 +84,7 @@ def offset_bootstrap(niter, maplist, catlist, params):
     for i in range(niter):
 
         # randomly offset each field's catalogue and stack it
-        outarr = offset_and_stack(niter, maplist, catlist, params, offrng)
+        outarr = offset_and_stack(maplist, catlist, params, offrng)
         outarrs.append(outarr)
 
         if params.itersave:
