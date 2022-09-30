@@ -373,7 +373,8 @@ def n_random_stacks(nstacks, actidxlist, maplist, galcatlist, params, verbose=Tr
 
     return stackTlist, stackrmslist
 
-def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False):
+def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False,
+                 writefit=None):
     """
     Function to plot the output of a bootstrap run as a histogram
     """
@@ -416,6 +417,13 @@ def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False):
     ax.set_ylabel('Counts')
 
     p_og = norm.cdf(x=opt[1], loc=stackdict['T'], scale=opt[2])
+
+    # save the output as a csv
+    if writefit:
+        with open(writefit, 'w') as file:
+            w = csv.writer(file)
+            w.writerow(['amplitude', 'mean', 'std'])
+            w.writerow(opt)
 
     if rethist:
         return p_og, npoints, counts, bincent

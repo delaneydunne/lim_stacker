@@ -19,6 +19,7 @@ warnings.filterwarnings("ignore", message="divide by zero encountered in true_di
 # standard COMAP cosmology
 cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
 
+""" CUTOUT-SPECIFIC FUNCTIONS """
 def single_cutout(idx, galcat, comap, params):
 
     # find gal in each axis, test to make sure it falls into field
@@ -279,6 +280,47 @@ def single_cutout(idx, galcat, comap, params):
         cutout.freqstackrms = rmsfreqstack
 
     return cutout
+
+def aperture_collapse_cubelet_freq(cutout, params):
+    """
+    take a 3D cubelet cutout and collapse it along the frequency axis to be an average over the
+    stack aperture frequency channels
+    """
+
+    # indexes of the channels to include
+    lcfidx = (cutout.cubestack.shape[0] - params.freqwidth) // 2
+    cfidx = (lcfidx, lcfidx + params.freqwidth)
+
+    # collapsed image
+    cutim, imrms = weightmean(cutout.cubestack[cfidx[0]:cfidx[1],:,:],
+                                 cutout.cubestackrms[cfidx[0]:cfidx[1],:,:], axis=0)
+
+    cutout.spacestack = cutim
+    cutout.spacestackrms = imrms
+
+    return
+
+def aperture_collapse_cubelet_space(cutout, params):
+    """
+    take a 3D cubelet cutout and collapse it along the spatial axis to be an average over the stack
+    aperture spaxels (ie make a spectrum)
+    """
+
+    # indices of the x and y axes
+    beamxidx = cutout.xidx - cutout.spacexidx[0]
+    beamyidx = cutout.yidx - cutout.spaceyidx[0]
+
+    # clip out values to stack
+    fpixval = cutout.cubestack[:, beamyidx[0]:beamyidx[1], beamxidx[0]:beamxidx[1]]
+    frmsval = cutout.cubestackrms[:, beamyidx[0]:beamyidx[1], beamxidx[0]:beamxidx[1]]
+
+    # collapse along spatial axes to get a spectral profile
+    freqstack, rmsfreqstack = weightmean(fpixval, frmsval, axis=(1,2))
+
+    cutout.freqstack = freqstack
+    cutout.freqstackrms = rmsfreqstack
+
+    return
 
 def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
     """
@@ -658,7 +700,7 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
 
     # main beam to full beam correction
     Tvals = Tvals / 0.7
-    rmsvals = rmsvals / 0.7 
+    rmsvals = rmsvals / 0.7
 
     # actual beam FWHP is a function of frequency - listed values are 4.9,4.5,4.4 arcmin at 26, 30, 34GHz
     # set up a function to interpolate on
