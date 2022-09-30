@@ -96,7 +96,7 @@ class parameters():
                 setattr(self, attr, None)
 
         # boolean parameters
-        for attr in ['cubelet', 'obsunits', 'rotate', 'verbose', 'savedata', 'saveplots', 'plotspace', 'plotfreq', 'plotcubelet']:
+        for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'verbose', 'savedata', 'saveplots', 'plotspace', 'plotfreq', 'plotcubelet']:
             try:
                 val = bool(default_dir[attr])
                 setattr(self, attr, val)
@@ -114,7 +114,20 @@ class parameters():
             try:
                 setattr(self, 'rotseed', int(default_dir['rotseed']))
             except:
+                self.rotseed = 12345
                 warnings.warn("Missing random seed for rotation. Using 12345 as default", RuntimeWarning)
+
+        try:
+            setattr(self, 'fitnbeams', int(default_dir['fitnbeams']))
+        except:
+            self.fitnbeams = 3
+            warnings.warn("Missing number of beams for cutout fitting. Using 3 as default", RuntimeWarning)
+
+        try:
+            setattr(self, 'fitmasknbeams', int(default_dir['fitnbeams']))
+        except:
+            self.fitmasknbeams = 1
+            warnings.warn("Missing number of beams for cutout fitting aperture mask. Using 1 as default", RuntimeWarning)
 
         if self.savedata:
             setattr(self, 'savepath', default_dir['savepath'])
@@ -158,6 +171,10 @@ class parameters():
         """
 
         sinfo = '_x'+str(self.xwidth)+'f'+str(self.freqwidth)
+        if self.rotate:
+            sinfo += '_rot'
+        if self.lowmodefilter:
+            sinfo += '_lmfilt_r'+str(self.fitnbeams)+'m'+str(self.fitmasknbeams)
 
         if self.savepath and append:
             outputdir = self.savepath + sinfo

@@ -9,6 +9,7 @@ from astropy.cosmology import FlatLambdaCDM
 import astropy.units as u
 import astropy.constants as const
 from astropy.convolution import convolve, Gaussian2DKernel, Tophat2DKernel
+from astropy.modeling import models, fitting
 import warnings
 import csv
 warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
@@ -63,6 +64,7 @@ def single_cutout(idx, galcat, comap, params):
     cutout.x = x
     cutout.y = y
 
+    # index the actual aperture to be stacked from the cutout
     # indices for freq axis
     dfreq = params.freqwidth // 2
     if params.freqwidth % 2 == 0:
@@ -103,30 +105,6 @@ def single_cutout(idx, galcat, comap, params):
     freqlen, xylen = len(comap.freq), len(comap.x)
     if freqcutidx[1] > freqlen or xcutidx[1] > xylen or ycutidx[1] > xylen:
         return None
-
-
-    # pull the actual values to stack
-    pixval = comap.map[cutout.freqidx[0]:cutout.freqidx[1],
-                       cutout.yidx[0]:cutout.yidx[1],
-                       cutout.xidx[0]:cutout.xidx[1]]
-    rmsval = comap.rms[cutout.freqidx[0]:cutout.freqidx[1],
-                       cutout.yidx[0]:cutout.yidx[1],
-                       cutout.xidx[0]:cutout.xidx[1]]
-
-    # if all pixels are masked, lose the whole object
-    if np.all(np.isnan(pixval)):
-        return None
-
-    # find the actual Tb in the cutout -- weighted average over all axes
-    Tbval, Tbrms = weightmean(pixval, rmsval)
-    if np.isnan(Tbval):
-        return None
-
-    # Tbval = np.nansum(pixval)
-    # Tbrms = np.sqrt(np.nansum(rmsval**2))
-
-    cutout.T = Tbval
-    cutout.rms = Tbrms
 
     # get the bigger cutouts for plotting if desired:
     ## cubelet
@@ -279,8 +257,36 @@ def single_cutout(idx, galcat, comap, params):
         cutout.freqstack = freqstack
         cutout.freqstackrms = rmsfreqstack
 
+    # pull the actual values to stack
+    pixval = comap.map[cutout.freqidx[0]:cutout.freqidx[1],
+                       cutout.yidx[0]:cutout.yidx[1],
+                       cutout.xidx[0]:cutout.xidx[1]]
+    rmsval = comap.rms[cutout.freqidx[0]:cutout.freqidx[1],
+                       cutout.yidx[0]:cutout.yidx[1],
+                       cutout.xidx[0]:cutout.xidx[1]]
+
+    # if all pixels are masked, lose the whole object
+    if np.all(np.isnan(pixval)):
+        return None
+
+    # find the actual Tb in the cutout -- weighted average over all axes
+    Tbval, Tbrms = weightmean(pixval, rmsval)
+    if np.isnan(Tbval):
+        return None
+
+    # subtract the low-order modes
+    if params.lowmodefilter:
+        cutout = remove_cutout_lowmodes(cutout, params)
+
+    # Tbval = np.nansum(pixval)
+    # Tbrms = np.sqrt(np.nansum(rmsval**2))
+
+    cutout.T = Tbval
+    cutout.rms = Tbrms
+
     return cutout
 
+# convenience functions
 def aperture_collapse_cubelet_freq(cutout, params):
     """
     take a 3D cubelet cutout and collapse it along the frequency axis to be an average over the
@@ -321,6 +327,100 @@ def aperture_collapse_cubelet_space(cutout, params):
     cutout.freqstackrms = rmsfreqstack
 
     return
+
+def remove_cutout_lowmodes(cutout, params, plot=False, plotfit=False):
+    """
+    function that will return a copy of the passed cutout object with a 2D linear polynomial
+    fit to the spatial image and subtracted
+    """
+
+    # pull the cutout over the correct number of frequency channels
+    try:
+        cutim = cutout.spacestack * 1e6
+        cutrms = cutout.spacestackrms * 1e6
+    except AttributeError:
+        aperture_collapse_cubelet_freq(cutout, params)
+        cutim = cutout.spacestack * 1e6
+        cutrms = cutout.spacestackrms * 1e6
+
+    # mask out the source aperture and the edges -- clip to just the center
+    maskrad = int((params.fitmasknbeams - 1) * params.xwidth)
+    maskext = np.array([-maskrad, maskrad])
+    beamxidx = cutout.xidx - cutout.spacexidx[0] + maskext
+    beamyidx = cutout.yidx - cutout.spaceyidx[0] + maskext
+
+    cutim[beamyidx[0]:beamyidx[1], beamxidx[0]:beamxidx[1]] = np.nan
+    cutrms[beamyidx[0]:beamyidx[1], beamxidx[0]:beamxidx[1]] = np.nan
+
+    # radius around the center to keep for fitting
+    cliprad = int((params.fitnbeams - 1) * params.xwidth)
+    clipext = np.array([-cliprad, cliprad])
+    clipxidx, clipyidx = beamxidx + clipext, beamyidx + clipext
+
+    # final cutout to fit
+    # has to go into uk so as to not cause problems
+    cutim = cutim[clipyidx[0]:clipyidx[1], clipxidx[0]:clipxidx[1]]
+    cutrms = cutrms[clipyidx[0]:clipyidx[1], clipxidx[0]:clipxidx[1]]
+
+    # Fit the data using astropy.modeling -- set up a 2d polynomial to fit
+    p_init = models.Polynomial2D(degree=1)
+    fit_p = fitting.LevMarLSQFitter()
+    # x and y axes
+    y,x = np.mgrid[:len(cutim), :len(cutim)]
+
+    # mask nans because the fitter can't deal with them
+    mask = np.isfinite(cutim)
+    p = fit_p(p_init, x[mask], y[mask], cutim[mask], weights=1/cutrms[mask])
+
+    if plotfit:
+        fig,axs = plt.subplots(1,4, sharey=True, sharex=True)
+        vl,vu = simlims(cutim)
+        axs[0].pcolormesh(cutim, vmin=vl, vmax=vu, cmap='PiYG_r')
+        axs[0].set_title('Raw Cutout')
+        vl,vu = simlims(p(x,y))
+        axs[1].pcolormesh(p(x, y), vmin=vl, vmax=vu, cmap='PiYG_r')
+        axs[1].set_title('Linear 2D Fit')
+        vl,vu = simlims(cutim - p(x,y))
+        axs[2].pcolormesh(cutim - p(x, y), vmin=vl, vmax=vu, cmap='PiYG_r')
+        axs[2].set_title('Residual')
+        axs[3].pcolormesh(1/cutrms, cmap='PiYG_r')
+        axs[3].set_title('Weighting')
+
+        for ax in axs:
+            ax.set_aspect(aspect=1)
+
+    # subtract this polynomial from the full cutout and add it into the cutout object
+    fully, fullx = np.mgrid[:len(cutout.spacestack), :len(cutout.spacestack)]
+    fullcutim = cutout.spacestack
+
+    newcutout = cutout.copy()
+    newcutout.polyfit = p(fullx, fully) / 1e6
+    newcutout.spacestack = fullcutim - newcutout.polyfit
+
+    # also subtract from the full cubelet
+    fullcube = cutout.cubestack
+    cubepolyfit = np.tile(newcutout.polyfit, (fullcube.shape[0],1,1))
+    newcutout.cubestack = fullcube - cubepolyfit
+
+    if plot:
+        fig,axs = plt.subplots(1,3, sharey=True, sharex=True)
+        vl,vu = simlims(fullcutim)
+        axs[0].pcolormesh(fullcutim, vmin=vl, vmax=vu, cmap='PiYG_r')
+        axs[0].set_title('Raw Cutout')
+        print(vl,vu)
+        vl,vu = simlims(newcutout.polyfit)
+        axs[1].pcolormesh(newcutout.polyfit, vmin=vl, vmax=vu, cmap='PiYG_r')
+        axs[1].set_title('Linear 2D Fit')
+        print(vl,vu)
+        vl,vu = simlims(newcutout.spacestack)
+        axs[2].pcolormesh(newcutout.spacestack, vmin=vl, vmax=vu, cmap='PiYG_r')
+        axs[2].set_title('Residual')
+        print(vl,vu)
+
+        for ax in axs:
+            ax.set_aspect(aspect=1)
+
+    return newcutout
 
 def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
     """

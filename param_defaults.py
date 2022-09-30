@@ -25,6 +25,11 @@ obsunits True
 rotate True
 # random seed for this random rotation
 rotseed 12345
+# remove a 2D linear polynomial from each cutout before stacking
+lowmodefilter False
+## if fitting, the number of beams to extend outwards from the stack aperture to fit
+fitnbeams 3
+fitmasknbeams 1
 # verbose output when running
 verbose True
 # save the stack data

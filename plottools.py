@@ -1,5 +1,6 @@
 from __future__ import print_function
 from .tools import *
+from .stack import *
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import SymLogNorm
@@ -23,6 +24,9 @@ warnings.filterwarnings("ignore", message="divide by zero encountered in true_di
 cmap = plt.get_cmap('twilight')
 
 
+def simlims(image, factor = 1.):
+    vext = np.max(np.abs((np.nanmin(image), np.nanmax(image)))) * factor
+    return (-vext, vext)
 
 
 """ MAP PLOTTING FUNCTIONS """
@@ -113,15 +117,10 @@ def display_cutout(cutout, comap, params, save=None, ext=1.0):
 
     try:
         cutim = cutout.spacestack * 1e6
-    except:
+    except AttributeError:
         # only want the beam for the axes that aren't being shown
-        lcfidx = (cutout.cubestack.shape[0] - params.freqwidth) // 2
-        cfidx = (lcfidx, lcfidx + params.freqwidth)
-
-        cutim, imrms = weightmean(cutout.cubestack[cfidx[0]:cfidx[1],:,:],
-                                     cutout.cubestackrms[cfidx[0]:cfidx[1],:,:], axis=0)
-        cutim *= 1e6
-        imrms *= 1e6
+        aperture_collapse_cubelet_freq(cutout, params)
+        cutim = cutout.spacestack * 1e6
 
     beamcut = cutim[beamxidx[0]:beamxidx[1], beamyidx[0]:beamyidx[1]]
 
