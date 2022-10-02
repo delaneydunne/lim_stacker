@@ -496,10 +496,6 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     else:
         numcutoutlist = [None, None, None]
 
-    # set up for rotating each cutout randomly if that's set to happen
-    if params.rotate:
-        params.rng = np.random.default_rng(params.rotseed)
-
     # dict to store stacked values
     outputvals = {}
 

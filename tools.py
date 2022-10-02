@@ -116,6 +116,8 @@ class parameters():
             except:
                 self.rotseed = 12345
                 warnings.warn("Missing random seed for rotation. Using 12345 as default", RuntimeWarning)
+            self.rng = np.random.default_rng(self.rotseed)
+
 
         try:
             setattr(self, 'fitnbeams', int(default_dir['fitnbeams']))
@@ -124,7 +126,7 @@ class parameters():
             warnings.warn("Missing number of beams for cutout fitting. Using 3 as default", RuntimeWarning)
 
         try:
-            setattr(self, 'fitmasknbeams', int(default_dir['fitnbeams']))
+            setattr(self, 'fitmasknbeams', int(default_dir['fitmasknbeams']))
         except:
             self.fitmasknbeams = 1
             warnings.warn("Missing number of beams for cutout fitting aperture mask. Using 1 as default", RuntimeWarning)
@@ -205,6 +207,7 @@ class parameters():
 
         self.plotsavepath = outputdir + '/plots'
         self.datasavepath = outputdir + '/data'
+        self.cubesavepath = outputdir + '/plots/cubelet'
 
         # if bootstrapping, adjust those file names too
         try:
@@ -216,6 +219,8 @@ class parameters():
         if self.saveplots:
             # make the directories to store the plots and data
             os.makedirs(self.plotsavepath, exist_ok=True)
+            if self.plotcubelet:
+                os.makedirs(self.cubesavepath, exist_ok=True)
         if self.savedata:
             os.makedirs(self.datasavepath, exist_ok=True)
 

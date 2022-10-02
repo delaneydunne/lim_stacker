@@ -252,6 +252,16 @@ def changrid(cubelet, rmslet, params, smooth=None, rad=None, ext=None, offset=0,
 
             axs[i,j].plot(xcorners, ycorners, color='k')
 
+            if params.lowmodefilter:
+
+                # radius around the center to keep for fitting
+                cliprad = int((params.fitnbeams - 1) * params.xwidth)
+                clipmin, clipmax = rectmin - cliprad, rectmax + cliprad
+                lmxcorners = (clipmin, clipmin, clipmax, clipmax, clipmin)
+                lmycorners = (clipmin, clipmax, clipmax, clipmin, clipmin)
+
+                axs[i,j].plot(lmxcorners, lmycorners, color='0.5')
+
     fig.colorbar(c, ax=axs)
 
     return fig
@@ -472,9 +482,6 @@ def cubelet_plotter(cubelet, rmslet, params):
 
     # if saving plots, set up the directory structure
     if params.saveplots:
-        outputdir = params.savepath + '_x'+str(params.xwidth)+'f'+str(params.freqwidth)
-
-        params.cubesavepath = outputdir + '/plots/cubelet'
 
         if not os.path.exists(params.cubesavepath):
             os.makedirs(params.cubesavepath)
@@ -652,6 +659,23 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
     ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
 
+    # if lmfiltering, corners for the recangle included in that
+    if params.lowmodefilter:
+
+        # radius around the center to keep for fitting
+        cliprad = int((params.fitnbeams - 1) * params.xwidth)
+        clipmin, clipmax = rectmin - cliprad, rectmax + cliprad
+        lmxcorners = (clipmin, clipmin, clipmax, clipmax, clipmin)
+        lmycorners = (clipmin, clipmax, clipmax, clipmin, clipmin)
+
+        if params.fitmasknbeams != 1:
+            cliprad = int((params.fitmasknbeams - 1) * params.xwidth)
+            clipmin, clipmin = rectmin - cliprad, rectmax + cliprad
+            lmmxcorners = (clipmin, clipmin, clipmax, clipmax, clipmin)
+            lmmycorners = (clipmin, clipmax, clipmax, clipmin, clipmin)
+        else:
+            lmmxcorners, lmmycorners = xcorners, ycorners
+
     vext = np.nanmax(np.abs([np.nanmin(stackim*1e6), np.nanmax(stackim*1e6)]))
     vmin,vmax = -vext, vext
 
@@ -666,8 +690,12 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     freqax = fig.add_subplot(gs[-1,:])
 
     c = axs[0,0].pcolormesh(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
-    axs[0,0].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
+    axs[0,0].plot(xcorners, ycorners, color='k', linewidth=4, zorder=10)
     axs[0,0].set_title('Unsmoothed')
+
+    if params.lowmodefilter:
+        axs[0,0].plot(lmxcorners, lmycorners, color='0.5')
+        axs[0,0].plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
 
     axs[0,0].tick_params(axis='y',
                             labelleft=False,
@@ -691,8 +719,12 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
     vext = np.nanmax(smoothed_spacestack_gauss*1e6)
     c = axs[0,1].pcolormesh(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
-    axs[0,1].plot(xcorners, ycorners, color='0.8', linewidth=4, zorder=10)
+    axs[0,1].plot(xcorners, ycorners, color='k', linewidth=4, zorder=10)
     axs[0,1].set_title('Gaussian-smoothed')
+
+    if params.lowmodefilter:
+        axs[0,1].plot(lmxcorners, lmycorners, color='0.5')
+        axs[0,1].plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
 
     axs[0,1].tick_params(axis='y',
                             labelleft=False,
