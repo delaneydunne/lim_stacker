@@ -24,10 +24,29 @@ warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
 def offset_and_stack(maplist, catlist, params, offrng):
+    
     # randomly offset each field's catalogue
+    offcatlist = cat_rand_offset(catlist)
+
+    # run the actual stack
+    outdict,_,_,_,_,_ = stacker(maplist, offcatlist, params)
+
+    return np.array([outdict['T'], outdict['rms']])
+
+def cat_rand_offset(maplist, catlist, params, offrng=None):
+
+    # set up the rng (use the one passed, or failing that the one in params, or
+    # failing that define a new one)
+    if not offrng:
+        try:
+            offrng = params.bootstraprng
+        except AttributeError:
+            offrng = np.random.default_rng(params.bootstrapseed)
+            paramsbootstraprng = offrng
+            print('Defining new bootstrap rng using passed seed '+str(params.bootstrapseed))
+
     offcatlist = []
     for j in range(len(catlist)):
-
         # make a catalogue of random offsets that shouldn't overlap with flux from the actual object
         # 2* as big to make sure there are enough objects included to hit goalnumcutouts
         randcatsize = (3,2*catlist[j].nobj)
@@ -47,10 +66,7 @@ def offset_and_stack(maplist, catlist, params, offrng):
 
         offcatlist.append(offcat)
 
-    # run the actual stack
-    outdict,_,_,_,_,_ = stacker(maplist, offcatlist, params)
-
-    return np.array([outdict['T'], outdict['rms']])
+    return offcatlist
 
 
 def offset_bootstrap(niter, maplist, catlist, params):
