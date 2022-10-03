@@ -252,7 +252,7 @@ def changrid(cubelet, rmslet, params, smooth=None, rad=None, ext=None, offset=0,
 
             axs[i,j].plot(xcorners, ycorners, color='k')
 
-            if params.lowmodefilter:
+            if params.lowmodefilter or params.chanmeanfilter:
 
                 # radius around the center to keep for fitting
                 cliprad = int((params.fitnbeams - 1) * params.xwidth)
@@ -660,7 +660,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
 
     # if lmfiltering, corners for the recangle included in that
-    if params.lowmodefilter:
+    if params.lowmodefilter or params.chanmeanfilter:
 
         # radius around the center to keep for fitting
         cliprad = int((params.fitnbeams - 1) * params.xwidth)
@@ -693,7 +693,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     axs[0,0].plot(xcorners, ycorners, color='k', linewidth=4, zorder=10)
     axs[0,0].set_title('Unsmoothed')
 
-    if params.lowmodefilter:
+    if params.lowmodefilter or params.chanmeanfilter:
         axs[0,0].plot(lmxcorners, lmycorners, color='0.5')
         axs[0,0].plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
 
@@ -722,7 +722,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     axs[0,1].plot(xcorners, ycorners, color='k', linewidth=4, zorder=10)
     axs[0,1].set_title('Gaussian-smoothed')
 
-    if params.lowmodefilter:
+    if params.lowmodefilter or params.chanmeanfilter:
         axs[0,1].plot(lmxcorners, lmycorners, color='0.5')
         axs[0,1].plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
 
