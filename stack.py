@@ -387,7 +387,8 @@ def remove_cutout_lowmodes(cutout, params, plot=False, plotfit=False):
 
     # if the mean in these central channels is way off then assume the whole
     # cutout is bad
-    if np.abs(p.c0_0) > params.fitmeanlimit:
+    # also cutting on slopes > 10 in either of the two gradient directions
+    if np.abs(p.c0_0) > params.fitmeanlimit or np.abs(p.c1_0) > 10 or np.abs(p.c0_1) > 10:
         return None
 
     if plotfit:
