@@ -24,9 +24,9 @@ warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
 def offset_and_stack(maplist, catlist, params, offrng):
-    
+
     # randomly offset each field's catalogue
-    offcatlist = cat_rand_offset(catlist)
+    offcatlist = cat_rand_offset(maplist, catlist, params, offrng)
 
     # run the actual stack
     outdict,_,_,_,_,_ = stacker(maplist, offcatlist, params)
