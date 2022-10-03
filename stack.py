@@ -277,7 +277,7 @@ def single_cutout(idx, galcat, comap, params):
     # check if the cutout failed the tests in these functions
     if not cutout:
         return None
-        
+
     # subtract the per-channel means
     if params.chanmeanfilter:
         cutout = remove_cutout_chanmean(cutout, params)
@@ -388,7 +388,6 @@ def remove_cutout_lowmodes(cutout, params, plot=False, plotfit=False):
     # if the mean in these central channels is way off then assume the whole
     # cutout is bad
     if np.abs(p.c0_0) > params.fitmeanlimit:
-        print(' bad fit')
         return None
 
     if plotfit:

@@ -176,9 +176,11 @@ class parameters():
         if self.rotate:
             sinfo += '_rot'
         if self.lowmodefilter:
-            sinfo += '_lmfilt_r'+str(self.fitnbeams)+'m'+str(self.fitmasknbeams)
+            sinfo += '_lmfilt_r'
         if self.chanmeanfilter:
-            sinfo += '_cmfilt_r'+str(self.fitnbeams)+'m'+str(self.fitmasknbeams)
+            sinfo += '_cmfilt_r'
+        if self.lowmodefilter or self.chanmeanfilter:
+            sinfo += str(self.fitnbeams)+'m'+str(self.fitmasknbeams)
 
         if self.savepath and append:
             outputdir = self.savepath + sinfo

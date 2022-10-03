@@ -76,14 +76,14 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=No
     """
 
     # load in main map and main catalogue
-    pipemap = maps(pipemapfile)
+    pipemap = maps(params, inputfile=pipemapfile)
     cat = catalogue(catfile, load_all=True)
 
     # if a raw file and a pipeline file are both given, load them all in
     # if only a raw file is given then the simulation is not from the oslo pipeline
     if rawsimfile:
         # map objects setup
-        rawmap = maps(rawsimfile)
+        rawmap = maps(params, inputfile=rawsimfile)
 
         # match catalogue wcs
         cat.match_wcs(rawmap, pipemap, params)
