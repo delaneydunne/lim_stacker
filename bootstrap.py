@@ -46,7 +46,7 @@ def offset_and_stack(maplist, catlist, params, offrng):
 
     return np.array([outdict['T'], outdict['rms']])
 
-def cat_rand_offset(maplist, catlist, params, offrng=None):
+def cat_rand_offset(mapinst, catinst, params, offrng=None):
 
     # set up the rng (use the one passed, or failing that the one in params, or
     # failing that define a new one)
@@ -60,20 +60,20 @@ def cat_rand_offset(maplist, catlist, params, offrng=None):
 
     # make a catalogue of random offsets that shouldn't overlap with flux from the actual object
     # 2* as big to make sure there are enough objects included to hit goalnumcutouts
-    randcatsize = (3,2*catlist[j].nobj)
+    randcatsize = (3,2*catinst.nobj)
     randoffs = offrng.uniform(2,10,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
 
-    offcat = catlist[j].copy()
+    offcat = catinst.copy()
 
-    raoff = np.concatenate((catlist[j].ra(), catlist[j].ra())) + maplist[j].xstep*randoffs[0,:]
-    decoff = np.concatenate((catlist[j].dec(), catlist[j].dec())) + maplist[j].ystep*randoffs[1,:]
-    freqoff = np.concatenate((catlist[j].freq, catlist[j].freq)) + maplist[j].fstep*randoffs[2,:]
+    raoff = np.concatenate((catinst.ra(), catinst.ra())) + mapinst.xstep*randoffs[0,:]
+    decoff = np.concatenate((catinst.dec(), catinst.dec())) + mapinst.ystep*randoffs[1,:]
+    freqoff = np.concatenate((catinst.freq, catinst.freq)) + mapinst.fstep*randoffs[2,:]
     zoff = freq_to_z(params.centfreq, freqoff)
 
     offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
     offcat.freq = freqoff
     offcat.z = zoff
-    offcat.nobj = 2*catlist[j].nobj
+    offcat.nobj = 2*catinst.nobj
 
     return offcat
 
