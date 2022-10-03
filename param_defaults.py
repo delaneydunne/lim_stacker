@@ -27,6 +27,8 @@ rotate True
 rotseed 12345
 # remove a 2D linear polynomial from each cutout before stacking
 lowmodefilter False
+# instaed, remove the per-channel mean of the region around the source before stacking
+chanmeanfilter False 
 ## if fitting, the number of beams to extend outwards from the stack aperture to fit
 fitnbeams 3
 fitmasknbeams 1

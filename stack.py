@@ -395,6 +395,7 @@ def remove_cutout_lowmodes(cutout, params, plot=False, plotfit=False):
 
     newcutout = cutout.copy()
     newcutout.polyfit = p(fullx, fully) / 1e6
+    newcutout.polyfitmodel = p.parameters
     newcutout.spacestack = fullcutim - newcutout.polyfit
 
     # also subtract from the full cubelet
@@ -421,6 +422,51 @@ def remove_cutout_lowmodes(cutout, params, plot=False, plotfit=False):
             ax.set_aspect(aspect=1)
 
     return newcutout
+
+
+def remove_cutout_chanmean(cutout, params, plot=False, plotfit=False):
+    """
+    function to, for a given cutout, find the region around the source spatially
+    but not including the actual source, find the mean value of each channel, and
+    subtract those means from the cutout 
+    """
+
+    # cubelet
+    cutim = cutout.cubestack
+    cutrms = cutout.cubestackrms
+
+    # mask out the source aperture and the edges -- clip to just the center
+    beamxidx = cutout.xidx - cutout.spacexidx[0]
+    beamyidx = cutout.yidx - cutout.spaceyidx[0]
+    beamfidx = cutout.freqidx - cutout.freqfreqidx[0]
+
+    cutim[beamfidx[0]:beamfidx[1],
+          beamyidx[0]:beamyidx[1],
+          beamxidx[0]:beamxidx[1]] = np.nan
+    cutrms[beamfidx[0]:beamfidx[1],
+           beamyidx[0]:beamyidx[1],
+           beamxidx[0]:beamxidx[1]] = np.nan
+
+    # radius around the center to keep for fitting in space (keep all freq channels)
+    cliprad = (params.fitnbeams - 1) * params.xwidth
+    clipext = np.array([-cliprad, cliprad])
+    clipxidx, clipyidx = beamxidx + clipext, beamyidx + clipext
+
+    # final cutout to fit
+    cutim = cutim[:, clipyidx[0]:clipyidx[1], clipxidx[0]:clipxidx[1]]
+    cutrms = cutrms[:, clipyidx[0]:clipyidx[1], clipxidx[0]:clipxidx[1]]
+
+    # use the variance-weighted mean to find a mean value for each channel in the cube
+    chanmeans, _ = st.weightmean(cutim, cutrms, axis=(1,2))
+
+    # subtract off the means and store in a new cutout object
+    newcutout = cutout.copy()
+    newcutout.chanmeans = chanmeans
+    # ugly flipping bc the freq axis is on the wrong side
+    newcutout.cubestack = (cutout.cubestack.T - chanmeans).T
+
+    return newcutout
+
 
 def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
     """
