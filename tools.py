@@ -959,7 +959,7 @@ def field_setup(mapfile, catfile, params):
     wrapper function to set up for a single-field stack run
     """
     # load in the map
-    mapinst = maps(mapfile, params)
+    mapinst = maps(params, inputfile=mapfile)
 
     # load in the catalogue
     catinst = catalogue(catfile)
