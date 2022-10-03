@@ -78,7 +78,7 @@ class parameters():
         self.dir = default_dir
 
         # integer-valued parameters
-        for attr in ['xwidth', 'ywidth', 'freqwidth']:
+        for attr in ['xwidth', 'ywidth', 'freqwidth', 'voxelhitlimit']:
             try:
                 val = int(default_dir[attr])
                 setattr(self, attr, val)
@@ -591,7 +591,7 @@ class maps():
         # mark pixels with zero rms and mask them in the rms/map arrays (how the pipeline stores infs)
         mapbadpix = np.logical_or(rmstemparr < 1e-10, rmstemparr > 0.01)
         # also mark anything with less than 10 000 hits (another way to clean off map edges)
-        hitbadpix = hittemparr < 10000
+        hitbadpix = hittemparr < params.voxelhitlimit
         self.badpix = np.where(np.logical_or(mapbadpix, hitbadpix))
         maptemparr[self.badpix] = np.nan
         rmstemparr[self.badpix] = np.nan

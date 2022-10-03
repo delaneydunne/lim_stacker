@@ -32,6 +32,8 @@ chanmeanfilter True
 ## if fitting, the number of beams to extend outwards from the stack aperture to fit
 fitnbeams 3
 fitmasknbeams 1
+# min number of hits in a single voxel for inclusion in the stack
+voxelhitlimit 50000
 # verbose output when running
 verbose True
 # save the stack data
