@@ -270,21 +270,29 @@ def single_cutout(idx, galcat, comap, params):
     if np.all(np.isnan(pixval)):
         return None
 
-    # find the actual Tb in the cutout -- weighted average over all axes
-    Tbval, Tbrms = weightmean(pixval, rmsval)
-    if np.isnan(Tbval):
-        return None
-
     # subtract the low-order modes
     if params.lowmodefilter:
         cutout = remove_cutout_lowmodes(cutout, params)
 
+    # check if the cutout failed the tests in these functions
+    if not cutout:
+        return None
+        
     # subtract the per-channel means
     if params.chanmeanfilter:
         cutout = remove_cutout_chanmean(cutout, params)
 
+    # check if the cutout failed the tests in these functions
+    if not cutout:
+        return None
+
     # Tbval = np.nansum(pixval)
     # Tbrms = np.sqrt(np.nansum(rmsval**2))
+
+    # find the actual Tb in the cutout -- weighted average over all axes
+    Tbval, Tbrms = weightmean(pixval, rmsval)
+    if np.isnan(Tbval):
+        return None
 
     cutout.T = Tbval
     cutout.rms = Tbrms
@@ -377,6 +385,12 @@ def remove_cutout_lowmodes(cutout, params, plot=False, plotfit=False):
     mask = np.isfinite(cutim)
     p = fit_p(p_init, x[mask], y[mask], cutim[mask], weights=1/cutrms[mask])
 
+    # if the mean in these central channels is way off then assume the whole
+    # cutout is bad
+    if np.abs(p.c0_0) > params.fitmeanlimit:
+        print(' bad fit')
+        return None
+
     if plotfit:
         fig,axs = plt.subplots(1,4, sharey=True, sharex=True)
         vl,vu = simlims(cutim)
@@ -463,6 +477,10 @@ def remove_cutout_chanmean(cutout, params, plot=False, plotfit=False):
 
     # use the variance-weighted mean to find a mean value for each channel in the cube
     chanmeans, _ = weightmean(cutim, cutrms, axis=(1,2))
+
+    # check the mean channels to make sure they aren't too crazy
+    if np.all(chanmeans[beamfidx[0]:beamfidx[1]] > params.fitmeanlimit/1e6):
+        return None
 
     # subtract off the means and store in a new cutout object
     newcutout = cutout.copy()

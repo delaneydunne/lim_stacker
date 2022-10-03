@@ -87,7 +87,7 @@ class parameters():
                 setattr(self, attr, None)
 
         # float-valued parameters
-        for attr in ['centfreq', 'beamwidth']:
+        for attr in ['centfreq', 'beamwidth', 'fitmeanlimit']:
             try:
                 val = float(default_dir[attr])
                 setattr(self, attr, val)

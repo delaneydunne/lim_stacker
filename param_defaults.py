@@ -31,9 +31,13 @@ lowmodefilter False
 chanmeanfilter True
 ## if fitting, the number of beams to extend outwards from the stack aperture to fit
 fitnbeams 3
+## and to mask
 fitmasknbeams 1
+## if the c0_0 parameter part of the fit is above this value on either side of 0,
+## assume the cutout as a whole is bad
+fitmeanlimit 100
 # min number of hits in a single voxel for inclusion in the stack
-voxelhitlimit 50000
+voxelhitlimit 10000
 # verbose output when running
 verbose True
 # save the stack data
