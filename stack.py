@@ -2,6 +2,7 @@ from __future__ import absolute_import, print_function
 from .tools import *
 from .plottools import *
 import os
+import copy
 import numpy as np
 import matplotlib.pyplot as plt
 from astropy.coordinates import SkyCoord
@@ -278,6 +279,10 @@ def single_cutout(idx, galcat, comap, params):
     if params.lowmodefilter:
         cutout = remove_cutout_lowmodes(cutout, params)
 
+    # subtract the per-channel means
+    if params.chanmeanfilter:
+        cutout = remove_cutout_chanmean(cutout, params)
+
     # Tbval = np.nansum(pixval)
     # Tbrms = np.sqrt(np.nansum(rmsval**2))
 
@@ -428,12 +433,12 @@ def remove_cutout_chanmean(cutout, params, plot=False, plotfit=False):
     """
     function to, for a given cutout, find the region around the source spatially
     but not including the actual source, find the mean value of each channel, and
-    subtract those means from the cutout 
+    subtract those means from the cutout
     """
 
     # cubelet
-    cutim = cutout.cubestack
-    cutrms = cutout.cubestackrms
+    cutim = copy.deepcopy(cutout.cubestack)
+    cutrms = copy.deepcopy(cutout.cubestackrms)
 
     # mask out the source aperture and the edges -- clip to just the center
     beamxidx = cutout.xidx - cutout.spacexidx[0]
@@ -457,7 +462,7 @@ def remove_cutout_chanmean(cutout, params, plot=False, plotfit=False):
     cutrms = cutrms[:, clipyidx[0]:clipyidx[1], clipxidx[0]:clipxidx[1]]
 
     # use the variance-weighted mean to find a mean value for each channel in the cube
-    chanmeans, _ = st.weightmean(cutim, cutrms, axis=(1,2))
+    chanmeans, _ = weightmean(cutim, cutrms, axis=(1,2))
 
     # subtract off the means and store in a new cutout object
     newcutout = cutout.copy()
