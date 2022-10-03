@@ -560,10 +560,10 @@ class maps():
     class containing a custom object used to hold a 3-D LIM map and its associated metadata
     """
 
-    def __init__(self, inputfile=None, reshape=True):
+    def __init__(self, params, inputfile=None, reshape=True):
         if inputfile:
             if inputfile[-2:] == 'h5':
-                self.load(inputfile, reshape=reshape)
+                self.load(inputfile, params, reshape=reshape)
             elif inputfile[-3:] == 'npz':
                 self.load_sim(inputfile)
             else:
@@ -571,7 +571,7 @@ class maps():
         else:
             pass
 
-    def load(self, inputfile, reshape=True):
+    def load(self, inputfile, params, reshape=True):
         # this is the COMAP pipeline format currently -- would have to change this if
         # using some other file format
         self.type = 'data'
@@ -959,7 +959,7 @@ def field_setup(mapfile, catfile, params):
     wrapper function to set up for a single-field stack run
     """
     # load in the map
-    mapinst = maps(mapfile)
+    mapinst = maps(mapfile, params)
 
     # load in the catalogue
     catinst = catalogue(catfile)
