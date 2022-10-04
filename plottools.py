@@ -644,7 +644,8 @@ def spectral_plotter(stackspec, params):
 
     return 0
 
-def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None):
+def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None,
+                     unsmooth_vext=None, smooth_vext=None, freq_ext=None):
 
     plt.style.use('default')
 
@@ -676,8 +677,12 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
         else:
             lmmxcorners, lmmycorners = xcorners, ycorners
 
-    vext = np.nanmax(np.abs([np.nanmin(stackim*1e6), np.nanmax(stackim*1e6)]))
-    vmin,vmax = -vext, vext
+    # scale on the colorbar
+    if not unsmooth_vext:
+        vext = np.nanmax(np.abs([np.nanmin(stackim*1e6), np.nanmax(stackim*1e6)]))
+        vmin,vmax = -vext, vext
+    else:
+        (vmin,vmax) = unsmooth_vext
 
     # plot with all three stack representations
     gs_kw = dict(width_ratios=[1,1], height_ratios=[3,2])
@@ -717,8 +722,13 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
 
     # smoothed
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
-    vext = np.nanmax(smoothed_spacestack_gauss*1e6)
-    c = axs[0,1].pcolormesh(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
+    # scale on the colorbar
+    if not smooth_vext:
+        vext = np.nanmax(smoothed_spacestack_gauss*1e6)
+        vmin, vmax = -vext, vext
+    else:
+        (vmin,vmax) = smooth_vext
+    c = axs[0,1].pcolormesh(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
     axs[0,1].plot(xcorners, ycorners, color='k', linewidth=4, zorder=10)
     axs[0,1].set_title('Gaussian-smoothed')
 
@@ -753,7 +763,10 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     freqax.axhline(0, color='k', ls='--')
     freqax.axvline(0, color='k', ls='--')
 
-    yext = freqax.get_ylim()
+    if not freq_ext:
+        yext = freqax.get_ylim()
+    else:
+        yext = freq_ext
     apmin, apmax = 0 - params.freqwidth / 2 * 31.25e-3, 0 + params.freqwidth / 2 * 31.25e-3
 
     # show which channels contribute to the stack
@@ -770,7 +783,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     if params.saveplots:
         fig.savefig(params.plotsavepath + '/combinedstackim.png')
 
-    return 0
+    return fig
 
 
 def catalogue_plotter(catlist, goodcatidx, params):

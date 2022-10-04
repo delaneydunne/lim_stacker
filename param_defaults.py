@@ -36,6 +36,7 @@ fitmasknbeams 1
 ## if the c0_0 parameter part of the fit is above this value on either side of 0,
 ## assume the cutout as a whole is bad
 fitmeanlimit 100
+fitvallims 100 10 10
 # min number of hits in a single voxel for inclusion in the stack
 voxelhitlimit 10000
 # verbose output when running
@@ -47,6 +48,8 @@ savepath stack_output
 # for simulations -- to hit a target number of objects exactly
 # to split this up by field, pass a list [n_field1, n_field2, n_field3]
 goalnumcutouts False
+# return the actual cutout objects
+returncutlist False
 
 """ plotting parameters """
 # save plots to disk

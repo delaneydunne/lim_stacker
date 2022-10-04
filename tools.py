@@ -96,7 +96,9 @@ class parameters():
                 setattr(self, attr, None)
 
         # boolean parameters
-        for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'chanmeanfilter', 'verbose', 'savedata', 'saveplots', 'plotspace', 'plotfreq', 'plotcubelet']:
+        for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'chanmeanfilter',
+                     'verbose', 'returncutlist', 'savedata', 'saveplots', 'plotspace',
+                     'plotfreq', 'plotcubelet']:
             try:
                 val = bool(default_dir[attr])
                 setattr(self, attr, val)
@@ -176,11 +178,11 @@ class parameters():
         if self.rotate:
             sinfo += '_rot'
         if self.lowmodefilter:
-            sinfo += '_lmfilt_r'
+            sinfo += '_lmfilt'
         if self.chanmeanfilter:
-            sinfo += '_cmfilt_r'
+            sinfo += '_cmfilt'
         if self.lowmodefilter or self.chanmeanfilter:
-            sinfo += str(self.fitnbeams)+'m'+str(self.fitmasknbeams)
+            sinfo += '_r'+str(self.fitnbeams)+'m'+str(self.fitmasknbeams)
 
         if self.savepath and append:
             outputdir = self.savepath + sinfo

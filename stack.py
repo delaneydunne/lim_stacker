@@ -711,10 +711,17 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
             cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
             np.savez(cubefile, T=cubestack, rms=cuberms)
 
+    # objects to be returned
     if params.cubelet:
-        return outputvals, stackim, stackspec, fieldcatidx, cubestack, cuberms
+        returns = [outputvals, stackim, stackspec, fieldcatidx, cubestack, cuberms]
     else:
-        return outputvals, stackim, stackspec, fieldcatidx
+        returns = [outputvals, stackim, stackspec, fieldcatidx]
+
+    # return list of all cutouts w associated metadata as well if asked to
+    if params.returncutlist:
+        returns.append(allcutouts)
+
+    return returns
 
 def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
     """
