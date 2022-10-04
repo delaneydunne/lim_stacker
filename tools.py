@@ -589,15 +589,18 @@ class maps():
             rmstemparr = np.array(file.get('rms_coadd'))
             hittemparr = np.array(file.get('nhit_coadd'))
 
+            self.freq = np.array(file.get('freq'))
+            self.ra = np.array(file.get('x'))
+            self.dec = np.array(file.get('y'))
+
             # account for new naming conventions
             if not maptemparr:
                 maptemparr = np.array(file.get('map'))
                 rmstemparr = np.array(file.get('rms'))
                 hittemparr = np.array(file.get('nhit'))
-
-            self.freq = np.array(file.get('freq'))
-            self.ra = np.array(file.get('x'))
-            self.dec = np.array(file.get('y'))
+                self.freq = np.array(file.get('freq_centers'))
+                self.ra = np.array(file.get('ra_centers'))
+                self.dec = np.array(file.get('dec_centers'))
 
             patch_cent = np.array(file.get('patch_center'))
             self.fieldcent = SkyCoord(patch_cent[0]*u.deg, patch_cent[1]*u.deg)
