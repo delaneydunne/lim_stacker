@@ -575,6 +575,9 @@ class maps():
         else:
             pass
 
+    def copy(self):
+        return copy.deepcopy(self)
+
     def load(self, inputfile, params, reshape=True):
         # this is the COMAP pipeline format currently -- would have to change this if
         # using some other file format
