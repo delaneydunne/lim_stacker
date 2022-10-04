@@ -588,6 +588,13 @@ class maps():
             maptemparr = np.array(file.get('map_coadd'))
             rmstemparr = np.array(file.get('rms_coadd'))
             hittemparr = np.array(file.get('nhit_coadd'))
+
+            # account for new naming conventions
+            if not maptemparr:
+                maptemparr = np.array(file.get('map'))
+                rmstemparr = np.array(file.get('rms'))
+                hittemparr = np.array(file.get('nhit'))
+
             self.freq = np.array(file.get('freq'))
             self.ra = np.array(file.get('x'))
             self.dec = np.array(file.get('y'))
