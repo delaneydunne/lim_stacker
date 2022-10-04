@@ -594,7 +594,7 @@ class maps():
             self.dec = np.array(file.get('y'))
 
             # account for new naming conventions
-            if not maptemparr:
+            if not np.any(maptemparr):
                 maptemparr = np.array(file.get('map'))
                 rmstemparr = np.array(file.get('rms'))
                 hittemparr = np.array(file.get('nhit'))
