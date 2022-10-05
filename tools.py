@@ -78,13 +78,16 @@ class parameters():
         self.dir = default_dir
 
         # integer-valued parameters
-        for attr in ['xwidth', 'ywidth', 'freqwidth', 'voxelhitlimit']:
+        for attr in ['xwidth', 'ywidth', 'freqwidth', 'usefeed', 'voxelhitlimit']:
             try:
                 val = int(default_dir[attr])
                 setattr(self, attr, val)
             except:
                 warnings.warn("Parameter '"+attr+"' should be an integer", RuntimeWarning)
                 setattr(self, attr, None)
+        # condition for pulling a specific feed
+        if self.usefeed < 0:
+            self.usefeed = False
 
         # float-valued parameters
         for attr in ['centfreq', 'beamwidth', 'fitmeanlimit']:
@@ -585,22 +588,37 @@ class maps():
 
         # load in from file
         with h5py.File(inputfile, 'r') as file:
-            maptemparr = np.array(file.get('map_coadd'))
-            rmstemparr = np.array(file.get('rms_coadd'))
-            hittemparr = np.array(file.get('nhit_coadd'))
 
+            # coordinate info (not feed-dependent)
             self.freq = np.array(file.get('freq'))
             self.ra = np.array(file.get('x'))
             self.dec = np.array(file.get('y'))
 
-            # account for new naming conventions
-            if not np.any(maptemparr):
-                maptemparr = np.array(file.get('map'))
-                rmstemparr = np.array(file.get('rms'))
-                hittemparr = np.array(file.get('nhit'))
-                self.freq = np.array(file.get('freq_centers'))
-                self.ra = np.array(file.get('ra_centers'))
-                self.dec = np.array(file.get('dec_centers'))
+            if not params.usefeed:
+                maptemparr = np.array(file.get('map_coadd'))
+                rmstemparr = np.array(file.get('rms_coadd'))
+                hittemparr = np.array(file.get('nhit_coadd'))
+
+                # account for new naming conventions
+                # **** new maps can't handle single feeds yet bc i don't think those
+                # conventions exist as
+                if not np.any(maptemparr):
+                    maptemparr = np.array(file.get('map'))
+                    rmstemparr = np.array(file.get('rms'))
+                    hittemparr = np.array(file.get('nhit'))
+                    self.freq = np.array(file.get('freq_centers'))
+                    self.ra = np.array(file.get('ra_centers'))
+                    self.dec = np.array(file.get('dec_centers'))
+
+            else:
+                # if a feed parameter is passed, load only the relevant feed from the
+                # input maps to stack on that
+                # *** this is currently stupid slow because it has to load the whole 4D array
+                # to pull only one feed. maybe better way to store these?
+                feed = params.usefeed - 1
+                maptemparr = np.array(file.get('map'))[feed,:,:,:]
+                rmstemparr = np.array(file.get('rms'))[feed,:,:,:]
+                hittemparr = np.array(file.get('nhit'))[feed,:,:,:]
 
             patch_cent = np.array(file.get('patch_center'))
             self.fieldcent = SkyCoord(patch_cent[0]*u.deg, patch_cent[1]*u.deg)

@@ -84,7 +84,7 @@ def plot_chan(comap, channel, params, cat=None, ext=0.95, smooth=False, lognorm=
                           cmap=cmap)
     # normal colourscale
     else:
-        c = ax.pcolormesh(comap.ra, comap.dec, plotmap, cmap=cmap)
+        c = ax.pcolormesh(comap.ra, comap.dec, plotmap, cmap=cmap, vmin=vext[0], vmax=vext[1])
 
     # if a catalogue is passed, scatter plot
     if cat:
