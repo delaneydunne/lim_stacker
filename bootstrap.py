@@ -77,6 +77,36 @@ def cat_rand_offset(mapinst, catinst, params, offrng=None):
 
     return offcat
 
+def cat_rand_offset_freq(mapinst, catinst, params, offrng=None):
+    # set up the rng (use the one passed, or failing that the one in params, or
+    # failing that define a new one)
+    if not offrng:
+        try:
+            offrng = params.bootstraprng
+        except AttributeError:
+            offrng = np.random.default_rng(params.bootstrapseed)
+            paramsbootstraprng = offrng
+            print('Defining new bootstrap rng using passed seed '+str(params.bootstrapseed))
+
+    # make a catalogue of random offsets that shouldn't overlap with flux from the actual object
+    # 2* as big to make sure there are enough objects included to hit goalnumcutouts
+    randcatsize = (2*catinst.nobj)
+    randoffs = offrng.uniform(2,10,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
+
+    offcat = catinst.copy()
+
+    raoff = np.concatenate((catinst.ra(), catinst.ra()))
+    decoff = np.concatenate((catinst.dec(), catinst.dec()))
+    freqoff = np.concatenate((catinst.freq, catinst.freq)) + mapinst.fstep*randoffs[2,:]
+    zoff = freq_to_z(params.centfreq, freqoff)
+
+    offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
+    offcat.freq = freqoff
+    offcat.z = zoff
+    offcat.nobj = 2*catinst.nobj
+
+    return offcat
+
 
 def offset_bootstrap(niter, maplist, catlist, params):
 
