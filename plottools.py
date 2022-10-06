@@ -671,7 +671,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
 
         if params.fitmasknbeams != 1:
             cliprad = int((params.fitmasknbeams - 1) * params.xwidth)
-            clipmin, clipmin = rectmin - cliprad, rectmax + cliprad
+            clipmin, clipmax = rectmin - cliprad, rectmax + cliprad
             lmmxcorners = (clipmin, clipmin, clipmax, clipmax, clipmin)
             lmmycorners = (clipmin, clipmax, clipmax, clipmin, clipmin)
         else:

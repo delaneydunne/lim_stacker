@@ -452,14 +452,16 @@ def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False,
 
     ax.hist(bootstrap, bins=nbins, color='indigo')
 
+    yext = ax.get_ylim()
+
     ax.plot(xarr, gauss(xarr, *opt), color='darkorange')
 
-    rect = Rectangle((opt[1] - opt[2], -1), 2*opt[2], 1500, color='0.1', alpha=0.5)
+    rect = Rectangle((opt[1] - opt[2], -1), 2*opt[2], yext[1]*2, color='0.1', alpha=0.5)
     ax.add_patch(rect)
     ax.axvline(opt[1], color='0.1', ls=':', label="From Bootstrap")
 
     rect = Rectangle((actT-actrms, -1), 2*actrms,
-                      1500, color='0.5', alpha=0.5)
+                      yext[1]*2, color='0.5', alpha=0.5)
     ax.add_patch(rect)
     ax.axvline(actT, color='0.5', ls='--', label="From Map RMS")
 

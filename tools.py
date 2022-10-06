@@ -100,8 +100,8 @@ class parameters():
 
         # boolean parameters
         for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'chanmeanfilter',
-                     'verbose', 'returncutlist', 'savedata', 'saveplots', 'plotspace',
-                     'plotfreq', 'plotcubelet']:
+                     'specmeanfilter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
+                     'plotspace', 'plotfreq', 'plotcubelet']:
             try:
                 val = bool(default_dir[attr])
                 setattr(self, attr, val)
@@ -135,6 +135,17 @@ class parameters():
         except:
             self.fitmasknbeams = 1
             warnings.warn("Missing number of beams for cutout fitting aperture mask. Using 1 as default", RuntimeWarning)
+        try:
+            setattr(self, 'freqmaskwidth', int(default_dir['freqmaskwidth']))
+        except:
+            self.freqmaskwidth = 1
+            warnings.warn("Missing number of apertures to mask for calculating spectral mean. Using 1 as default", RuntimeWarning)
+        try:
+            setattr(self, 'frequsewidth', int(default_dir['frequsewidth']))
+        except:
+            self.frequsewidth = 10
+            warnings.warn("Missing number of apertures for calculating spectral mean. Using 10 as default", RuntimeWarning)
+
 
         if self.savedata:
             setattr(self, 'savepath', default_dir['savepath'])
@@ -928,6 +939,7 @@ def dict_saver(indict, outfile, strip_units=True):
 def weightmean(vals, rmss, axis=None):
     """
     average of vals, weighted by rmss, over the passed axes
+    default is over a a fully flattened array if no axes are passed
     """
     meanval = np.nansum(vals/rmss**2, axis=axis) / np.nansum(1/rmss**2, axis=axis)
     meanrms = np.sqrt(1/np.nansum(1/rmss**2, axis=axis))
