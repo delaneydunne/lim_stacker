@@ -271,14 +271,6 @@ def single_cutout(idx, galcat, comap, params):
     if np.all(np.isnan(pixval)):
         return None
 
-    # subtract the low-order modes
-    if params.lowmodefilter:
-        cutout = remove_cutout_lowmodes(cutout, params)
-
-    # check if the cutout failed the tests in these functions
-    if not cutout:
-        return None
-
     # subtract global spectral mean
     if params.specmeanfilter:
         cutout = remove_cutout_spectral_mean(cutout, params)
@@ -290,6 +282,14 @@ def single_cutout(idx, galcat, comap, params):
     # subtract the per-channel means
     if params.chanmeanfilter:
         cutout = remove_cutout_chanmean(cutout, params)
+
+    # check if the cutout failed the tests in these functions
+    if not cutout:
+        return None
+
+    # subtract the low-order modes
+    if params.lowmodefilter:
+        cutout = remove_cutout_lowmodes(cutout, params)
 
     # check if the cutout failed the tests in these functions
     if not cutout:
