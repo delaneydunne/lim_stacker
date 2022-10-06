@@ -103,7 +103,7 @@ class parameters():
                      'specmeanfilter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
                      'plotspace', 'plotfreq', 'plotcubelet']:
             try:
-                val = bool(default_dir[attr])
+                val = default_dir[attr] == 'True'
                 setattr(self, attr, val)
             except:
                 warnings.warn("Parameter '"+attr+"' should be boolean", RuntimeWarning)
@@ -281,6 +281,18 @@ class parameters():
         print("\t\t extra cubelet plots: {}".format(self.plotcubelet))
         print("\t Radius of output spatial image: {} pix".format(self.spacestackwidth))
         print("\t Diameter of output spectrum: {} channels".format(self.freqstackwidth))
+        print("-------------")
+        print("Filtering parameters")
+        print("-------------")
+        print("\t Global mean subtraction from spectrum: {}".format(self.specmeanfilter))
+        if self.specmeanfilter:
+            print("\t\t Numbers of apertures: ({},{})".format(self.freqmaskwidth, self.frequsewidth))
+        print("\t Per-channel mean subtraction: {}".format(self.chanmeanfilter))
+        if self.chanmeanfilter:
+            print("\t\t Numbers of beams: ({}, {})".format(self.fitmasknbeams, self.fitnbeams))
+        print("\t Low-order polynomial removal: {}".format(self.lowmodefilter))
+        if self.lowmodefilter:
+            print("\t\t Numbers of beams: ({}, {})".format(self.fitmasknbeams, self.fitnbeams))
         print("-------------")
 
 
