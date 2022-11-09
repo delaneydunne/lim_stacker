@@ -839,12 +839,12 @@ def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True,
         else:
             axs[i].set_title(fields[i])
 
-        width = 0.22
+        width = 0.23
         pad = 0.05
         cbarpad = 0.01
         bottom = 0.18
         height = 0.7
-        left = 0.08
+        left = 0.1
 
         axs[i].set_position([left+(width+pad)*i, bottom, width, height])
 
