@@ -664,7 +664,7 @@ class maps():
             self.freq = np.reshape(self.freq, 4*64)
             self.map = np.reshape(self.map, (4*64, len(self.ra), len(self.dec)))
             self.rms = np.reshape(self.rms, (4*64, len(self.ra), len(self.dec)))
-            self.hit = np.reshape(self.rms, (4*64, len(self.ra), len(self.dec)))
+            self.hit = np.reshape(self.hit, (4*64, len(self.ra), len(self.dec)))
 
         # build the other convenience coordinate arrays, make sure the coordinates map to
         # the correct part of the voxel

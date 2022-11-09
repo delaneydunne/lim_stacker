@@ -812,9 +812,9 @@ def catalogue_plotter(catlist, goodcatidx, params):
 
     return 0
 
-def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True):
+def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True, trim=False):
 
-    fig,axs = plt.subplots(1,3, figsize=(9,3), tight_layout=True)
+    fig,axs = plt.subplots(1,4, figsize=(9,3), constrained_layout=True)
 
     if printnobjs:
         plt.style.use('default')
@@ -828,8 +828,8 @@ def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True)
         fieldcoord = catlist[i].coords[goodcatidx[i]]
 
         logrms = np.log10(np.nanmean(maplist[i].rms, axis=0))
-        vmax = np.nanmax(logrms) * 0.8
-        axs[i].pcolormesh(maplist[i].ra, maplist[i].dec, logrms, vmax=vmax,
+        vmax = np.nanmax(logrms)  * 0.95
+        axs[i].pcolormesh(maplist[i].rabe, maplist[i].decbe, logrms, vmax=vmax,
                           zorder=0, cmap='Greys')
         c = axs[i].scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4, s=2)
 
@@ -839,13 +839,30 @@ def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True)
         else:
             axs[i].set_title(fields[i])
 
+        width = 0.22
+        pad = 0.05
+        cbarpad = 0.01
+        bottom = 0.18
+        height = 0.7
+        left = 0.08
+
+        axs[i].set_position([left+(width+pad)*i, bottom, width, height])
+
+        # adjust z limits
+        if trim:
+            axxlim = axs[i].get_xlim()
+            axylim = axs[i].get_ylim()
+            limadj = np.array([0.5, -0.5])
+
+            axs[i].set_xlim(axxlim+limadj)
+            axs[i].set_ylim(axylim+limadj)
+
         axs[i].set_axis_on()
 
     axs[0].set_ylabel('RA (deg)')#, fontsize='large')
-    divider = make_axes_locatable(axs[2])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    cbar = fig.colorbar(c, cax=cax)
-    cbar.ax.set_ylabel('Redshift')#, fontsize='large')
+    axs[3].set_position([left+(width+pad)*2+width+cbarpad, bottom, 0.01, height])
+    cbar = fig.colorbar(c, cax = axs[3])
+    cbar.ax.set_ylabel('Redshift')
 
     if params.saveplots:
         fig.savefig(params.plotsavepath + '/catalogue_object_distribution.png')
