@@ -47,7 +47,7 @@ frequsewidth 8
 fitmeanlimit 100
 fitvallims 100 10 10
 # min number of hits in a single voxel for inclusion in the stack
-voxelhitlimit 10000
+voxelhitlimit 50000
 # verbose output when running
 verbose True
 # save the stack data
@@ -67,7 +67,7 @@ saveplots True
 plotspace True
 # RADIUS of the output diagnostic spatial images in pixels
 # only used if plotspace == True
-spacestackwidth 20
+spacestackwidth 15
  # do the spectral plot
 plotfreq True
 # TOTAL number of channels to include in the diagnostic spectral images
