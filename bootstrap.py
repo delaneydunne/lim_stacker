@@ -38,7 +38,7 @@ def offset_and_stack(maplist, catlist, params, offrng):
     offcatlist = []
     for j in range(len(catlist)):
         # randomly offset each field's catalogue
-        offcat = cat_rand_offset(maplist, catlist, params, offrng)
+        offcat = cat_rand_offset(maplist[i], catlist[i], params, offrng)
         offcatlist.append(offcat)
 
     # run the actual stack
