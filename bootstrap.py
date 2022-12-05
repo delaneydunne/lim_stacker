@@ -448,7 +448,7 @@ def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False,
     xarr = np.linspace(np.min(bincent), np.max(bincent))
     opt, cov = curve_fit(gauss, bincent, counts, p0=p0)
 
-    fig,ax = plt.subplots(1, tight_layout=True)
+    fig,ax = plt.subplots(1, tight_layout=True, figsize=(5,4))
 
     ax.hist(bootstrap, bins=nbins, color='indigo')
 
@@ -458,20 +458,20 @@ def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False,
 
     rect = Rectangle((opt[1] - opt[2], -1), 2*opt[2], yext[1]*2, color='0.1', alpha=0.5)
     ax.add_patch(rect)
-    ax.axvline(opt[1], color='0.1', ls=':', label="From Bootstrap")
+    ax.axvline(opt[1], color='0.1', ls=':', label="Bootstrap")
 
     rect = Rectangle((actT-actrms, -1), 2*actrms,
                       yext[1], color='0.5', alpha=0.5)
     ax.add_patch(rect)
-    ax.axvline(actT, color='0.5', ls='--', label="From Map RMS")
+    ax.axvline(actT, color='0.5', ls='--', label="Stack RMS")
 
     ax.set_ylim((0., np.max(counts)*1.05))
 
-    ax.legend()
+    ax.legend(fontsize='large')
 
 
-    ax.set_xlabel(r'$T_b$ ($\mu K$)')
-    ax.set_ylabel('Counts')
+    ax.set_xlabel(r'$T_b$ ($\mu K$)', fontsize='large')
+    ax.set_ylabel('Counts', fontsize='large')
 
     p_og = norm.cdf(x=opt[1], loc=stackdict['T'], scale=opt[2])
 
