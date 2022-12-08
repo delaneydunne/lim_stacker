@@ -254,8 +254,10 @@ def single_cutout(idx, galcat, comap, params):
 
         # collapse along spatial axes to get a spectral profile
         freqstack, rmsfreqstack = weightmean(fpixval, frmsval, axis=(1,2))
+
         # freqstack = np.nansum(fpixval, axis=(1,2))
         # rmsfreqstack = np.sqrt(np.nansum(frmsval**2, axis=(1,2)))
+
         cutout.freqstack = freqstack
         cutout.freqstackrms = rmsfreqstack
 
@@ -268,7 +270,11 @@ def single_cutout(idx, galcat, comap, params):
                        cutout.xidx[0]:cutout.xidx[1]]
 
     # if all pixels are masked, lose the whole object
-    if np.all(np.isnan(pixval)):
+    # if np.any(np.isnan(pixval)):
+    #     return None
+
+    # check how many center aperture pixels are masked
+    if np.sum(np.isnan(pixval).flatten()) > (params.freqwidth*params.xwidth**2)/2:
         return None
 
     # subtract global spectral mean
@@ -295,11 +301,13 @@ def single_cutout(idx, galcat, comap, params):
     if not cutout:
         return None
 
-    # Tbval = np.nansum(pixval)
-    # Tbrms = np.sqrt(np.nansum(rmsval**2))
+    pixval, rmsval = cubelet_fill_nans(pixval, rmsval, params)
+
+    Tbval = np.nansum(pixval)
+    Tbrms = np.sqrt(np.nansum(rmsval**2))
 
     # find the actual Tb in the cutout -- weighted average over all axes
-    Tbval, Tbrms = weightmean(pixval, rmsval)
+    # Tbval, Tbrms = weightmean(pixval, rmsval)
     if np.isnan(Tbval):
         return None
 
@@ -343,12 +351,27 @@ def aperture_collapse_cubelet_space(cutout, params):
     frmsval = cutout.cubestackrms[:, beamyidx[0]:beamyidx[1], beamxidx[0]:beamxidx[1]]
 
     # collapse along spatial axes to get a spectral profile
-    freqstack, rmsfreqstack = weightmean(fpixval, frmsval, axis=(1,2))
+    # freqstack, rmsfreqstack = weightmean(fpixval, frmsval, axis=(1,2))
+    freqstack = np.nansum(fpixval, axis=(1,2))
+    rmsfreqstack = np.sqrt(np.nansum(frmsval, axis=(1,2)**2))
 
     cutout.freqstack = freqstack
     cutout.freqstackrms = rmsfreqstack
 
     return
+
+def cubelet_fill_nans(pixvals, rmsvals, params):
+    """
+    function to replace any NaN values in a cubelet aperture with the mean in that
+    frequency channel. should obviously check to make sure there are a reasonable
+    number of actual values first.
+    """
+    for i in range(pixvals.shape[0]):
+        chanmean, chanrms = weightmean(pixvals[i,:,:], rmsvals[i,:,:])
+        pixvals[i, np.where(np.isnan(pixvals[i,:,:]))] = chanmean
+        rmsvals[i, np.where(np.isnan(rmsvals[i,:,:]))] = chanrms
+
+    return pixvals, rmsvals
 
 def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
     """
@@ -506,9 +529,14 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
 
             stackim, imrms = weightmean(cubestack[cfidx[0]:cfidx[1],:,:],
                                         cuberms[cfidx[0]:cfidx[1],:,:], axis=0)
-            stackspec, specrms = weightmean(cubestack[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            cuberms[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            axis=(1,2))
+            # stackspec, specrms = weightmean(cubestack[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
+            #                                 cuberms[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
+            #                                 axis=(1,2))
+
+            stackspec = np.nansum(cubestack[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]], axis=(1,2))
+            specrms = np.sqrt(np.nansum(cuberms[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]], axis=(1,2))**2)
+
+
         else:
             stackim, imrms = weightmean(cutlistdict['cubestack'][:,cfidx[0]:cfidx[1],:,:],
                                         cutlistdict['cubestackrms'][:,cfidx[0]:cfidx[1],:,:],
@@ -731,6 +759,7 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
 
     return returns
 
+
 def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     """
     unit change to physical units
@@ -749,8 +778,9 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     # omega_Bs = 1.33*beamthetas**2
 
     # the 'beam' here is actually the stack aperture size
-    beamsigma = params.xwidth / 2 * 2*u.arcmin
-    omega_B = (2 / np.sqrt(2*np.log(2)))*np.pi*beamsigma**2
+    # beamsigma = params.xwidth / 2 * 2*u.arcmin
+    # omega_B = (2 / np.sqrt(2*np.log(2)))*np.pi*beamsigma**2
+    omega_B = (2*u.arcmin)**2
 
     nuobsvals = nuobsvals*u.GHz
     meannuobs = np.nanmean(nuobsvals)
@@ -784,8 +814,8 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     mh2obs = linelumact * alphaco
     mh2rms = linelumrms * alphaco
 
-    nu1 = nuobsvals - params.freqwidth/2*0.0625*u.GHz
-    nu2 = nuobsvals + params.freqwidth/2*0.0625*u.GHz
+    nu1 = nuobsvals - params.freqwidth/2*0.03125*u.GHz
+    nu2 = nuobsvals + params.freqwidth/2*0.03125*u.GHz
 
     z = (params.centfreq*u.GHz - nuobsvals) / nuobsvals
     z1 = (params.centfreq*u.GHz - nu1) / nu1
@@ -794,8 +824,8 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
 
     distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
 
-    # proper volume at each voxel
-    volus = ((cosmo.kpc_proper_per_arcmin(z1) * params.xwidth*2*u.arcmin).to(u.Mpc))**2 * distdiff
+    # proper volume of the cube
+    volus = ((cosmo.kpc_proper_per_arcmin(z1) * params.xwidth * 2*u.arcmin).to(u.Mpc))**2 * distdiff
 
     rhous = mh2us / volus
     rhousobs = mh2obs / volus
