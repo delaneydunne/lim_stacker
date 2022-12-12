@@ -277,6 +277,11 @@ def single_cutout(idx, galcat, comap, params):
     if np.sum(np.isnan(pixval).flatten()) > (params.freqwidth*params.xwidth**2)/2:
         return None
 
+    # less than half of EACH SPECTRAL CHANNEL masked
+    for i in range(pixval.shape[0]):
+        if np.sum(np.isnan(pixval[i,:,:]).flatten()) > params.xwidth**2 / 2:
+            return None
+
     # subtract global spectral mean
     if params.specmeanfilter:
         cutout = remove_cutout_spectral_mean(cutout, params)
