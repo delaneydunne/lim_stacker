@@ -306,8 +306,6 @@ def single_cutout(idx, galcat, comap, params):
     if not cutout:
         return None
 
-    pixval, rmsval = cubelet_fill_nans(pixval, rmsval, params)
-
     Tbval = np.nansum(pixval)
     Tbrms = np.sqrt(np.nansum(rmsval**2))
 
@@ -320,7 +318,7 @@ def single_cutout(idx, galcat, comap, params):
     cutout.rms = Tbrms
 
     if params.obsunits:
-        observer_units_sum(pixval, rmsval, cutout, params)
+        observer_units_weightedsum(pixval, rmsval, cutout, params)
 
     return cutout
 
@@ -334,6 +332,10 @@ def rayleigh_jeans(tb, nu, omega):
 
 
 def observer_units_sum(tbvals, rmsvals, cutout, params):
+
+
+
+    tbvals, rmsvals = cubelet_fill_nans(tbvals, rmsvals, params)
 
     # correct for the primary beam response
     tbvals = tbvals / 0.72
@@ -356,6 +358,90 @@ def observer_units_sum(tbvals, rmsvals, cutout, params):
 
         Srms_chan = rayleigh_jeans(rmsvals[i,:,:]*u.K, nuobsvals[i], omega_B)
         Srms_chan = np.sqrt(np.nansum(Srms_chan**2))
+
+        Sval_chans[i] = Sval_chan
+        Srms_chans[i] = Srms_chan
+
+    # channel widths in km/s
+    delnus = (31.25*u.MHz / nuobsvals * const.c).to(u.km/u.s)
+
+    # redshift corresponding to observed doppler shift
+    zvals = freq_to_z(params.centfreq, (nuobsvals.to(u.GHz)).value)
+
+    # luminosity distance in Mpc
+    DLs = cosmo.luminosity_distance(zvals)
+
+    # line luminosity
+    linelum = const.c**2 / (2*const.k_B) * Sval_chans * delnus * DLs**2 / (nuobsvals**2 * (1+zvals)**3)
+    linelumrms = const.c**2 / (2*const.k_B) * Srms_chans * delnus * DLs**2 / (nuobsvals**2 * (1+zvals)**3)
+
+    # fix units
+    linelums = linelum.to(u.K*u.km/u.s*u.pc**2)
+    linelumrmss = linelumrms.to(u.K*u.km/u.s*u.pc**2)
+
+    # overall line luminosity
+    linelum = np.sum(linelums)
+    linelumrms = np.sqrt(np.sum(linelumrmss**2))
+
+    # rho H2:
+    alphaco = 3.6*u.Msun / (u.K * u.km/u.s*u.pc**2)
+
+    # h2 masses
+    mh2 = linelum * alphaco
+    mh2rms = linelumrms * alphaco
+
+    nu1 = cutout.freq*u.GHz - params.freqwidth/2*0.03125*u.GHz
+    nu2 = cutout.freq*u.GHz + params.freqwidth/2*0.03125*u.GHz
+
+    z = (params.centfreq*u.GHz - nuobsvals) / nuobsvals
+    z1 = (params.centfreq*u.GHz - nu1) / nu1
+    z2 = (params.centfreq*u.GHz - nu2) / nu2
+    meanz = np.nanmean(z)
+
+    distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
+
+    # proper volume of the cube
+    volus = ((cosmo.kpc_proper_per_arcmin(z1) * params.xwidth * 2*u.arcmin).to(u.Mpc))**2 * distdiff
+
+    rhoh2 = (mh2 / volus).to(u.Msun/u.Mpc**3)
+    rhoh2rms = (mh2rms / volus).to(u.Msun/u.Mpc**3)
+
+    cutout.linelum = linelum
+    cutout.dlinelum = linelumrms
+
+    cutout.rhoh2 = rhoh2
+    cutout.drhoh2 = rhoh2rms
+
+    return cutout
+
+def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
+    """
+    same as above, but instead of interpolating across NaNs and then doing a bald
+    sum, the weighted mean is taken of the flux density values
+    """
+
+    # correct for the primary beam response
+    tbvals = tbvals / 0.72
+    rmsvals = rmsvals / 0.72
+
+    # not the COMAP beam but the angular size of the region over which the brightness
+    # temperature is the given value (ie one spaxel)
+    omega_B = ((params.xwidth * 2*u.arcmin)**2).to(u.sr)
+
+    # central frequency of each individual spectral channel
+    nuobsvals = (np.arange(params.freqwidth) - params.freqwidth//2) * 31.25*u.MHz
+    nuobsvals = nuobsvals + cutout.freq*u.GHz
+
+    Sval_chans = np.ones(params.freqwidth)*u.Jy
+    Srms_chans = np.ones(params.freqwidth)*u.Jy
+    # flux in each spectral channel
+    for i in range(params.freqwidth):
+        Sval_chan = rayleigh_jeans(tbvals[i,:,:]*u.K, nuobsvals[i], omega_B)
+
+        Srms_chan = rayleigh_jeans(rmsvals[i,:,:]*u.K, nuobsvals[i], omega_B)
+
+        # per-channel flux density by taking the weighted mean
+        Sval_chan, Srms_chan = weightmean(Sval_chan, Srms_chan)
 
         Sval_chans[i] = Sval_chan
         Srms_chans[i] = Srms_chan
