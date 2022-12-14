@@ -319,7 +319,99 @@ def single_cutout(idx, galcat, comap, params):
     cutout.T = Tbval
     cutout.rms = Tbrms
 
+    if params.obsunits:
+        observer_units_sum(pixval, rmsval, cutout, params)
+
     return cutout
+
+def rayleigh_jeans(tb, nu, omega):
+    jy_per_sr = 2*nu**2*const.k_B*tb / const.c**2
+
+    jy = (jy_per_sr * omega.value).to(u.Jy)
+
+    return jy
+
+
+
+def observer_units_sum(tbvals, rmsvals, cutout, params):
+
+    # correct for the primary beam response
+    tbvals = tbvals / 0.72
+    rmsvals = rmsvals / 0.72
+
+    # not the COMAP beam but the angular size of the region over which the brightness
+    # temperature is the given value (ie one spaxel)
+    omega_B = ((2*u.arcmin)**2).to(u.sr)
+
+    # central frequency of each individual spectral channel
+    nuobsvals = (np.arange(params.freqwidth) - params.freqwidth//2) * 31.25*u.MHz
+    nuobsvals = nuobsvals + cutout.freq*u.GHz
+
+    Sval_chans = np.ones(params.freqwidth)*u.Jy
+    Srms_chans = np.ones(params.freqwidth)*u.Jy
+    # flux in each spectral channel
+    for i in range(params.freqwidth):
+        Sval_chan = rayleigh_jeans(tbvals[i,:,:]*u.K, nuobsvals[i], omega_B)
+        Sval_chan = np.nansum(Sval_chan)
+
+        Srms_chan = rayleigh_jeans(rmsvals[i,:,:]*u.K, nuobsvals[i], omega_B)
+        Srms_chan = np.sqrt(np.nansum(Srms_chan**2))
+
+        Sval_chans[i] = Sval_chan
+        Srms_chans[i] = Srms_chan
+
+    # channel widths in km/s
+    delnus = (31.25*u.MHz / nuobsvals * const.c).to(u.km/u.s)
+
+    # redshift corresponding to observed doppler shift
+    zvals = freq_to_z(params.centfreq, (nuobsvals.to(u.GHz)).value)
+
+    # luminosity distance in Mpc
+    DLs = cosmo.luminosity_distance(zvals)
+
+    # line luminosity
+    linelum = const.c**2 / (2*const.k_B) * Sval_chans * delnus * DLs**2 / (nuobsvals**2 * (1+zvals)**3)
+    linelumrms = const.c**2 / (2*const.k_B) * Srms_chans * delnus * DLs**2 / (nuobsvals**2 * (1+zvals)**3)
+
+    # fix units
+    linelums = linelum.to(u.K*u.km/u.s*u.pc**2)
+    linelumrmss = linelumrms.to(u.K*u.km/u.s*u.pc**2)
+
+    # overall line luminosity
+    linelum = np.sum(linelums)
+    linelumrms = np.sqrt(np.sum(linelumrmss**2))
+
+    # rho H2:
+    alphaco = 3.6*u.Msun / (u.K * u.km/u.s*u.pc**2)
+
+    # h2 masses
+    mh2 = linelum * alphaco
+    mh2rms = linelumrms * alphaco
+
+    nu1 = cutout.freq*u.GHz - params.freqwidth/2*0.03125*u.GHz
+    nu2 = cutout.freq*u.GHz + params.freqwidth/2*0.03125*u.GHz
+
+    z = (params.centfreq*u.GHz - nuobsvals) / nuobsvals
+    z1 = (params.centfreq*u.GHz - nu1) / nu1
+    z2 = (params.centfreq*u.GHz - nu2) / nu2
+    meanz = np.nanmean(z)
+
+    distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
+
+    # proper volume of the cube
+    volus = ((cosmo.kpc_proper_per_arcmin(z1) * params.xwidth * 2*u.arcmin).to(u.Mpc))**2 * distdiff
+
+    rhoh2 = (mh2 / volus).to(u.Msun/u.Mpc**3)
+    rhoh2rms = (mh2rms / volus).to(u.Msun/u.Mpc**3)
+
+    cutout.linelum = linelum
+    cutout.dlinelum = linelumrms
+
+    cutout.rhoh2 = rhoh2
+    cutout.drhoh2 = rhoh2rms
+
+    return cutout
+
 
 # convenience functions
 def aperture_collapse_cubelet_freq(cutout, params):
@@ -371,6 +463,7 @@ def cubelet_fill_nans(pixvals, rmsvals, params):
     frequency channel. should obviously check to make sure there are a reasonable
     number of actual values first.
     """
+
     for i in range(pixvals.shape[0]):
         chanmean, chanrms = weightmean(pixvals[i,:,:], rmsvals[i,:,:])
         pixvals[i, np.where(np.isnan(pixvals[i,:,:]))] = chanmean
@@ -499,16 +592,18 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
 
     # put into physical units if requested
     if params.obsunits:
-        allou = observer_units(cutlistdict['T'], cutlistdict['rms'], cutlistdict['z'],
-                               cutlistdict['freq'], params)
+        # allou = observer_units(cutlistdict['T'], cutlistdict['rms'], cutlistdict['z'],
+        #                        cutlistdict['freq'], params)
 
+        allou = {'L': cutlistdict['linelum'], 'dL': cutlistdict['dlinelum'],
+                 'rho': cutlistdict['rhoh2'], 'drho': cutlistdict['drhoh2']}
 
         linelumstack, dlinelumstack = weightmean(allou['L'], allou['dL'])
         rhoh2stack, drhoh2stack = weightmean(allou['rho'], allou['drho'])
 
         outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
         outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
-        outputvals['nuobs_mean'], outputvals['z_mean'] = allou['nuobs_mean'], allou['z_mean']
+        outputvals['nuobs_mean'], outputvals['z_mean'] = np.nanmean(cutlistdict['freq']), np.nanmean(cutlistdict['z'])
 
     # split indices up by field for easy access later
     fieldcatidx = []
