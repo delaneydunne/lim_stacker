@@ -322,19 +322,130 @@ def single_cutout(idx, galcat, comap, params):
 
     return cutout
 
+
+""" OBSERVER UNIT FUNCTIONS """
+
 def rayleigh_jeans(tb, nu, omega):
+    """
+    Rayleigh-Jeans law for conversion between brightness temperature and flux. Explicit
+    version of u.brightness_temperature from astropy.units.equivalencies.
+    -------
+    INPUTS:
+    -------
+    tb:    brightness temperature in temperature units (should be a quantity)
+    nu:    observed frequency in frequency units (should be a quantity)
+    omega: beam solid angle convolved with solid angle of source. has to be in steradian
+    --------
+    OUTPUTS:
+    --------
+    jy:    specific flux associated with tb (will be a quantity with units of Jy)
+    """
     jy_per_sr = 2*nu**2*const.k_B*tb / const.c**2
 
     jy = (jy_per_sr * omega.value).to(u.Jy)
 
     return jy
 
+def line_luminosity(flux, nuobs, params):
+    """
+    Function to calculate the (specifically CO) line luminosity of a line emitter from
+    its flux. from Solomon et al. 1997 (https://iopscience.iop.org/article/10.1086/303765/pdf)
+    -------
+    INPUTS:
+    -------
+    flux:   brightness of the source in Jy (should be a quantity)
+    nuobs:  observed frequency in GHz (unitless float)
+    params: lim_stacker params object (only used for central frequency)
+    --------
+    OUTPUTS:
+    --------
+    linelum: L'_CO in K km/s pc^2
+    """
+
+    nuobs = nuobs*u.GHz
+
+    # find redshift from nuobs:
+    zval = freq_to_z(params.centfreq*u.GHz, nuobs)
+
+    # luminosity distance in Mpc
+    DLs = cosmo.luminosity_distance(zval)
+
+    # line luminosity
+    linelum = const.c**2 / (2*const.k_B) * flux * DLs**2 / (nuobs**2 * (1+zval)**3)
+
+    # fix units
+    linelums = linelum.to(u.K*u.km/u.s*u.pc**2)
+
+    # overall line luminosity
+    linelum = np.sum(linelums)
+
+    return linelum
+
+def rho_h2(linelum, nuobs, params):
+    """
+    Function to calculate the (specifically CO) line luminosity of a line emitter from
+    its flux. from Solomon et al. 1997 (https://iopscience.iop.org/article/10.1086/303765/pdf)
+    -------
+    INPUTS:
+    -------
+    linelum: line luminosity of the source in K km/s pc^2 (should be a quantity)
+    nuobs:   observed frequency in frequency units (should be a quantity)
+    params:  lim_stacker params object (used for central frequency and the size of the aperture,
+             in order to calculate the cosmic volume covered by the aperture)
+    --------
+    OUTPUTS:
+    --------
+    rhoh2: molecular gas density in the aperture (Msun / Mpc^3; astropy quantity)
+    """
 
 
-def observer_units_sum(tbvals, rmsvals, cutout, params):
+    alphaco = 3.6*u.Msun / (u.K * u.km/u.s*u.pc**2)
+
+    # h2 masses
+    mh2 = linelum * alphaco
+
+    nu1 = ((nuobs*u.GHz - params.freqwidth/2*0.03125*u.GHz).to(u.GHz)).value
+    nu2 = ((nuobs*u.GHz + params.freqwidth/2*0.03125*u.GHz).to(u.GHz)).value
+
+    (z, z1, z2) = freq_to_z(params.centfreq, np.array([nuobs, nu1, nu2]))
+
+    distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
+
+    # proper volume of the cube
+    volus = ((cosmo.kpc_proper_per_arcmin(z) * params.xwidth * 2*u.arcmin).to(u.Mpc))**2 * distdiff
+
+    rhoh2 = (mh2 / volus).to(u.Msun/u.Mpc**3)
+
+    return rhoh2
 
 
+def perchannel_flux_sum(tbvals, rmsvals, nuobs, params):
+    """
+    Function to determine the per-channel flux (in Jy km/s) of a cutout from a COMAP map.
+    This will take the UNWEIGHTED SUM of all the spaxel values in each channel. If there
+    are nans in a channel, it fill them in by interpolating them to be the mean value in
+    the channel.
+    -------
+    INPUTS:
+    -------
+    tbvals:  array of brightness temperature values. first axis needs to be the spectral one
+             should be unitless (NxMxL)
+    rmsvals: the per-pixel rms uncertainties associated with tbvals. also a unitless array (NxMxL)
+    nuobs:   observed frequency in frequency units (should be a float, in GHz)
+    params:  lim_stacker params object (only used for central frequency)
+    --------
+    OUTPUTS:
+    --------
+    Sval_chans: the flux in the cutout in each individual spectral channel. length-N array of astropy
+                quantities (in Jy km/s)
+    Srms_chans: the rms associated with each flux value. length-N array of astropy quantities (in Jy km/s)
+    """
 
+    # number of frequency values we're dealing with
+    freqwidth = tbvals.shape[0]
+
+    # taking a straight sum, so not including certain voxels because they're NaNed
+    # out will cause problems. interpolate to fill them (bad)
     tbvals, rmsvals = cubelet_fill_nans(tbvals, rmsvals, params)
 
     # correct for the primary beam response
@@ -347,7 +458,7 @@ def observer_units_sum(tbvals, rmsvals, cutout, params):
 
     # central frequency of each individual spectral channel
     nuobsvals = (np.arange(params.freqwidth) - params.freqwidth//2) * 31.25*u.MHz
-    nuobsvals = nuobsvals + cutout.freq*u.GHz
+    nuobsvals = nuobsvals + nuobs*u.GHz
 
     Sval_chans = np.ones(params.freqwidth)*u.Jy
     Srms_chans = np.ones(params.freqwidth)*u.Jy
@@ -365,60 +476,34 @@ def observer_units_sum(tbvals, rmsvals, cutout, params):
     # channel widths in km/s
     delnus = (31.25*u.MHz / nuobsvals * const.c).to(u.km/u.s)
 
-    # redshift corresponding to observed doppler shift
-    zvals = freq_to_z(params.centfreq, (nuobsvals.to(u.GHz)).value)
+    Snu_Delnu = Sval_chans * delnus
+    d_Snu_Delnu = Srms_chans * delnus
 
-    # luminosity distance in Mpc
-    DLs = cosmo.luminosity_distance(zvals)
+    return Snu_Delnu, d_Snu_Delnu
 
-    # line luminosity
-    linelum = const.c**2 / (2*const.k_B) * Sval_chans * delnus * DLs**2 / (nuobsvals**2 * (1+zvals)**3)
-    linelumrms = const.c**2 / (2*const.k_B) * Srms_chans * delnus * DLs**2 / (nuobsvals**2 * (1+zvals)**3)
-
-    # fix units
-    linelums = linelum.to(u.K*u.km/u.s*u.pc**2)
-    linelumrmss = linelumrms.to(u.K*u.km/u.s*u.pc**2)
-
-    # overall line luminosity
-    linelum = np.sum(linelums)
-    linelumrms = np.sqrt(np.sum(linelumrmss**2))
-
-    # rho H2:
-    alphaco = 3.6*u.Msun / (u.K * u.km/u.s*u.pc**2)
-
-    # h2 masses
-    mh2 = linelum * alphaco
-    mh2rms = linelumrms * alphaco
-
-    nu1 = cutout.freq*u.GHz - params.freqwidth/2*0.03125*u.GHz
-    nu2 = cutout.freq*u.GHz + params.freqwidth/2*0.03125*u.GHz
-
-    z = (params.centfreq*u.GHz - nuobsvals) / nuobsvals
-    z1 = (params.centfreq*u.GHz - nu1) / nu1
-    z2 = (params.centfreq*u.GHz - nu2) / nu2
-    meanz = np.nanmean(z)
-
-    distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
-
-    # proper volume of the cube
-    volus = ((cosmo.kpc_proper_per_arcmin(z1) * params.xwidth * 2*u.arcmin).to(u.Mpc))**2 * distdiff
-
-    rhoh2 = (mh2 / volus).to(u.Msun/u.Mpc**3)
-    rhoh2rms = (mh2rms / volus).to(u.Msun/u.Mpc**3)
-
-    cutout.linelum = linelum
-    cutout.dlinelum = linelumrms
-
-    cutout.rhoh2 = rhoh2
-    cutout.drhoh2 = rhoh2rms
-
-    return cutout
-
-def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
+def perchannel_flux_mean(tbvals, rmsvals, nuobs, params):
     """
-    same as above, but instead of interpolating across NaNs and then doing a bald
-    sum, the weighted mean is taken of the flux density values
+    Function to determine the per-channel flux (in Jy km/s) of a cutout from a COMAP map.
+    This will INVERSE-VARIANCE weight each spaxel by its associated RMS, and thus will ignore
+    NaNs.
+    -------
+    INPUTS:
+    -------
+    tbvals:  array of brightness temperature values. first axis needs to be the spectral one
+             should be unitless (NxMxL)
+    rmsvals: the per-pixel rms uncertainties associated with tbvals. also a unitless array (NxMxL)
+    nuobs:   observed frequency in frequency units (should be a float, in GHz)
+    params:  lim_stacker params object (only used for central frequency)
+    --------
+    OUTPUTS:
+    --------
+    Sval_chans: the flux in the cutout in each individual spectral channel. length-N array of astropy
+                quantities (in Jy km/s)
+    Srms_chans: the rms associated with each flux value. length-N array of astropy quantities (in Jy km/s)
     """
+
+    # number of frequency channels we're dealing with
+    freqwidth = tbvals.shape[0]
 
     # correct for the primary beam response
     tbvals = tbvals / 0.72
@@ -429,13 +514,13 @@ def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
     omega_B = ((params.xwidth * 2*u.arcmin)**2).to(u.sr)
 
     # central frequency of each individual spectral channel
-    nuobsvals = (np.arange(params.freqwidth) - params.freqwidth//2) * 31.25*u.MHz
-    nuobsvals = nuobsvals + cutout.freq*u.GHz
+    nuobsvals = (np.arange(freqwidth) - params.freqwidth//2) * 31.25*u.MHz
+    nuobsvals = nuobsvals + nuobs*u.GHz
 
-    Sval_chans = np.ones(params.freqwidth)*u.Jy
-    Srms_chans = np.ones(params.freqwidth)*u.Jy
+    Sval_chans = np.ones(freqwidth)*u.Jy
+    Srms_chans = np.ones(freqwidth)*u.Jy
     # flux in each spectral channel
-    for i in range(params.freqwidth):
+    for i in range(freqwidth):
         Sval_chan = rayleigh_jeans(tbvals[i,:,:]*u.K, nuobsvals[i], omega_B)
 
         Srms_chan = rayleigh_jeans(rmsvals[i,:,:]*u.K, nuobsvals[i], omega_B)
@@ -449,46 +534,58 @@ def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
     # channel widths in km/s
     delnus = (31.25*u.MHz / nuobsvals * const.c).to(u.km/u.s)
 
-    # redshift corresponding to observed doppler shift
-    zvals = freq_to_z(params.centfreq, (nuobsvals.to(u.GHz)).value)
+    Snu_Delnu = Sval_chans * delnus
+    d_Snu_Delnu = Srms_chans * delnus
 
-    # luminosity distance in Mpc
-    DLs = cosmo.luminosity_distance(zvals)
+    return Snu_Delnu, d_Snu_Delnu
 
-    # line luminosity
-    linelum = const.c**2 / (2*const.k_B) * Sval_chans * delnus * DLs**2 / (nuobsvals**2 * (1+zvals)**3)
-    linelumrms = const.c**2 / (2*const.k_B) * Srms_chans * delnus * DLs**2 / (nuobsvals**2 * (1+zvals)**3)
 
-    # fix units
-    linelums = linelum.to(u.K*u.km/u.s*u.pc**2)
-    linelumrmss = linelumrms.to(u.K*u.km/u.s*u.pc**2)
+def observer_units_sum(tbvals, rmsvals, cutout, params):
+    """
+    calculate the more physical quantities associated with a single cutout. Uses
+    an UNWEIGHTED SUM to get the per-channel flux, interpolating across NaNs.
+    """
 
-    # overall line luminosity
-    linelum = np.sum(linelums)
-    linelumrms = np.sqrt(np.sum(linelumrmss**2))
+    # per-channel fluxes
+    Sval_chan, Srms_chan = perchannel_flux_sum(tbvals, rmsvals, cutout.freq, params)
 
-    # rho H2:
-    alphaco = 3.6*u.Msun / (u.K * u.km/u.s*u.pc**2)
+    # make the fluxes into line luminosities
+    linelum = line_luminosity(Sval_chan, cutout.freq, params)
+    linelumrms = line_luminosity(Srms_chan, cutout.freq, params)
 
-    # h2 masses
-    mh2 = linelum * alphaco
-    mh2rms = linelumrms * alphaco
+    rhoh2 = rho_h2(linelum, cutout.freq, params)
+    rhoh2rms = rho_h2(linelumrms, cutout.freq, params)
 
-    nu1 = cutout.freq*u.GHz - params.freqwidth/2*0.03125*u.GHz
-    nu2 = cutout.freq*u.GHz + params.freqwidth/2*0.03125*u.GHz
+    cutout.flux = Sval_chan
+    cutout.dflux = Srms_chan
 
-    z = (params.centfreq*u.GHz - nuobsvals) / nuobsvals
-    z1 = (params.centfreq*u.GHz - nu1) / nu1
-    z2 = (params.centfreq*u.GHz - nu2) / nu2
-    meanz = np.nanmean(z)
+    cutout.linelum = linelum
+    cutout.dlinelum = linelumrms
 
-    distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
+    cutout.rhoh2 = rhoh2
+    cutout.drhoh2 = rhoh2rms
 
-    # proper volume of the cube
-    volus = ((cosmo.kpc_proper_per_arcmin(z1) * params.xwidth * 2*u.arcmin).to(u.Mpc))**2 * distdiff
+    return cutout
 
-    rhoh2 = (mh2 / volus).to(u.Msun/u.Mpc**3)
-    rhoh2rms = (mh2rms / volus).to(u.Msun/u.Mpc**3)
+
+def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
+    """
+    calculate the more physical quantities associated with a single cutout. Uses
+    a WEIGHTED SUM to get the per-channel flux, and thus ignores NaNs.
+    """
+
+    # per-channel fluxes
+    Sval_chan, Srms_chan = perchannel_flux_mean(tbvals, rmsvals, cutout.freq, params)
+
+    # make the fluxes into line luminosities
+    linelum = line_luminosity(Sval_chan, cutout.freq, params)
+    linelumrms = line_luminosity(Srms_chan, cutout.freq, params)
+
+    rhoh2 = rho_h2(linelum, cutout.freq, params)
+    rhoh2rms = rho_h2(linelumrms, cutout.freq, params)
+
+    cutout.flux = Sval_chan
+    cutout.dflux = Srms_chan
 
     cutout.linelum = linelum
     cutout.dlinelum = linelumrms
@@ -519,7 +616,7 @@ def aperture_collapse_cubelet_freq(cutout, params):
 
     return
 
-def aperture_collapse_cubelet_space(cutout, params):
+def aperture_collapse_cubelet_space(cutout, params, linelum=False):
     """
     take a 3D cubelet cutout and collapse it along the spatial axis to be an average over the stack
     aperture spaxels (ie make a spectrum)
@@ -534,12 +631,23 @@ def aperture_collapse_cubelet_space(cutout, params):
     frmsval = cutout.cubestackrms[:, beamyidx[0]:beamyidx[1], beamxidx[0]:beamxidx[1]]
 
     # collapse along spatial axes to get a spectral profile
-    # freqstack, rmsfreqstack = weightmean(fpixval, frmsval, axis=(1,2))
-    freqstack = np.nansum(fpixval, axis=(1,2))
-    rmsfreqstack = np.sqrt(np.nansum(frmsval, axis=(1,2)**2))
+    if not linelum:
+        freqstack = np.nansum(fpixval, axis=(1,2))
+        rmsfreqstack = np.sqrt(np.nansum(frmsval**2, axis=(1,2)))
+        # freqstack, rmsfreqstack = weightmean(fpixval, frmsval, axis=(1,2))
 
-    cutout.freqstack = freqstack
-    cutout.freqstackrms = rmsfreqstack
+        cutout.freqstack = freqstack
+        cutout.freqstackrms = rmsfreqstack
+
+    else:
+        # calculate the per-channel line luminosity in the spatial apertures and
+        # get the spectrum from those values
+        flux, dflux = perchannel_flux_mean(fpixval, frmsval, cutout.freq, params)
+        linelum = line_luminosity(flux, cutout.freq, params)
+        dlinelum = line_luminosity(dflux, cutout.freq, params)
+
+        cutout.freqstack = linelum
+        cutout.freqstackrms = dlinelum
 
     return
 
