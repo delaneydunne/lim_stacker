@@ -346,7 +346,7 @@ def rayleigh_jeans(tb, nu, omega):
 
     return jy
 
-def line_luminosity(flux, nuobs, params):
+def line_luminosity(flux, nuobs, params, summed=True):
     """
     Function to calculate the (specifically CO) line luminosity of a line emitter from
     its flux. from Solomon et al. 1997 (https://iopscience.iop.org/article/10.1086/303765/pdf)
@@ -354,7 +354,7 @@ def line_luminosity(flux, nuobs, params):
     INPUTS:
     -------
     flux:   brightness of the source in Jy (should be a quantity)
-    nuobs:  observed frequency in GHz (unitless float)
+    nuobs:  central observed frequency in GHz (unitless float)
     params: lim_stacker params object (only used for central frequency)
     --------
     OUTPUTS:
@@ -362,7 +362,8 @@ def line_luminosity(flux, nuobs, params):
     linelum: L'_CO in K km/s pc^2
     """
 
-    nuobs = nuobs*u.GHz
+    dnuobs = 0.03125*u.GHz * (np.ones(len(flux)) - len(flux)//2)
+    nuobs = nuobs*u.GHz + dnuobs
 
     # find redshift from nuobs:
     zval = freq_to_z(params.centfreq*u.GHz, nuobs)
@@ -374,10 +375,11 @@ def line_luminosity(flux, nuobs, params):
     linelum = const.c**2 / (2*const.k_B) * flux * DLs**2 / (nuobs**2 * (1+zval)**3)
 
     # fix units
-    linelums = linelum.to(u.K*u.km/u.s*u.pc**2)
+    linelum = linelum.to(u.K*u.km/u.s*u.pc**2)
 
-    # overall line luminosity
-    linelum = np.sum(linelums)
+    # if summed, sum across channels for an overall line luminosity
+    if summed:
+        linelum = np.sum(linelum)
 
     return linelum
 
@@ -584,14 +586,14 @@ def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
     rhoh2 = rho_h2(linelum, cutout.freq, params)
     rhoh2rms = rho_h2(linelumrms, cutout.freq, params)
 
-    cutout.flux = Sval_chan
-    cutout.dflux = Srms_chan
+    cutout.flux = Sval_chan.value
+    cutout.dflux = Srms_chan.value
 
-    cutout.linelum = linelum
-    cutout.dlinelum = linelumrms
+    cutout.linelum = linelum.value
+    cutout.dlinelum = linelumrms.value
 
-    cutout.rhoh2 = rhoh2
-    cutout.drhoh2 = rhoh2rms
+    cutout.rhoh2 = rhoh2.value
+    cutout.drhoh2 = rhoh2rms.value
 
     return cutout
 
@@ -643,11 +645,11 @@ def aperture_collapse_cubelet_space(cutout, params, linelum=False):
         # calculate the per-channel line luminosity in the spatial apertures and
         # get the spectrum from those values
         flux, dflux = perchannel_flux_mean(fpixval, frmsval, cutout.freq, params)
-        linelum = line_luminosity(flux, cutout.freq, params)
-        dlinelum = line_luminosity(dflux, cutout.freq, params)
+        linelum = line_luminosity(flux, cutout.freq, params, summed=False)
+        dlinelum = line_luminosity(dflux, cutout.freq, params, summed=False)
 
-        cutout.freqstack = linelum
-        cutout.freqstackrms = dlinelum
+        cutout.freqstack = linelum.value
+        cutout.freqstackrms = dlinelum.value
 
     return
 
@@ -664,6 +666,9 @@ def cubelet_fill_nans(pixvals, rmsvals, params):
         rmsvals[i, np.where(np.isnan(rmsvals[i,:,:]))] = chanrms
 
     return pixvals, rmsvals
+
+
+""" ACTUAL STACKING """
 
 def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
     """
@@ -683,21 +688,31 @@ def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
             if field:
                 cutout.field = field
 
+            # brightness temperature only cubelets
             if params.cubelet:
+                aperture_collapse_cubelet_freq(cutout, params)
+                aperture_collapse_cubelet_space(cutout, params, linelum=params.obsunits)
+
                 if ti == 0:
-                    cubestack = cutout.cubestack
-                    cuberms = cutout.cubestackrms
-                    # delete the 3d arrays
-                    cutout.__delattr__('cubestack')
-                    cutout.__delattr__('cubestackrms')
+                    cubespec, cubespecrms = cutout.freqstack, cutout.freqstackrms
+                    cubeim, cubeimrms = cutout.spacestack, cutout.spacestackrms
                     ti = 1
                 else:
-                    scstack = np.stack((cubestack, cutout.cubestack))
-                    scrms = np.stack((cuberms, cutout.cubestackrms))
-                    cubestack, cuberms = weightmean(scstack, scrms, axis=0)
-                    # delete the 3d arrays
-                    cutout.__delattr__('cubestack')
-                    cutout.__delattr__('cubestackrms')
+                    scspec = np.stack((cubespec, cutout.freqstack))
+                    scspecrms = np.stack((cubespecrms, cutout.freqstackrms))
+                    scim = np.stack((cubeim, cutout.spacestack))
+                    scimrms = np.stack((cubeimrms, cutout.spacestackrms))
+
+                    cubespec, cubespecrms = weightmean(scspec, scspecrms, axis=0)
+                    cubeim, cubeimrms = weightmean(scim, scimrms, axis=0)
+
+                # delete the other arrays
+                cutout.__delattr__('cubestack')
+                cutout.__delattr__('cubestackrms')
+                cutout.__delattr__('freqstack')
+                cutout.__delattr__('freqstackrms')
+                cutout.__delattr__('spacestack')
+                cutout.__delattr__('spacestackrms')
 
             cutoutlist.append(cutout)
             if goalnobj:
@@ -716,7 +731,7 @@ def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
                 print('   done {} of {} cutouts in this field'.format(i, galcat.nobj))
 
     if params.cubelet:
-        return cutoutlist, cubestack, cuberms
+        return cutoutlist, [cubeim, cubeimrms, cubespec, cubespecrms]
     else:
         return cutoutlist
 
@@ -745,18 +760,21 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     fieldlens = []
     allcutouts = []
     if params.cubelet:
-        cubestacks = []
-        cubermss = []
+        stackim = []
+        imrms = []
+        stackspec = []
+        specrms = []
     for i in range(len(maplist)):
         if params.cubelet:
-            fieldcutouts, fieldcubestack, fieldcuberms = field_get_cutouts(maplist[i],
-                                                                           galcatlist[i],
-                                                                           params,
-                                                                           field=fields[i],
-                                                                           goalnobj=numcutoutlist[i])
-            if isinstance(fieldcubestack, np.ndarray):
-                cubestacks.append(fieldcubestack)
-                cubermss.append(fieldcuberms)
+            fieldcutouts, fieldstacks = field_get_cutouts(maplist[i], galcatlist[i],
+                                                          params, field=fields[i],
+                                                          goalnobj=numcutoutlist[i])
+            if isinstance(fieldstacks[0], np.ndarray):
+                stackim.append(fieldstacks[0])
+                imrms.append(fieldstacks[1])
+                stackspec.append(fieldstacks[2])
+                specrms.append(fieldstacks[3])
+
         else:
             fieldcutouts = field_get_cutouts(maplist[i], galcatlist[i], params,
                                              field=fields[i],
@@ -769,8 +787,12 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
 
     # mean together the individual field stacks if that had to be done separately
     if params.cubelet:
-        cubestacks, cubermss = np.stack(cubestacks), np.stack(cubermss)
-        cubestack, cuberms = weightmean(cubestacks, cubermss, axis=0)
+        stackim, imrms = np.stack(stackim), np.stack(imrms)
+        stackspec, specrms = np.stack(stackspec), np.stack(specrms)
+
+        stackim, imrms = weightmean(stackim, imrms, axis=0)
+        stackspec, specrms = weightmean(stackspec, specrms, axis=0)
+        print(stackspec)
 
     nobj = np.sum(fieldlens)
     outputvals['nobj'] = nobj
@@ -799,6 +821,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
         outputvals['nuobs_mean'], outputvals['z_mean'] = np.nanmean(cutlistdict['freq']), np.nanmean(cutlistdict['z'])
 
+        print(outputvals)
+
     # split indices up by field for easy access later
     fieldcatidx = []
     previdx = 0
@@ -813,25 +837,7 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     """ EXTRA STACKS """
     # if cubelets returned, do all three stack versions
     if params.spacestackwidth and params.freqstackwidth:
-        if params.cubelet:
-            # only want the beam for the axes that aren't being shown
-            lcfidx = (cubestack.shape[0] - params.freqwidth) // 2
-            cfidx = (lcfidx, lcfidx + params.freqwidth)
-
-            lcxidx = (cubestack.shape[1] - params.xwidth) // 2
-            cxidx = (lcxidx, lcxidx + params.xwidth)
-
-            stackim, imrms = weightmean(cubestack[cfidx[0]:cfidx[1],:,:],
-                                        cuberms[cfidx[0]:cfidx[1],:,:], axis=0)
-            # stackspec, specrms = weightmean(cubestack[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-            #                                 cuberms[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-            #                                 axis=(1,2))
-
-            stackspec = np.nansum(cubestack[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]], axis=(1,2))
-            specrms = np.sqrt(np.nansum(cuberms[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]], axis=(1,2))**2)
-
-
-        else:
+        if not params.cubelet:
             stackim, imrms = weightmean(cutlistdict['cubestack'][:,cfidx[0]:cfidx[1],:,:],
                                         cutlistdict['cubestackrms'][:,cfidx[0]:cfidx[1],:,:],
                                         axis=(0,1))
@@ -866,8 +872,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     if params.spacestackwidth and params.freqstackwidth and params.plotspace and params.plotfreq:
         combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
 
-    if params.plotcubelet:
-        cubelet_plotter(cubestack, cuberms, params)
+    # if params.plotcubelet:
+    #     cubelet_plotter(cubestack, cuberms, params)
 
     """ SAVE DATA """
     if params.savedata:
@@ -888,13 +894,13 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
             specfile = params.datasavepath + '/stacked_spectrum.npz'
             np.savez(specfile, T=stackspec, rms=specrms)
 
-        if params.cubelet:
-            cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
-            np.savez(cubefile, T=cubestack, rms=cuberms)
+        # if params.cubelet:
+        #     cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
+        #     np.savez(cubefile, T=cubestack, rms=cuberms)
 
     # objects to be returned
     if params.cubelet:
-        returns = [outputvals, stackim, stackspec, fieldcatidx, cubestack, cuberms]
+        returns = [outputvals, stackim, stackspec, fieldcatidx]#, cubestack, cuberms]
     else:
         returns = [outputvals, stackim, stackspec, fieldcatidx]
 

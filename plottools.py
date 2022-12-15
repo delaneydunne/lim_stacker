@@ -620,10 +620,14 @@ def spectral_plotter(stackspec, params):
     else:
         freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
 
-    ax.step(freqarr, stackspec*1e6,
-            color='indigo', zorder=10, where='mid')
+    if params.obsunits:
+        ax.step(freqarr, stackspec/1e10, color='indigo', zorder=10, where='mid')
+        ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+    else:
+        ax.step(freqarr, stackspec*1e6,
+                color='indigo', zorder=10, where='mid')
+        ax.set_ylabel(r'T$_b$ [$\mu$K]')
     ax.set_xlabel(r'$\Delta_\nu$ [GHz]')
-    ax.set_ylabel(r'T$_b$ [$\mu$K]')
 #     ax.set_title('Stacked over {} Spatial Pixels'.format((params.xwidth)**2))
 
     ax.axhline(0, color='k', ls='--')
@@ -758,8 +762,15 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
         freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
     else:
         freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
-    freqax.step(freqarr, stackspec*1e6,
+
+    if params.obsunits:
+        freqax.step(freqarr, stackspec/1e10, color='indigo', zorder=10, where='mid')
+        freqax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+    else:
+        freqax.step(freqarr, stackspec*1e6,
                 color='indigo', zorder=10, where='mid')
+        freqax.set_ylabel(r'T$_b$ [$\mu$K]')
+
     freqax.axhline(0, color='k', ls='--')
     freqax.axvline(0, color='k', ls='--')
 
@@ -774,7 +785,6 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     freqax.axvline(apmax, color='0.7', ls=':')
     freqax.fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
     freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
-    freqax.set_ylabel(r'T$_b$ [$\mu$K]')
     freqax.set_ylim(yext)
 
     if stackresult:
