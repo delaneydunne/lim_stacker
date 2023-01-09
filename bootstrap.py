@@ -42,7 +42,7 @@ def offset_and_stack(maplist, catlist, params, offrng):
         offcatlist.append(offcat)
 
     # run the actual stack
-    outdict,_,_,_,_,_ = stacker(maplist, offcatlist, params)
+    outdict,_,_,_ = stacker(maplist, offcatlist, params)
 
     return np.array([outdict['linelum'], outdict['dlinelum']])
 
