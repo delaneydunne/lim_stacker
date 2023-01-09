@@ -414,7 +414,9 @@ def rho_h2(linelum, nuobs, params):
     distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
 
     # proper volume of the cube
-    volus = ((cosmo.kpc_proper_per_arcmin(z) * params.xwidth * 2*u.arcmin).to(u.Mpc))**2 * distdiff
+    # volus = ((cosmo.kpc_proper_per_arcmin(z) * params.xwidth * 2*u.arcmin).to(u.Mpc))**2 * distdiff
+    beamx = 4.5*u.arcmin/(2*np.sqrt(2*np.log(2)))
+    volus = ((cosmo.kpc_proper_per_arcmin(z) * params.xwidth * beamx).to(u.Mpc))**2 * distdiff
 
     rhoh2 = (mh2 / volus).to(u.Msun/u.Mpc**3)
 
@@ -513,7 +515,13 @@ def perchannel_flux_mean(tbvals, rmsvals, nuobs, params):
 
     # not the COMAP beam but the angular size of the region over which the brightness
     # temperature is the given value (ie one spaxel)
-    omega_B = ((params.xwidth * 2*u.arcmin)**2).to(u.sr)
+    # omega_B = ((params.xwidth * 2*u.arcmin)**2).to(u.sr)
+
+    # actual COMAP beam
+    beam_fwhm = 4.5*u.arcmin
+    sigma_x = beam_fwhm / (2 * np.sqrt(2 * np.log(2)))
+    sigma_y = sigma_x
+    omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
 
     # central frequency of each individual spectral channel
     nuobsvals = (np.arange(freqwidth) - params.freqwidth//2) * 31.25*u.MHz

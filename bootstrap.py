@@ -44,7 +44,7 @@ def offset_and_stack(maplist, catlist, params, offrng):
     # run the actual stack
     outdict,_,_,_,_,_ = stacker(maplist, offcatlist, params)
 
-    return np.array([outdict['T'], outdict['rms']])
+    return np.array([outdict['linelum'], outdict['dlinelum']])
 
 def cat_rand_offset(mapinst, catinst, params, offrng=None):
 
