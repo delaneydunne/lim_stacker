@@ -730,7 +730,7 @@ def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
                     if params.verbose:
                         print("Hit goal number of {} cutouts".format(goalnobj))
                     if params.cubelet:
-                        return cutoutlist, [cubestack, cuberms]
+                        return cutoutlist, [cubeim, cubeimrms, cubespec, cubespecrms]
                     else:
                         return cutoutlist
 
