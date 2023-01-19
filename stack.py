@@ -800,7 +800,6 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
 
         stackim, imrms = weightmean(stackim, imrms, axis=0)
         stackspec, specrms = weightmean(stackspec, specrms, axis=0)
-        print(stackspec)
 
     nobj = np.sum(fieldlens)
     outputvals['nobj'] = nobj
@@ -828,8 +827,6 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
         outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
         outputvals['nuobs_mean'], outputvals['z_mean'] = np.nanmean(cutlistdict['freq']), np.nanmean(cutlistdict['z'])
-
-        print(outputvals)
 
     # split indices up by field for easy access later
     fieldcatidx = []
