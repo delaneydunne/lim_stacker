@@ -383,6 +383,15 @@ def line_luminosity(flux, nuobs, params, summed=True):
 
     return linelum
 
+def linelum_to_flux(linelum, meanz, params):
+
+    nuobs = nuem_to_nuobs(params.centfreq, meanz) * u.GHz
+
+    flux = linelum*u.K*u.km/u.s*u.pc**2 * 2 * const.k_B / const.c**2
+    flux = flux * nuobs**2 * (1+meanz)**3 / cosmo.luminosity_distance(meanz)**2
+
+    return (flux).to(u.Jy*u.km/u.s)
+
 def rho_h2(linelum, nuobs, params):
     """
     Function to calculate the (specifically CO) line luminosity of a line emitter from
@@ -827,6 +836,9 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
         outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
         outputvals['nuobs_mean'], outputvals['z_mean'] = np.nanmean(cutlistdict['freq']), np.nanmean(cutlistdict['z'])
+
+        outputvals['sdelnu'] = linelum_to_flux(linelumstack, outputvals['z_mean'], params)
+        outputvals['dsdelnu'] = linelum_to_flux(dlinelumstack, outputvals['z_mean'], params)
 
     # split indices up by field for easy access later
     fieldcatidx = []

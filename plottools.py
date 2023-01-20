@@ -614,7 +614,7 @@ def spectral_plotter(stackspec, params):
 
     plt.style.use('seaborn-poster')
 
-    fig, ax = plt.subplots(1, figsize=(9,3), constrained_layout=True)
+    fig, ax = plt.subplots(1, figsize=(9,4), constrained_layout=True)
     if params.freqwidth % 2 == 0:
         freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
     else:
@@ -622,7 +622,7 @@ def spectral_plotter(stackspec, params):
 
     if params.obsunits:
         ax.step(freqarr, stackspec/1e10, color='indigo', zorder=10, where='mid')
-        ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+        ax.set_ylabel(r"$L'_{CO} \times 10^{10}$ (K km/s pc$^2$)")
     else:
         ax.step(freqarr, stackspec*1e6,
                 color='indigo', zorder=10, where='mid')

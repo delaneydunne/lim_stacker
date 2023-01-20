@@ -486,3 +486,63 @@ def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False,
         return p_og, npoints, counts, bincent
 
     return p_og, npoints, opt
+
+
+def linelumhistoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False,
+                        writefit=None):
+    """
+    Function to plot the output of a bootstrap run as a histogram
+    """
+
+    # put T values in uK
+    bootstrap = np.load(bootfile)['T']/1e10
+    actT = stackdict['linelum']/1e10
+    actrms = stackdict['dlinelum']/1e10
+
+    npoints = len(bootstrap)
+
+    counts, binedges = np.histogram(bootstrap, bins=nbins)
+
+    bincent = (binedges[1:] - binedges[:-1]) / 2 + binedges[:-1]
+
+    xarr = np.linspace(np.min(bincent), np.max(bincent))
+    opt, cov = curve_fit(gauss, bincent, counts, p0=p0)
+
+    fig,ax = plt.subplots(1, tight_layout=True, figsize=(5,4))
+
+    ax.hist(bootstrap, bins=nbins, color='indigo')
+
+    yext = ax.get_ylim()
+
+    ax.plot(xarr, gauss(xarr, *opt), color='darkorange')
+
+    rect = Rectangle((opt[1] - opt[2], -1), 2*opt[2], yext[1]*2, color='0.1', alpha=0.5, zorder=10)
+    ax.add_patch(rect)
+    ax.axvline(opt[1], color='0.1', ls=':', label="Bootstrap")
+
+    rect = Rectangle((actT-actrms, -1), 2*actrms,
+                      yext[1], color='0.5', alpha=0.5)
+    ax.add_patch(rect)
+    ax.axvline(actT, color='0.5', ls='--', label="Stack RMS")
+
+    ax.set_ylim((0., np.max(counts)*1.05))
+
+    ax.legend(fontsize='large')
+
+
+    ax.set_xlabel(r"$L'_{CO} \times 10^{10}$ (K km/s pc$^2$)", fontsize='large')
+    ax.set_ylabel('Counts', fontsize='large')
+
+    p_og = norm.cdf(x=opt[1], loc=stackdict['T'], scale=opt[2])
+
+    # save the output as a csv
+    if writefit:
+        with open(writefit, 'w') as file:
+            w = csv.writer(file)
+            w.writerow(['amplitude', 'mean', 'std'])
+            w.writerow(opt*np.array([1, 1e10, 1e10]))
+
+    if rethist:
+        return p_og, npoints, counts, bincent
+
+    return p_og, npoints, opt
