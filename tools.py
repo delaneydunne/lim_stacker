@@ -169,6 +169,14 @@ class parameters():
         else:
             setattr(self, 'savepath', None)
 
+        # units for plotting
+        try:
+            setattr(self, 'plotunits', default_dir['plotunits'])
+        except:
+            warnings.warn("Parameter 'plotunits' should be a string. defaulting to linelum units", RuntimeWarning)
+            setattr(self, 'plotunits', 'linelum')
+
+
         # number of cutouts can be either a list or an int
         if default_dir['goalnumcutouts'][0] == '[':
             ncuts = default_dir['goalnumcutouts'][1:-1].split(',')

@@ -66,6 +66,7 @@ def single_cutout(idx, galcat, comap, params):
     cutout.x = x
     cutout.y = y
 
+    """ set up indices """
     # index the actual aperture to be stacked from the cutout
     # indices for freq axis
     dfreq = params.freqwidth // 2
@@ -108,158 +109,74 @@ def single_cutout(idx, galcat, comap, params):
     if freqcutidx[1] > freqlen or xcutidx[1] > xylen or ycutidx[1] > xylen:
         return None
 
-    # get the bigger cutouts for plotting if desired:
-    ## cubelet
-    if params.spacestackwidth and params.freqstackwidth:
-
-        # same process as above, just wider
-        df = params.freqstackwidth
-        if params.freqwidth % 2 == 0:
-            if fdiff < 0:
-                freqcutidx = (freqidx - df, freqidx + df)
-            else:
-                freqcutidx = (freqidx - df + 1, freqidx + df + 1)
-
+    """bigger cutouts for plotting"""
+    # same process as above, just wider
+    df = params.freqstackwidth
+    if params.freqwidth % 2 == 0:
+        if fdiff < 0:
+            freqcutidx = (freqidx - df, freqidx + df)
         else:
-            freqcutidx = (freqidx - df, freqidx + df + 1)
-        cutout.freqfreqidx = freqcutidx
+            freqcutidx = (freqidx - df + 1, freqidx + df + 1)
 
-        dxy = params.spacestackwidth
-        # x-axis
-        if params.xwidth  % 2 == 0:
-            if xdiff < 0:
-                xcutidx = (xidx - dxy, xidx + dxy)
-            else:
-                xcutidx = (xidx - dxy + 1, xidx + dxy + 1)
+    else:
+        freqcutidx = (freqidx - df, freqidx + df + 1)
+    cutout.freqfreqidx = freqcutidx
+
+    dxy = params.spacestackwidth
+    # x-axis
+    if params.xwidth  % 2 == 0:
+        if xdiff < 0:
+            xcutidx = (xidx - dxy, xidx + dxy)
         else:
-            xcutidx = (xidx - dxy, xidx + dxy + 1)
-        cutout.spacexidx = xcutidx
+            xcutidx = (xidx - dxy + 1, xidx + dxy + 1)
+    else:
+        xcutidx = (xidx - dxy, xidx + dxy + 1)
+    cutout.spacexidx = xcutidx
 
-        # y-axis
-        if params.ywidth  % 2 == 0:
-            if ydiff < 0:
-                ycutidx = (yidx - dxy, yidx + dxy)
-            else:
-                ycutidx = (yidx - dxy + 1, yidx + dxy + 1)
+    # y-axis
+    if params.ywidth  % 2 == 0:
+        if ydiff < 0:
+            ycutidx = (yidx - dxy, yidx + dxy)
         else:
-            ycutidx = (yidx - dxy, yidx + dxy + 1)
-        cutout.spaceyidx = ycutidx
+            ycutidx = (yidx - dxy + 1, yidx + dxy + 1)
+    else:
+        ycutidx = (yidx - dxy, yidx + dxy + 1)
+    cutout.spaceyidx = ycutidx
 
-        # pad edges of map with nans so you don't have to worry about going off the edge
-        padmap = np.pad(comap.map, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
-        padrms = np.pad(comap.rms, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
+    # pad edges of map with nans so you don't have to worry about going off the edge
+    # *** OPTIMIZE THIS
+    padmap = np.pad(comap.map, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
+    padrms = np.pad(comap.rms, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
 
-        padfreqidx = (cutout.freqfreqidx[0] + df, cutout.freqfreqidx[1] + df)
-        padxidx = (cutout.spacexidx[0] + dxy, cutout.spacexidx[1] + dxy)
-        padyidx = (cutout.spaceyidx[0] + dxy, cutout.spaceyidx[1] + dxy)
+    padfreqidx = (cutout.freqfreqidx[0] + df, cutout.freqfreqidx[1] + df)
+    padxidx = (cutout.spacexidx[0] + dxy, cutout.spacexidx[1] + dxy)
+    padyidx = (cutout.spaceyidx[0] + dxy, cutout.spaceyidx[1] + dxy)
 
-        # pull the actual values to stack
-        cpixval = padmap[padfreqidx[0]:padfreqidx[1],
-                         padyidx[0]:padyidx[1],
-                         padxidx[0]:padxidx[1]]
-        crmsval = padrms[padfreqidx[0]:padfreqidx[1],
-                         padyidx[0]:padyidx[1],
-                         padxidx[0]:padxidx[1]]
+    # pull the actual values to stack
+    cpixval = padmap[padfreqidx[0]:padfreqidx[1],
+                     padyidx[0]:padyidx[1],
+                     padxidx[0]:padxidx[1]]
+    crmsval = padrms[padfreqidx[0]:padfreqidx[1],
+                     padyidx[0]:padyidx[1],
+                     padxidx[0]:padxidx[1]]
 
-        # rotate randomly
-        if params.rotate:
-            cutout.rotangle = params.rng.integers(4) + 1
-            cpixval = np.rot90(cpixval, cutout.rotangle, axes=(1,2))
-            crmsval = np.rot90(crmsval, cutout.rotangle, axes=(1,2))
+    # rotate randomly ***RNG REALLY NECESSARY?
+    if params.rotate:
+        cutout.rotangle = params.rng.integers(4) + 1
+        cpixval = np.rot90(cpixval, cutout.rotangle, axes=(1,2))
+        crmsval = np.rot90(crmsval, cutout.rotangle, axes=(1,2))
 
-        cutout.cubestack = cpixval
-        cutout.cubestackrms = crmsval
+    """ put into the requested units """
+    fcpixval, fcrmsval = perpixel_flux(cpixval, crmsval, cutout.freq, params)
+    if params.plotunits == 'flux':
+        cutout.cubestack = fcpixval.value
+        cutout.cubestackrms = fcrmsval.value
+    elif params.plotunits == 'linelum':
+        lcoval = line_luminosity(fcpixval, cutout.freq, params, summed=False)
+        dlcoval = line_luminosity(fcrmsval, cutout.freq, params, summed=False)
+        cutout.cubestack = lcoval.value
+        cutout.cubestackrms = dlcoval.value
 
-    ## spatial map
-    elif params.spacestackwidth and not params.freqstackwidth:
-        # just do the 2d spatial image
-        # same process as above, just wider
-        dxy = params.spacestackwidth
-        # x-axis
-        if params.xwidth  % 2 == 0:
-            if xdiff < 0:
-                xcutidx = (xidx - dxy, xidx + dxy)
-            else:
-                xcutidx = (xidx - dxy + 1, xidx + dxy + 1)
-        else:
-            xcutidx = (xidx - dxy, xidx + dxy + 1)
-        cutout.spacexidx = xcutidx
-
-        # y-axis
-        if params.ywidth  % 2 == 0:
-            if ydiff < 0:
-                ycutidx = (yidx - dxy, yidx + dxy)
-            else:
-                ycutidx = (yidx - dxy + 1, yidx + dxy + 1)
-        else:
-            ycutidx = (yidx - dxy, yidx + dxy + 1)
-        cutout.spaceyidx = ycutidx
-
-        # pad edges of map with nans so you don't have to worry about going off the edge
-        padmap = np.pad(comap.map, ((0,0), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
-        padrms = np.pad(comap.rms, ((0,0), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
-
-        padxidx = (cutout.spacexidx[0] + dxy, cutout.spacexidx[1] + dxy)
-        padyidx = (cutout.spaceyidx[0] + dxy, cutout.spaceyidx[1] + dxy)
-
-        # pull the actual values to stack
-        spixval = padmap[cutout.freqidx[0]:cutout.freqidx[1],
-                         padyidx[0]:padyidx[1],
-                         padxidx[0]:padxidx[1]]
-        srmsval = padrms[cutout.freqidx[0]:cutout.freqidx[1],
-                         padyidx[0]:padyidx[1],
-                         padxidx[0]:padxidx[1]]
-
-        # collapse along freq axis to get a spatial map
-        spacestack, rmsspacestack = weightmean(spixval, srmsval, axis=0)
-        # spacestack = np.nansum(spixval, axis=0)
-        # rmsspacestack = np.sqrt(np.nansum(srmsval**2, axis=0))
-
-        # rotate randomly
-        if params.rotate:
-            cutout.rotangle = params.rng.integers(4) + 1
-            spacestack = np.rot90(spacestack, cutout.rotangle)
-            rmsspacestack = np.rot90(rmsspacestack, cutout.rotangle)
-
-        cutout.spacestack = spacestack
-        cutout.spacestackrms = rmsspacestack
-
-    ## spectrum
-    elif params.freqstackwidth and not params.spacestackwidth:
-        # just the 1d spectrum along the frequency axis
-        df = params.freqstackwidth
-        if params.freqwidth % 2 == 0:
-            if fdiff < 0:
-                freqcutidx = (freqidx - df, freqidx + df)
-            else:
-                freqcutidx = (freqidx - df + 1, freqidx + df + 1)
-
-        else:
-            freqcutidx = (freqidx - df, freqidx + df + 1)
-        cutout.freqfreqidx = freqcutidx
-
-        # pad edges of map with nans so you don't have to worry about going off the edge
-        padmap = np.pad(comap.map, ((df,df), (0,0), (0,0)), 'constant', constant_values=np.nan)
-        padrms = np.pad(comap.rms, ((df,df), (0,0), (0,0)), 'constant', constant_values=np.nan)
-
-        padfreqidx = (cutout.freqfreqidx[0] + df, cutout.freqfreqidx[1] + df)
-
-        # clip out values to stack
-        fpixval = padmap[padfreqidx[0]:padfreqidx[1],
-                         cutout.yidx[0]:cutout.yidx[1],
-                         cutout.xidx[0]:cutout.xidx[1]]
-        frmsval = padrms[padfreqidx[0]:padfreqidx[1],
-                         cutout.yidx[0]:cutout.yidx[1],
-                         cutout.xidx[0]:cutout.xidx[1]]
-
-        # collapse along spatial axes to get a spectral profile
-        freqstack, rmsfreqstack = weightmean(fpixval, frmsval, axis=(1,2))
-
-        # freqstack = np.nansum(fpixval, axis=(1,2))
-        # rmsfreqstack = np.sqrt(np.nansum(frmsval**2, axis=(1,2)))
-
-        cutout.freqstack = freqstack
-        cutout.freqstackrms = rmsfreqstack
 
     # pull the actual values to stack
     pixval = comap.map[cutout.freqidx[0]:cutout.freqidx[1],
@@ -268,10 +185,6 @@ def single_cutout(idx, galcat, comap, params):
     rmsval = comap.rms[cutout.freqidx[0]:cutout.freqidx[1],
                        cutout.yidx[0]:cutout.yidx[1],
                        cutout.xidx[0]:cutout.xidx[1]]
-
-    # if all pixels are masked, lose the whole object
-    # if np.any(np.isnan(pixval)):
-    #     return None
 
     # check how many center aperture pixels are masked
     if np.sum(np.isnan(pixval).flatten()) > (params.freqwidth*params.xwidth**2)/2:
@@ -282,6 +195,7 @@ def single_cutout(idx, galcat, comap, params):
         if np.sum(np.isnan(pixval[i,:,:]).flatten()) > params.xwidth**2 / 2:
             return None
 
+    """ more advanced stacks """
     # subtract global spectral mean
     if params.specmeanfilter:
         cutout = remove_cutout_spectral_mean(cutout, params)
@@ -306,11 +220,10 @@ def single_cutout(idx, galcat, comap, params):
     if not cutout:
         return None
 
+    # find the actual Tb in the cutout -- weighted average over all axes
     Tbval = np.nansum(pixval)
     Tbrms = np.sqrt(np.nansum(rmsval**2))
 
-    # find the actual Tb in the cutout -- weighted average over all axes
-    # Tbval, Tbrms = weightmean(pixval, rmsval)
     if np.isnan(Tbval):
         return None
 
@@ -321,6 +234,363 @@ def single_cutout(idx, galcat, comap, params):
         observer_units_weightedsum(pixval, rmsval, cutout, params)
 
     return cutout
+
+
+""" ACTUAL STACKING """
+
+def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
+    """
+    wrapper to return all cutouts for a single field
+    """
+    # fill in any missing dimensions for the cubelets
+
+    if not params.spacestackwidth:
+        params.spacestackwidth = params.xwidth
+    if not params.freqstackwidth:
+        params.freqstackwidth = params.freqwidth
+
+    ti = 0
+    # if we're keeping track of the number of cutouts
+    if goalnobj:
+        field_nobj = 0
+    cubespec, cubespecrms = None, None
+    cubeim, cubeimrms = None, None
+    cubestack, cuberms = None, None
+    cutoutlist = []
+    for i in range(galcat.nobj):
+        cutout = single_cutout(i, galcat, comap, params)
+
+        # if it passed all the tests, keep it
+        if cutout:
+            if field:
+                cutout.field = field
+
+            # stack as you go
+            if ti == 0:
+                cube, cuberms = cutout.cubestack, cutout.cubestackrms
+                ti = 1
+            else:
+                stackedcube = np.stack((cube, cutout.cubestack))
+                stackedrms = np.stack((cuberms, cutout.cubestackrms))
+
+                cube, cuberms = weightmean(stackedcube, stackedrms, axis=0)
+
+            # delete the other arrays
+            cutout.__delattr__('cubestack')
+            cutout.__delattr__('cubestackrms')
+
+            cutoutlist.append(cutout)
+            if goalnobj:
+                field_nobj += 1
+
+                if field_nobj == goalnobj:
+                    if params.verbose:
+                        print("Hit goal number of {} cutouts".format(goalnobj))
+                    return cutoutlist, [cube, cuberms]
+
+        if params.verbose:
+            if i % 100 == 0:
+                print('   done {} of {} cutouts in this field'.format(i, galcat.nobj))
+
+    return cutoutlist, [cube, cuberms]
+
+
+
+def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
+    """
+    wrapper to perform a full stack on all available values in the catalogue.
+    will plot if desired
+    """
+    fields = [1,2,3]
+
+    # for simulations -- if the stacker should stop after a certain number
+    # of cutouts. set this up to be robust against per-field or total vals
+    if params.goalnumcutouts:
+        if isinstance(params.goalnumcutouts, (int, float)):
+            numcutoutlist = [params.goalnumcutouts // len(maplist),
+                             params.goalnumcutouts // len(maplist),
+                             params.goalnumcutouts // len(maplist)]
+        else:
+            numcutoutlist = params.goalnumcutouts
+    else:
+        numcutoutlist = [None, None, None]
+
+    """ iterate through fields and stack """
+    # dict to store stacked values
+    outputvals = {}
+
+    fieldlens = []
+    allcutouts = []
+    stack = []
+    stackrms = []
+    for i in range(len(maplist)):
+        fieldcutouts, fieldstacks = field_get_cutouts(maplist[i], galcatlist[i],
+                                                      params, field=fields[i],
+                                                      goalnobj=numcutoutlist[i])
+        if isinstance(fieldstacks[0], np.ndarray):
+            stack.append(fieldstacks[0])
+            stackrms.append(fieldstacks[1])
+
+        fieldlens.append(len(fieldcutouts))
+        allcutouts = allcutouts + fieldcutouts
+
+        if params.verbose:
+            print('Field {} complete'.format(fields[i]))
+
+    # mean together the individual field stacks if that had to be done separately
+    stack, stackrms = np.stack(stack), np.stack(stackrms)
+    stack, stackrms = weightmean(stack, stackrms, axis=0)
+
+    print(stack.shape, stackrms.shape)
+
+    nobj = np.sum(fieldlens)
+    outputvals['nobj'] = nobj
+    if params.verbose:
+        print('number of objects in each field is:')
+        print('   field 1:{}'.format(fieldlens[0]))
+        print('   field 2:{}'.format(fieldlens[1]))
+        print('   field 3:{}'.format(fieldlens[2]))
+        print('for a total number of {} objects'.format(nobj))
+
+    """ pull aperture values for each stack """
+    # unzip all your cutout objects
+    cutlistdict = unzip(allcutouts)
+
+    # put into physical units if requested
+    if params.obsunits:
+        # allou = observer_units(cutlistdict['T'], cutlistdict['rms'], cutlistdict['z'],
+        #                        cutlistdict['freq'], params)
+
+        allou = {'L': cutlistdict['linelum'], 'dL': cutlistdict['dlinelum'],
+                 'rho': cutlistdict['rhoh2'], 'drho': cutlistdict['drhoh2']}
+
+        linelumstack, dlinelumstack = weightmean(allou['L'], allou['dL'])
+        rhoh2stack, drhoh2stack = weightmean(allou['rho'], allou['drho'])
+
+        outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
+        outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
+        outputvals['nuobs_mean'], outputvals['z_mean'] = np.nanmean(cutlistdict['freq']), np.nanmean(cutlistdict['z'])
+
+        outputvals['sdelnu'] = linelum_to_flux(linelumstack, outputvals['z_mean'], params)
+        outputvals['dsdelnu'] = linelum_to_flux(dlinelumstack, outputvals['z_mean'], params)
+
+    # split indices up by field for easy access later
+    fieldcatidx = []
+    previdx = 0
+    for catlen in fieldlens:
+        fieldcatidx.append(cutlistdict['catidx'][previdx:catlen+previdx])
+        previdx += catlen
+
+    # overall stack for T value
+    stacktemp, stacktemprms = weightmean(cutlistdict['T'], cutlistdict['rms'])
+    outputvals['T'], outputvals['rms'] = stacktemp, stacktemprms
+
+    """ PLOTS """
+    if params.saveplots:
+        # just in case this was done elsewhere in the file structure
+        params.make_output_pathnames()
+        catalogue_overplotter(galcatlist, maplist, fieldcatidx, params)
+
+    if params.plotspace:
+        stackim, imrms = aperture_collapse_cubelet_freq(stack, stackrms, params)
+        spatial_plotter(stackim, params, cmap=cmap)
+
+    if params.plotfreq:
+        stackspec, specrms = aperture_collapse_cubelet_space(stack, stackrms, params)
+        spectral_plotter(stackspec, params)
+
+    if params.plotspace and params.plotfreq:
+        combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
+
+    # if params.plotcubelet:
+    #     cubelet_plotter(cubestack, cuberms, params)
+
+    """ SAVE DATA """
+    if params.savedata:
+        # save the output values
+        ovalfile = params.datasavepath + '/output_values.csv'
+        # strip the values of their units before saving them (otherwise really annoying
+        # to read out on the other end)
+        outputvals_nu = dict_saver(outputvals, ovalfile)
+
+        idxfile = params.datasavepath + '/included_cat_indices.npz'
+        np.savez(idxfile, field1=fieldcatidx[0], field2=fieldcatidx[1], field3=fieldcatidx[2])
+
+        cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
+        np.savez(cubefile, T=stack, rms=stackrms)
+
+        if params.plotspace:
+            imfile = params.datasavepath + '/stacked_image.npz'
+            np.savez(imfile, T=stackim, rms=imrms)
+
+        if params.plotfreq:
+            specfile = params.datasavepath + '/stacked_spectrum.npz'
+            np.savez(specfile, T=stackspec, rms=specrms)
+
+
+    # objects to be returned
+    returns = [outputvals, stack, stackrms]
+
+    # return image and spectrum if they were generated
+    if params.plotspace:
+        returns.append(stackim, imrms)
+    if params.plotfreq:
+        returns.append(stackspec, specrms)
+
+    # return list of all cutouts w associated metadata as well if asked to
+    if params.returncutlist:
+        returns.append(allcutouts)
+
+    return returns
+
+def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
+    """
+    wrapper to perform a full stack on all available values in the catalogue.
+    will plot if desired
+    """
+
+    # set up for rotating each cutout randomly if that's set to happen
+    if params.rotate:
+        params.rng = np.random.default_rng(params.rotseed)
+
+    # dict to store stacked values
+    outputvals = {}
+
+    # if the stacker should stop after a certain number of cutouts are made
+    if params.goalnumcutouts:
+        if isinstance(params.goalnumcutouts, (list, tuple, np.ndarray)):
+            warnings.warn('List of goalncutouts given but only stacking one field', RuntimeWarning)
+            params.goalnumcutouts = params.goalnumcutouts[0]
+
+    # get the cutouts for the field
+    if params.cubelet:
+        allcutouts, cubestack, cuberms = field_get_cutouts(comap, galcat, params,
+                                                           field=field,
+                                                           goalnobj = params.goalnumcutouts)
+    else:
+        allcutouts = field_get_cutouts(comap, galcat, params, field=field,
+                                       goalnobj = params.goalnumcutouts)
+
+    if params.verbose:
+        print('Field complete')
+
+    # number of objects
+    nobj = fieldlen = len(allcutouts)
+    outputvals['nobj'] = nobj
+    if params.verbose:
+        print('number of objects in field is: {}'.format(fieldlen))
+
+    # unzip all your cutout objects
+    cutlistdict = unzip(allcutouts)
+
+    # put into physical units if requested
+    if params.obsunits:
+        allou = observer_units(cutlistdict['T'], cutlistdict['rms'], cutlistdict['z'],
+                               cutlistdict['freq'], params)
+
+
+        linelumstack, dlinelumstack = weightmean(allou['L'], allou['dL'])
+        rhoh2stack, drhoh2stack = weightmean(allou['rho'], allou['drho'])
+
+        outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
+        outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
+        outputvals['nuobs_mean'], outputvals['z_mean'] = allou['nuobs_mean'], allou['z_mean']
+
+    # split indices up by field for easy access later
+    fieldcatidx = cutlistdict['catidx']
+
+    # overall stack for T value
+    stacktemp, stackrms = weightmean(cutlistdict['T'], cutlistdict['rms'])
+    outputvals['T'], outputvals['rms'] = stacktemp, stackrms
+
+    """ EXTRA STACKS """
+    # if cubelets returned, do all three stack versions
+    if params.spacestackwidth and params.freqstackwidth:
+        if params.cubelet:
+            # only want the beam for the axes that aren't being shown
+            lcfidx = (cubestack.shape[0] - params.freqwidth) // 2
+            cfidx = (lcfidx, lcfidx + params.freqwidth)
+
+            lcxidx = (cubestack.shape[1] - params.xwidth) // 2
+            cxidx = (lcxidx, lcxidx + params.xwidth)
+
+            stackim, imrms = weightmean(cubestack[cfidx[0]:cfidx[1],:,:],
+                                        cuberms[cfidx[0]:cfidx[1],:,:], axis=0)
+            stackspec, specrms = weightmean(cubestack[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
+                                            cuberms[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
+                                            axis=(1,2))
+        else:
+            stackim, imrms = weightmean(cutlistdict['cubestack'][:,cfidx[0]:cfidx[1],:,:],
+                                        cutlistdict['cubestackrms'][:,cfidx[0]:cfidx[1],:,:],
+                                        axis=(0,1))
+            stackspec, specrms = weightmean(cutlistdict['cubestack'][:,:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
+                                            cutlistdict['cubestackrms'][:,:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
+                                            axis=(0,2,3))
+    elif params.spacestackwidth and not params.freqstackwidth:
+        # overall spatial stack
+        stackim, imrms = weightmean(cutlistdict['spacestack'], cutlistdict['spacestackrms'], axis=0)
+        stackspec, specrms = None, None
+    elif params.freqstackwidth and not params.spacestackwidth:
+        # overall frequency stack
+        stackspec, specrms = weightmean(cutlistdict['freqstack'], cutlistdict['freqstackrms'], axis=0)
+        stackim, imrms = None, None
+    else:
+        stackim, imrms = None, None
+        stackspec, specrms = None, None
+
+
+    """ PLOTS """
+    if params.saveplots:
+        # just in case this was accidentally done elsewhere in the dir structure
+        params.make_output_pathnames()
+        field_catalogue_plotter(galcat, fieldcatidx, params)
+
+    if params.spacestackwidth and params.plotspace:
+        spatial_plotter(stackim, params, cmap=cmap)
+
+    if params.freqstackwidth and params.plotfreq:
+        spectral_plotter(stackspec, params)
+
+    if params.spacestackwidth and params.freqstackwidth and params.plotspace and params.plotfreq:
+        combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
+
+    if params.plotcubelet:
+        cubelet_plotter(cubestack, cuberms, params)
+
+    """ SAVE DATA """
+    if params.savedata:
+        # save the output values
+        ovalfile = params.datasavepath + '/output_values.csv'
+        # strip the values of their units before saving them (otherwise really annoying
+        # to read out on the other end)
+        outputvals_nu = dict_saver(outputvals, ovalfile)
+
+        idxfile = params.datasavepath + '/included_cat_indices.npz'
+        np.savez(idxfile, field1=fieldcatidx[0], field2=fieldcatidx[1], field3=fieldcatidx[2])
+
+        if params.spacestackwidth:
+            imfile = params.datasavepath + '/stacked_image.npz'
+            np.savez(imfile, T=stackim, rms=imrms)
+
+        if params.freqstackwidth:
+            specfile = params.datasavepath + '/stacked_spectrum.npz'
+            np.savez(specfile, T=stackspec, rms=specrms)
+
+        if params.cubelet:
+            cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
+            np.savez(cubefile, T=cubestack, rms=cuberms)
+
+    # objects to be returned
+    if params.cubelet:
+        returns = [outputvals, stackim, stackspec, fieldcatidx, cubestack, cuberms]
+    else:
+        returns = [outputvals, stackim, stackspec, fieldcatidx]
+
+    # return list of all cutouts w associated metadata as well if asked to
+    if params.returncutlist:
+        returns.append(allcutouts)
+
+    return returns
 
 
 """ OBSERVER UNIT FUNCTIONS """
@@ -364,6 +634,9 @@ def line_luminosity(flux, nuobs, params, summed=True):
 
     dnuobs = 0.03125*u.GHz * (np.ones(len(flux)) - len(flux)//2)
     nuobs = nuobs*u.GHz + dnuobs
+
+    if not summed:
+        nuobs = np.tile(nuobs, (flux.shape[2], flux.shape[1], 1)).T
 
     # find redshift from nuobs:
     zval = freq_to_z(params.centfreq*u.GHz, nuobs)
@@ -533,7 +806,7 @@ def perchannel_flux_mean(tbvals, rmsvals, nuobs, params):
     omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
 
     # central frequency of each individual spectral channel
-    nuobsvals = (np.arange(freqwidth) - params.freqwidth//2) * 31.25*u.MHz
+    nuobsvals = (np.arange(freqwidth) - freqwidth//2) * 31.25*u.MHz
     nuobsvals = nuobsvals + nuobs*u.GHz
 
     Sval_chans = np.ones(freqwidth)*u.Jy
@@ -557,6 +830,66 @@ def perchannel_flux_mean(tbvals, rmsvals, nuobs, params):
     d_Snu_Delnu = Srms_chans * delnus
 
     return Snu_Delnu, d_Snu_Delnu
+
+
+def perpixel_flux(tbvals, rmsvals, nuobs, params):
+    """
+    Function to determine the flux (in Jy km/s) IN EACH PIXEL of a cutout
+    from a COMAP map. Unlike other functions, this function won't try to
+    combine pixels in any way
+    -------
+    INPUTS:
+    -------
+    tbvals:  array of brightness temperature values. first axis needs to be the
+             spectral one. should be unitless (NxMxL)
+    rmsvals: the per-pixel rms uncertainties associated with tbvals. also a
+             unitless array (NxMxL)
+    nuobs:   observed frequency of the central pixel (index N/2) in frequency
+             units (should be a float, in GHz)
+    params:  lim_stacker params object (only used for central frequency)
+    --------
+    OUTPUTS:
+    --------
+    Snu_Delnu:  the flux in the cutout in each individual spectral channel.
+                (NxMxL) array of astropy quantities (in Jy km/s)
+    dSnu_Delnu: the rms associated with each flux value. (NxMxL) array of
+                astropy quantities (in Jy km/s)
+    """
+
+    # number of frequency channels we're dealing with
+    freqwidth = tbvals.shape[0]
+
+    # correct for the primary beam response
+    tbvals = tbvals / 0.72
+    rmsvals = rmsvals / 0.72
+
+    # not the COMAP beam but the angular size of the region over which the brightness
+    # temperature is the given value (ie one spaxel)
+    # omega_B = ((params.xwidth * 2*u.arcmin)**2).to(u.sr)
+
+    # actual COMAP beam
+    beam_fwhm = 4.5*u.arcmin
+    sigma_x = beam_fwhm / (2 * np.sqrt(2 * np.log(2)))
+    sigma_y = sigma_x
+    omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
+
+    # central frequency of each individual spectral channel
+    nuobsvals = (np.arange(freqwidth) - freqwidth//2) * 31.25*u.MHz
+    nuobsvals = nuobsvals + nuobs*u.GHz
+    # reshaped to match the cubelet
+    nuobsvals = np.tile(nuobsvals, (tbvals.shape[2], tbvals.shape[1], 1)).T
+
+    # calculate fluxes in Jy
+    Svals = rayleigh_jeans(tbvals*u.K, nuobsvals, omega_B)
+    Srmss = rayleigh_jeans(rmsvals*u.K, nuobsvals, omega_B)
+
+    # multiply by the channel width in km/s
+    delnus = (31.25*u.MHz / nuobsvals * const.c).to(u.km/u.s)
+
+    Snu_Delnu = Svals * delnus
+    dSnu_Delnu = Srmss * delnus
+
+    return Snu_Delnu, dSnu_Delnu
 
 
 def observer_units_sum(tbvals, rmsvals, cutout, params):
@@ -616,59 +949,63 @@ def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
 
 
 # convenience functions
-def aperture_collapse_cubelet_freq(cutout, params):
+def aperture_collapse_cubelet_freq(cvals, crmss, params):
     """
     take a 3D cubelet cutout and collapse it along the frequency axis to be an average over the
     stack aperture frequency channels
+    either cutout is an empty_table instance or a list of [vals, rmss]
     """
 
     # indexes of the channels to include
-    lcfidx = (cutout.cubestack.shape[0] - params.freqwidth) // 2
+    lcfidx = (cvals.shape[0] - params.freqwidth) // 2
     cfidx = (lcfidx, lcfidx + params.freqwidth)
 
     # collapsed image
-    cutim, imrms = weightmean(cutout.cubestack[cfidx[0]:cfidx[1],:,:],
-                                 cutout.cubestackrms[cfidx[0]:cfidx[1],:,:], axis=0)
+    cutim, imrms = weightmean(cvals[cfidx[0]:cfidx[1],:,:],
+                              crmss[cfidx[0]:cfidx[1],:,:], axis=0)
 
-    cutout.spacestack = cutim
-    cutout.spacestackrms = imrms
+    return cutim, imrms
 
-    return
-
-def aperture_collapse_cubelet_space(cutout, params, linelum=False):
+def aperture_collapse_cubelet_space(cvals, crmss, params, linelum=False):
     """
     take a 3D cubelet cutout and collapse it along the spatial axis to be an average over the stack
     aperture spaxels (ie make a spectrum)
     """
 
     # indices of the x and y axes
-    beamxidx = cutout.xidx - cutout.spacexidx[0]
-    beamyidx = cutout.yidx - cutout.spaceyidx[0]
+    lcxidx = (cvals.shape[1] - params.xwidth) // 2
+    lcyidx = (cvals.shape[2] - params.ywidth) // 2
+    cxidx = (lcxidx, lcxidx + params.xwidth)
+    cyidx = (lcyidx, lcyidx + params.ywidth)
 
     # clip out values to stack
-    fpixval = cutout.cubestack[:, beamyidx[0]:beamyidx[1], beamxidx[0]:beamxidx[1]]
-    frmsval = cutout.cubestackrms[:, beamyidx[0]:beamyidx[1], beamxidx[0]:beamxidx[1]]
+    fpixval = cvals[:, cyidx[0]:cyidx[1], cxidx[0]:cxidx[1]]
+    frmsval = crmss[:, cyidx[0]:cyidx[1], cxidx[0]:cxidx[1]]
 
-    # collapse along spatial axes to get a spectral profile
-    if not linelum:
-        freqstack = np.nansum(fpixval, axis=(1,2))
-        rmsfreqstack = np.sqrt(np.nansum(frmsval**2, axis=(1,2)))
-        # freqstack, rmsfreqstack = weightmean(fpixval, frmsval, axis=(1,2))
+    cutspec, specrms = weightmean(fpixval, frmsval, axis=(1,2))
 
-        cutout.freqstack = freqstack
-        cutout.freqstackrms = rmsfreqstack
+    return cutspec, specrms
 
-    else:
-        # calculate the per-channel line luminosity in the spatial apertures and
-        # get the spectrum from those values
-        flux, dflux = perchannel_flux_mean(fpixval, frmsval, cutout.freq, params)
-        linelum = line_luminosity(flux, cutout.freq, params, summed=False)
-        dlinelum = line_luminosity(dflux, cutout.freq, params, summed=False)
-
-        cutout.freqstack = linelum.value
-        cutout.freqstackrms = dlinelum.value
-
-    return
+    # # collapse along spatial axes to get a spectral profile
+    # if not linelum:
+    #     freqstack = np.nansum(fpixval, axis=(1,2))
+    #     rmsfreqstack = np.sqrt(np.nansum(frmsval**2, axis=(1,2)))
+    #     # freqstack, rmsfreqstack = weightmean(fpixval, frmsval, axis=(1,2))
+    #
+    #     cutout.freqstack = freqstack
+    #     cutout.freqstackrms = rmsfreqstack
+    #
+    # else:
+    #     # calculate the per-channel line luminosity in the spatial apertures and
+    #     # get the spectrum from those values
+    #     flux, dflux = perchannel_flux_mean(fpixval, frmsval, cutout.freq, params)
+    #     linelum = line_luminosity(flux, cutout.freq, params, summed=False)
+    #     dlinelum = line_luminosity(dflux, cutout.freq, params, summed=False)
+    #
+    #     cutout.freqstack = linelum.value
+    #     cutout.freqstackrms = dlinelum.value
+    #
+    # return
 
 def cubelet_fill_nans(pixvals, rmsvals, params):
     """
@@ -685,403 +1022,9 @@ def cubelet_fill_nans(pixvals, rmsvals, params):
     return pixvals, rmsvals
 
 
-""" ACTUAL STACKING """
-
-def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
-    """
-    wrapper to return all cutouts for a single field
-    """
-    ti = 0
-    # if we're keeping track of the number of cutouts
-    if goalnobj:
-        field_nobj = 0
-    cubespec, cubespecrms = None, None
-    cubeim, cubeimrms = None, None
-    cubestack, cuberms = None, None
-    cutoutlist = []
-    for i in range(galcat.nobj):
-        cutout = single_cutout(i, galcat, comap, params)
-
-        # if it passed all the tests, keep it
-        if cutout:
-            if field:
-                cutout.field = field
-
-            # brightness temperature only cubelets
-            if params.cubelet:
-                aperture_collapse_cubelet_freq(cutout, params)
-                aperture_collapse_cubelet_space(cutout, params, linelum=params.obsunits)
-
-                if ti == 0:
-                    cubespec, cubespecrms = cutout.freqstack, cutout.freqstackrms
-                    cubeim, cubeimrms = cutout.spacestack, cutout.spacestackrms
-                    ti = 1
-                else:
-                    scspec = np.stack((cubespec, cutout.freqstack))
-                    scspecrms = np.stack((cubespecrms, cutout.freqstackrms))
-                    scim = np.stack((cubeim, cutout.spacestack))
-                    scimrms = np.stack((cubeimrms, cutout.spacestackrms))
-
-                    cubespec, cubespecrms = weightmean(scspec, scspecrms, axis=0)
-                    cubeim, cubeimrms = weightmean(scim, scimrms, axis=0)
-
-                # delete the other arrays
-                cutout.__delattr__('cubestack')
-                cutout.__delattr__('cubestackrms')
-                cutout.__delattr__('freqstack')
-                cutout.__delattr__('freqstackrms')
-                cutout.__delattr__('spacestack')
-                cutout.__delattr__('spacestackrms')
-
-            cutoutlist.append(cutout)
-            if goalnobj:
-                field_nobj += 1
-
-                if field_nobj == goalnobj:
-                    if params.verbose:
-                        print("Hit goal number of {} cutouts".format(goalnobj))
-                    if params.cubelet:
-                        return cutoutlist, [cubeim, cubeimrms, cubespec, cubespecrms]
-                    else:
-                        return cutoutlist
-
-        if params.verbose:
-            if i % 100 == 0:
-                print('   done {} of {} cutouts in this field'.format(i, galcat.nobj))
-
-    if params.cubelet:
-        return cutoutlist, [cubeim, cubeimrms, cubespec, cubespecrms]
-    else:
-        return cutoutlist
-
-def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
-    """
-    wrapper to perform a full stack on all available values in the catalogue.
-    will plot if desired
-    """
-    fields = [1,2,3]
-
-    # for simulations -- if the stacker should stop after a certain number
-    # of cutouts. set this up to be robust against per-field or total vals
-    if params.goalnumcutouts:
-        if isinstance(params.goalnumcutouts, (int, float)):
-            numcutoutlist = [params.goalnumcutouts // len(maplist),
-                             params.goalnumcutouts // len(maplist),
-                             params.goalnumcutouts // len(maplist)]
-        else:
-            numcutoutlist = params.goalnumcutouts
-    else:
-        numcutoutlist = [None, None, None]
-
-    # dict to store stacked values
-    outputvals = {}
-
-    fieldlens = []
-    allcutouts = []
-    if params.cubelet:
-        stackim = []
-        imrms = []
-        stackspec = []
-        specrms = []
-    for i in range(len(maplist)):
-        if params.cubelet:
-            fieldcutouts, fieldstacks = field_get_cutouts(maplist[i], galcatlist[i],
-                                                          params, field=fields[i],
-                                                          goalnobj=numcutoutlist[i])
-            if isinstance(fieldstacks[0], np.ndarray):
-                stackim.append(fieldstacks[0])
-                imrms.append(fieldstacks[1])
-                stackspec.append(fieldstacks[2])
-                specrms.append(fieldstacks[3])
-
-        else:
-            fieldcutouts = field_get_cutouts(maplist[i], galcatlist[i], params,
-                                             field=fields[i],
-                                             goalnobj=numcutoutlist[i])
-        fieldlens.append(len(fieldcutouts))
-        allcutouts = allcutouts + fieldcutouts
-
-        if params.verbose:
-            print('Field {} complete'.format(fields[i]))
-
-    # mean together the individual field stacks if that had to be done separately
-    if params.cubelet:
-        stackim, imrms = np.stack(stackim), np.stack(imrms)
-        stackspec, specrms = np.stack(stackspec), np.stack(specrms)
-
-        stackim, imrms = weightmean(stackim, imrms, axis=0)
-        stackspec, specrms = weightmean(stackspec, specrms, axis=0)
-
-    nobj = np.sum(fieldlens)
-    outputvals['nobj'] = nobj
-    if params.verbose:
-        print('number of objects in each field is:')
-        print('   field 1:{}'.format(fieldlens[0]))
-        print('   field 2:{}'.format(fieldlens[1]))
-        print('   field 3:{}'.format(fieldlens[2]))
-        print('for a total number of {} objects'.format(nobj))
-
-    # unzip all your cutout objects
-    cutlistdict = unzip(allcutouts)
-
-    # put into physical units if requested
-    if params.obsunits:
-        # allou = observer_units(cutlistdict['T'], cutlistdict['rms'], cutlistdict['z'],
-        #                        cutlistdict['freq'], params)
-
-        allou = {'L': cutlistdict['linelum'], 'dL': cutlistdict['dlinelum'],
-                 'rho': cutlistdict['rhoh2'], 'drho': cutlistdict['drhoh2']}
-
-        linelumstack, dlinelumstack = weightmean(allou['L'], allou['dL'])
-        rhoh2stack, drhoh2stack = weightmean(allou['rho'], allou['drho'])
-
-        outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
-        outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
-        outputvals['nuobs_mean'], outputvals['z_mean'] = np.nanmean(cutlistdict['freq']), np.nanmean(cutlistdict['z'])
-
-        outputvals['sdelnu'] = linelum_to_flux(linelumstack, outputvals['z_mean'], params)
-        outputvals['dsdelnu'] = linelum_to_flux(dlinelumstack, outputvals['z_mean'], params)
-
-    # split indices up by field for easy access later
-    fieldcatidx = []
-    previdx = 0
-    for catlen in fieldlens:
-        fieldcatidx.append(cutlistdict['catidx'][previdx:catlen+previdx])
-        previdx += catlen
-
-    # overall stack for T value
-    stacktemp, stackrms = weightmean(cutlistdict['T'], cutlistdict['rms'])
-    outputvals['T'], outputvals['rms'] = stacktemp, stackrms
-
-    """ EXTRA STACKS """
-    # if cubelets returned, do all three stack versions
-    if params.spacestackwidth and params.freqstackwidth:
-        if not params.cubelet:
-            stackim, imrms = weightmean(cutlistdict['cubestack'][:,cfidx[0]:cfidx[1],:,:],
-                                        cutlistdict['cubestackrms'][:,cfidx[0]:cfidx[1],:,:],
-                                        axis=(0,1))
-            stackspec, specrms = weightmean(cutlistdict['cubestack'][:,:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            cutlistdict['cubestackrms'][:,:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            axis=(0,2,3))
-    elif params.spacestackwidth and not params.freqstackwidth:
-        # overall spatial stack
-        stackim, imrms = weightmean(cutlistdict['spacestack'], cutlistdict['spacestackrms'], axis=0)
-        stackspec, specrms = None, None
-    elif params.freqstackwidth and not params.spacestackwidth:
-        # overall frequency stack
-        stackspec, specrms = weightmean(cutlistdict['freqstack'], cutlistdict['freqstackrms'], axis=0)
-        stackim, imrms = None, None
-    else:
-        stackim, imrms = None, None
-        stackspec, specrms = None, None
-
-
-    """ PLOTS """
-    if params.saveplots:
-        # just in case this was done elsewhere in the file structure
-        params.make_output_pathnames()
-        catalogue_overplotter(galcatlist, maplist, fieldcatidx, params)
-
-    if params.spacestackwidth and params.plotspace:
-        spatial_plotter(stackim, params, cmap=cmap)
-
-    if params.freqstackwidth and params.plotfreq:
-        spectral_plotter(stackspec, params)
-
-    if params.spacestackwidth and params.freqstackwidth and params.plotspace and params.plotfreq:
-        combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
-
-    # if params.plotcubelet:
-    #     cubelet_plotter(cubestack, cuberms, params)
-
-    """ SAVE DATA """
-    if params.savedata:
-        # save the output values
-        ovalfile = params.datasavepath + '/output_values.csv'
-        # strip the values of their units before saving them (otherwise really annoying
-        # to read out on the other end)
-        outputvals_nu = dict_saver(outputvals, ovalfile)
-
-        idxfile = params.datasavepath + '/included_cat_indices.npz'
-        np.savez(idxfile, field1=fieldcatidx[0], field2=fieldcatidx[1], field3=fieldcatidx[2])
-
-        if params.spacestackwidth:
-            imfile = params.datasavepath + '/stacked_image.npz'
-            np.savez(imfile, T=stackim, rms=imrms)
-
-        if params.freqstackwidth:
-            specfile = params.datasavepath + '/stacked_spectrum.npz'
-            np.savez(specfile, T=stackspec, rms=specrms)
-
-        # if params.cubelet:
-        #     cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
-        #     np.savez(cubefile, T=cubestack, rms=cuberms)
-
-    # objects to be returned
-    if params.cubelet:
-        returns = [outputvals, stackim, stackspec, fieldcatidx]#, cubestack, cuberms]
-    else:
-        returns = [outputvals, stackim, stackspec, fieldcatidx]
-
-    # return list of all cutouts w associated metadata as well if asked to
-    if params.returncutlist:
-        returns.append(allcutouts)
-
-    return returns
-
-def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
-    """
-    wrapper to perform a full stack on all available values in the catalogue.
-    will plot if desired
-    """
-
-    # set up for rotating each cutout randomly if that's set to happen
-    if params.rotate:
-        params.rng = np.random.default_rng(params.rotseed)
-
-    # dict to store stacked values
-    outputvals = {}
-
-    # if the stacker should stop after a certain number of cutouts are made
-    if params.goalnumcutouts:
-        if isinstance(params.goalnumcutouts, (list, tuple, np.ndarray)):
-            warnings.warn('List of goalncutouts given but only stacking one field', RuntimeWarning)
-            params.goalnumcutouts = params.goalnumcutouts[0]
-
-    # get the cutouts for the field
-    if params.cubelet:
-        allcutouts, cubestack, cuberms = field_get_cutouts(comap, galcat, params,
-                                                           field=field,
-                                                           goalnobj = params.goalnumcutouts)
-    else:
-        allcutouts = field_get_cutouts(comap, galcat, params, field=field,
-                                       goalnobj = params.goalnumcutouts)
-
-    if params.verbose:
-        print('Field complete')
-
-    # number of objects
-    nobj = fieldlen = len(allcutouts)
-    outputvals['nobj'] = nobj
-    if params.verbose:
-        print('number of objects in field is: {}'.format(fieldlen))
-
-    # unzip all your cutout objects
-    cutlistdict = unzip(allcutouts)
-
-    # put into physical units if requested
-    if params.obsunits:
-        allou = observer_units(cutlistdict['T'], cutlistdict['rms'], cutlistdict['z'],
-                               cutlistdict['freq'], params)
-
-
-        linelumstack, dlinelumstack = weightmean(allou['L'], allou['dL'])
-        rhoh2stack, drhoh2stack = weightmean(allou['rho'], allou['drho'])
-
-        outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
-        outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
-        outputvals['nuobs_mean'], outputvals['z_mean'] = allou['nuobs_mean'], allou['z_mean']
-
-    # split indices up by field for easy access later
-    fieldcatidx = cutlistdict['catidx']
-
-    # overall stack for T value
-    stacktemp, stackrms = weightmean(cutlistdict['T'], cutlistdict['rms'])
-    outputvals['T'], outputvals['rms'] = stacktemp, stackrms
-
-    """ EXTRA STACKS """
-    # if cubelets returned, do all three stack versions
-    if params.spacestackwidth and params.freqstackwidth:
-        if params.cubelet:
-            # only want the beam for the axes that aren't being shown
-            lcfidx = (cubestack.shape[0] - params.freqwidth) // 2
-            cfidx = (lcfidx, lcfidx + params.freqwidth)
-
-            lcxidx = (cubestack.shape[1] - params.xwidth) // 2
-            cxidx = (lcxidx, lcxidx + params.xwidth)
-
-            stackim, imrms = weightmean(cubestack[cfidx[0]:cfidx[1],:,:],
-                                        cuberms[cfidx[0]:cfidx[1],:,:], axis=0)
-            stackspec, specrms = weightmean(cubestack[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            cuberms[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            axis=(1,2))
-        else:
-            stackim, imrms = weightmean(cutlistdict['cubestack'][:,cfidx[0]:cfidx[1],:,:],
-                                        cutlistdict['cubestackrms'][:,cfidx[0]:cfidx[1],:,:],
-                                        axis=(0,1))
-            stackspec, specrms = weightmean(cutlistdict['cubestack'][:,:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            cutlistdict['cubestackrms'][:,:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            axis=(0,2,3))
-    elif params.spacestackwidth and not params.freqstackwidth:
-        # overall spatial stack
-        stackim, imrms = weightmean(cutlistdict['spacestack'], cutlistdict['spacestackrms'], axis=0)
-        stackspec, specrms = None, None
-    elif params.freqstackwidth and not params.spacestackwidth:
-        # overall frequency stack
-        stackspec, specrms = weightmean(cutlistdict['freqstack'], cutlistdict['freqstackrms'], axis=0)
-        stackim, imrms = None, None
-    else:
-        stackim, imrms = None, None
-        stackspec, specrms = None, None
-
-
-    """ PLOTS """
-    if params.saveplots:
-        # just in case this was accidentally done elsewhere in the dir structure
-        params.make_output_pathnames()
-        field_catalogue_plotter(galcat, fieldcatidx, params)
-
-    if params.spacestackwidth and params.plotspace:
-        spatial_plotter(stackim, params, cmap=cmap)
-
-    if params.freqstackwidth and params.plotfreq:
-        spectral_plotter(stackspec, params)
-
-    if params.spacestackwidth and params.freqstackwidth and params.plotspace and params.plotfreq:
-        combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
-
-    if params.plotcubelet:
-        cubelet_plotter(cubestack, cuberms, params)
-
-    """ SAVE DATA """
-    if params.savedata:
-        # save the output values
-        ovalfile = params.datasavepath + '/output_values.csv'
-        # strip the values of their units before saving them (otherwise really annoying
-        # to read out on the other end)
-        outputvals_nu = dict_saver(outputvals, ovalfile)
-
-        idxfile = params.datasavepath + '/included_cat_indices.npz'
-        np.savez(idxfile, field1=fieldcatidx[0], field2=fieldcatidx[1], field3=fieldcatidx[2])
-
-        if params.spacestackwidth:
-            imfile = params.datasavepath + '/stacked_image.npz'
-            np.savez(imfile, T=stackim, rms=imrms)
-
-        if params.freqstackwidth:
-            specfile = params.datasavepath + '/stacked_spectrum.npz'
-            np.savez(specfile, T=stackspec, rms=specrms)
-
-        if params.cubelet:
-            cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
-            np.savez(cubefile, T=cubestack, rms=cuberms)
-
-    # objects to be returned
-    if params.cubelet:
-        returns = [outputvals, stackim, stackspec, fieldcatidx, cubestack, cuberms]
-    else:
-        returns = [outputvals, stackim, stackspec, fieldcatidx]
-
-    # return list of all cutouts w associated metadata as well if asked to
-    if params.returncutlist:
-        returns.append(allcutouts)
-
-    return returns
-
-
 def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     """
-    unit change to physical units
+    unit change to physical units (**OLD***)
     """
 
     # main beam to full beam correction

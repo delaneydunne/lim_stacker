@@ -75,3 +75,5 @@ plotfreq True
 freqstackwidth 40
 # extra diagnostic plots for the cubelet output
 plotcubelet True
+# units to make the plots ITO ('linelum' for line luminosity or 'flux')
+plotunits linelum
