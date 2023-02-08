@@ -683,7 +683,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
 
     # scale on the colorbar
     if not unsmooth_vext:
-        vext = np.nanmax(np.abs([np.nanmin(stackim*1e6), np.nanmax(stackim*1e6)]))
+        vext = np.nanmax(np.abs([np.nanmin(stackim), np.nanmax(stackim)]))
         vmin,vmax = -vext, vext
     else:
         (vmin,vmax) = unsmooth_vext
@@ -698,7 +698,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
 
     freqax = fig.add_subplot(gs[-1,:])
 
-    c = axs[0,0].pcolormesh(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
+    c = axs[0,0].pcolormesh(stackim, cmap=cmap, vmin=vmin, vmax=vmax)
     axs[0,0].plot(xcorners, ycorners, color='k', linewidth=4, zorder=10)
     axs[0,0].set_title('Unsmoothed')
 
@@ -721,18 +721,18 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     cax0 = divider.new_horizontal(size='5%', pad=0.05)
     fig.add_axes(cax0)
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
-    cbar.ax.set_ylabel(r'$T_b$ ($\mu$K)')
+    cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$)")
     axs[0,0].set_aspect(aspect=1)
 
     # smoothed
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
     # scale on the colorbar
     if not smooth_vext:
-        vext = np.nanmax(smoothed_spacestack_gauss*1e6)
+        vext = np.nanmax(smoothed_spacestack_gauss)
         vmin, vmax = -vext, vext
     else:
         (vmin,vmax) = smooth_vext
-    c = axs[0,1].pcolormesh(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
+    c = axs[0,1].pcolormesh(smoothed_spacestack_gauss, cmap=cmap, vmin=vmin, vmax=vmax)
     axs[0,1].plot(xcorners, ycorners, color='k', linewidth=4, zorder=10)
     axs[0,1].set_title('Gaussian-smoothed')
 
@@ -755,7 +755,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     cax0 = divider.new_horizontal(size='5%', pad=0.05)
     fig.add_axes(cax0)
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
-    cbar.ax.set_ylabel(r'$T_b$ ($\mu$K)')
+    cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$)")
     axs[0,1].set_aspect(aspect=1)
 
     if params.freqwidth % 2 == 0:
