@@ -429,13 +429,13 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
 
 
     # objects to be returned
-    returns = [outputvals, stack, stackrms]
+    returns = [outputvals, [stack, stackrms]]
 
     # return image and spectrum if they were generated
     if params.plotspace:
-        returns.append(stackim, imrms)
+        returns.append([stackim, imrms])
     if params.plotfreq:
-        returns.append(stackspec, specrms)
+        returns.append([stackspec, specrms])
 
     # return list of all cutouts w associated metadata as well if asked to
     if params.returncutlist:
