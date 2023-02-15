@@ -253,9 +253,7 @@ def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
     # if we're keeping track of the number of cutouts
     if goalnobj:
         field_nobj = 0
-    cubespec, cubespecrms = None, None
-    cubeim, cubeimrms = None, None
-    cubestack, cuberms = None, None
+    cube, cuberms = None, None
     cutoutlist = []
     for i in range(galcat.nobj):
         cutout = single_cutout(i, galcat, comap, params)
@@ -402,8 +400,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     if params.plotspace and params.plotfreq:
         combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stacktemprms*1e6))
 
-    # if params.plotcubelet:
-    #     cubelet_plotter(cubestack, cuberms, params)
+    if params.plotcubelet:
+        cubelet_plotter(stack, stackrms, params)
 
     """ SAVE DATA """
     if params.savedata:

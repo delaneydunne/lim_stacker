@@ -530,12 +530,12 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
     ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
 
-    vext = np.nanmax(np.abs([np.nanmin(stackim*1e6), np.nanmax(stackim*1e6)]))
+    vext = np.nanmax(np.abs([np.nanmin(stackim), np.nanmax(stackim)]))
     vmin,vmax = -vext, vext
 
     """ unsmoothed """
     fig, ax = plt.subplots(1, figsize=(6,4), tight_layout=True)
-    c = ax.pcolormesh(stackim*1e6, cmap=cmap, vmin=vmin, vmax=vmax)
+    c = ax.pcolormesh(stackim, cmap=cmap, vmin=vmin, vmax=vmax)
     ax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
 
     # scale bar
@@ -563,7 +563,10 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     divider = make_axes_locatable(ax)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     cbar = fig.colorbar(c, cax=cax)
-    cbar.ax.set_ylabel(r'$T_b$ ($\mu$K)')#, fontsize='large')
+    if params.plotunits == 'linelum':
+        cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$)")
+    elif params.plotunits == 'flux':
+        cbar.ax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
 
     # save plots if passed
     if params.saveplots:
@@ -572,10 +575,10 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     """ smoothed """
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
 
-    vext = np.nanmax(smoothed_spacestack_gauss*1e6)
+    vext = np.nanmax(smoothed_spacestack_gauss)
 
     fig, ax = plt.subplots(1, figsize=(6,4), tight_layout=True)
-    c = ax.pcolormesh(smoothed_spacestack_gauss*1e6, cmap=cmap, vmin=-vext, vmax=vext)
+    c = ax.pcolormesh(smoothed_spacestack_gauss, cmap=cmap, vmin=-vext, vmax=vext)
     ax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
 
     # scale bar
@@ -603,7 +606,11 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     divider = make_axes_locatable(ax)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     cbar = fig.colorbar(c, cax=cax)
-    cbar.ax.set_ylabel(r'$T_b$ ($\mu$K)')#, fontsize='large')
+
+    if params.plotunits == 'linelum':
+        cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$)")
+    elif params.plotunits == 'flux':
+        cbar.ax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
 
     if params.saveplots:
         fig.savefig(params.plotsavepath+'/angularstack_smoothed.png')
@@ -620,13 +627,12 @@ def spectral_plotter(stackspec, params):
     else:
         freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
 
-    if params.obsunits:
+    if params.plotunits == 'linelum':
         ax.step(freqarr, stackspec/1e10, color='indigo', zorder=10, where='mid')
         ax.set_ylabel(r"$L'_{CO} \times 10^{10}$ (K km/s pc$^2$)")
     else:
-        ax.step(freqarr, stackspec*1e6,
-                color='indigo', zorder=10, where='mid')
-        ax.set_ylabel(r'T$_b$ [$\mu$K]')
+        ax.step(freqarr, stackspec, color='indigo', zorder=10, where='mid')
+        ax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
     ax.set_xlabel(r'$\Delta_\nu$ [GHz]')
 #     ax.set_title('Stacked over {} Spatial Pixels'.format((params.xwidth)**2))
 
@@ -721,7 +727,10 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     cax0 = divider.new_horizontal(size='5%', pad=0.05)
     fig.add_axes(cax0)
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
-    cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$)")
+    if params.plotunits == 'linelum':
+        cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$)")
+    elif params.plotunits == 'flux':
+        cbar.ax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
     axs[0,0].set_aspect(aspect=1)
 
     # smoothed
@@ -755,7 +764,10 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     cax0 = divider.new_horizontal(size='5%', pad=0.05)
     fig.add_axes(cax0)
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
-    cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$)")
+    if params.plotunits == 'linelum':
+        cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$)")
+    elif params.plotunits == 'flux':
+        cbar.ax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
     axs[0,1].set_aspect(aspect=1)
 
     if params.freqwidth % 2 == 0:
@@ -763,13 +775,13 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     else:
         freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
 
-    if params.obsunits:
+    if params.plotunits == 'linelum':
         freqax.step(freqarr, stackspec/1e10, color='indigo', zorder=10, where='mid')
         freqax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
-    else:
-        freqax.step(freqarr, stackspec*1e6,
+    elif params.plotunits == 'flux':
+        freqax.step(freqarr, stackspec,
                 color='indigo', zorder=10, where='mid')
-        freqax.set_ylabel(r'T$_b$ [$\mu$K]')
+        freqax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
 
     freqax.axhline(0, color='k', ls='--')
     freqax.axvline(0, color='k', ls='--')
