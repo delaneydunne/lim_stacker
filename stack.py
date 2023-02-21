@@ -398,7 +398,13 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         spectral_plotter(stackspec, params)
 
     if params.plotspace and params.plotfreq:
-        combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stacktemprms*1e6))
+        try:
+            comment = params.plotcomment
+        except AttributeError:
+            comment = None
+
+        combined_plotter(stackim, imrms, stackspec, params, cmap=cmap,
+                         stackresult=outputvals, comment=comment)
 
     if params.plotcubelet:
         cubelet_plotter(stack, stackrms, params)
@@ -550,7 +556,13 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
         spectral_plotter(stackspec, params)
 
     if params.spacestackwidth and params.freqstackwidth and params.plotspace and params.plotfreq:
-        combined_plotter(stackim, stackspec, params, cmap=cmap, stackresult=(stacktemp*1e6,stackrms*1e6))
+        try:
+            comment = params.plotcomment
+        except AttributeError:
+            comment = None
+
+        combined_plotter(stackim, imrms, stackspec, params, cmap=cmap,
+                         stackresult=outputvals, comment=comment)
 
     if params.plotcubelet:
         cubelet_plotter(cubestack, cuberms, params)

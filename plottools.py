@@ -274,15 +274,20 @@ def radprof(cubelet, rmslet, params, chan=None):
     cubelet
     """
 
-    # indexing
-    freqcent = int(cubelet.shape[0] / 2)
-    spaceext = cubelet.shape[1]
-    spacecent = int(spaceext / 2)
+    if len(cubelet.shape) > 2:
+        # indexing
+        freqcent = int(cubelet.shape[0] / 2)
+        spaceext = cubelet.shape[1]
+        spacecent = int(spaceext / 2)
 
-    if not chan:
-        chan = freqcent
+        if not chan:
+            chan = freqcent
 
-    im, imrms = cubelet[chan,:,:], rmslet[chan,:,:]
+        im, imrms = cubelet[chan,:,:], rmslet[chan,:,:]
+    else:
+        im, imrms = cubelet, rmslet
+        spaceext = im.shape[0]
+        spacecent = int(spaceext / 2)
 
     # central circular aperture
     cent = CircularAperture((spacecent, spacecent), 1.5)
@@ -654,8 +659,8 @@ def spectral_plotter(stackspec, params):
 
     return 0
 
-def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None,
-                     unsmooth_vext=None, smooth_vext=None, freq_ext=None):
+def combined_plotter(stackim, stackrms, stackspec, params, cmap='PiYG_r', stackresult=None,
+                     unsmooth_vext=None, smooth_vext=None, freq_ext=None, comment=None):
 
     plt.style.use('default')
 
@@ -695,16 +700,21 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
         (vmin,vmax) = unsmooth_vext
 
     # plot with all three stack representations
-    gs_kw = dict(width_ratios=[1,1], height_ratios=[3,2])
-    fig,axs = plt.subplots(2,2, figsize=(7,5), gridspec_kw=gs_kw)
+    gs_kw = dict(width_ratios=[1, 1, 1], height_ratios=[3,2])
+    fig,axs = plt.subplots(2,3, figsize=(10,5), gridspec_kw=gs_kw, tight_layout=True)
     gs = axs[0,-1].get_gridspec()
 
-    for ax in axs[1,:]:
+    for ax in axs[1,(0,1)]:
         ax.remove()
 
-    freqax = fig.add_subplot(gs[-1,:])
+    """ label axes """
+    freqax = fig.add_subplot(gs[-1,:-1])
+    radax = axs[0,2]
+    labax = axs[1,2]
 
-    c = axs[0,0].pcolormesh(stackim, cmap=cmap, vmin=vmin, vmax=vmax)
+    labax.set_axis_off()
+
+    c = axs[0,0].pcolormesh(stackim/1e10, cmap=cmap, vmin=vmin/1e10, vmax=vmax/1e10)
     axs[0,0].plot(xcorners, ycorners, color='k', linewidth=4, zorder=10)
     axs[0,0].set_title('Unsmoothed')
 
@@ -728,7 +738,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     fig.add_axes(cax0)
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
     if params.plotunits == 'linelum':
-        cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$)")
+        cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
     elif params.plotunits == 'flux':
         cbar.ax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
     axs[0,0].set_aspect(aspect=1)
@@ -741,7 +751,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
         vmin, vmax = -vext, vext
     else:
         (vmin,vmax) = smooth_vext
-    c = axs[0,1].pcolormesh(smoothed_spacestack_gauss, cmap=cmap, vmin=vmin, vmax=vmax)
+    c = axs[0,1].pcolormesh(smoothed_spacestack_gauss/1e10, cmap=cmap, vmin=vmin/1e10, vmax=vmax/1e10)
     axs[0,1].plot(xcorners, ycorners, color='k', linewidth=4, zorder=10)
     axs[0,1].set_title('Gaussian-smoothed')
 
@@ -765,7 +775,7 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     fig.add_axes(cax0)
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
     if params.plotunits == 'linelum':
-        cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$)")
+        cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
     elif params.plotunits == 'flux':
         cbar.ax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
     axs[0,1].set_aspect(aspect=1)
@@ -799,8 +809,52 @@ def combined_plotter(stackim, stackspec, params, cmap='PiYG_r', stackresult=None
     freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
     freqax.set_ylim(yext)
 
+    # radial profile of the unsmoothed image
+    chanprof, rmsprof = radprof(stackim, stackrms, params)
+
+    xaxis = np.arange(len(chanprof))*2 + 2
+    xaxis[0] = 0
+
+    radax.step(xaxis, chanprof/1e10, zorder=20, where='mid',
+            color='0.5', lw=3)
+
+    radax.fill_between(xaxis, (chanprof-rmsprof)/1e10, (chanprof+rmsprof)/1e10,
+                    color='0.9', zorder=0)
+
+    radax.axhline(0, color='k', ls='--')
+    radax.axvline(0, color='k', ls='--')
+
+    radax.axvline(3, color='0.3', ls=':', zorder=5)
+
+    if params.plotunits == 'linelum':
+        radax.secondary_yaxis(location='right').set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+    elif params.plotunits == 'flux':
+        radax.secondary_yaxis(location='right').set_ylabel(r"$S\Delta v$ (Jy km/s)")
+
+    radax.tick_params(axis='y',
+                            labelleft=False,
+                            labelright=True,
+                            left=False,
+                            right=True)
+
+    radax.set_xlabel('Radius (arcmin)')
+    radax.set_xlim((-2, 20))
+
     if stackresult:
-        fig.suptitle('$T_b = {:.3f}\\pm {:.3f}$ $\\mu$K'.format(*stackresult))
+        if params.plotunits == 'linelum':
+            lumstr = "L'co = {:.2e} +/- {:.2e} K km/s pc2".format(stackresult['linelum'], stackresult['dlinelum'])
+
+        elif params.plotunits == 'flux':
+            lumstr = "flux = {:.3f} +/- {:.3f} Jy km/s".format(stackresult['sdelnu'], stackresult['dsdelnu'])
+
+        fig.suptitle(lumstr)
+
+        labax.text(0, 1, '{} objects'.format(stackresult['nobj']))
+        labax.text(0, 0.75, '{}x{}x{} grid'.format(params.freqwidth, params.xwidth, params.ywidth))
+
+    if comment:
+        for i in range(len(comment)):
+            labax.text(0, 0.75-0.25-0.25*i, comment[i])
 
     if params.saveplots:
         fig.savefig(params.plotsavepath + '/combinedstackim.png')
