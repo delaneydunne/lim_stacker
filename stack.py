@@ -172,8 +172,7 @@ def single_cutout(idx, galcat, comap, params):
         cutout.cubestack = fcpixval.value
         cutout.cubestackrms = fcrmsval.value
     elif params.plotunits == 'linelum':
-        lcoval = line_luminosity(fcpixval, cutout.freq, params, summed=False)
-        dlcoval = line_luminosity(fcrmsval, cutout.freq, params, summed=False)
+        lcoval, dlcoval = line_luminosity(fcpixval, fcrmsval, cutout.freq, params, summed=False)
         cutout.cubestack = lcoval.value
         cutout.cubestackrms = dlcoval.value
 
@@ -360,17 +359,20 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         #                        cutlistdict['freq'], params)
 
         allou = {'L': cutlistdict['linelum'], 'dL': cutlistdict['dlinelum'],
-                 'rho': cutlistdict['rhoh2'], 'drho': cutlistdict['drhoh2']}
+                 'rho': cutlistdict['rhoh2'], 'drho': cutlistdict['drhoh2'],
+                 'flux': cutlistdict['flux'], 'dflux': cutlistdict['dflux']}
 
         linelumstack, dlinelumstack = weightmean(allou['L'], allou['dL'])
         rhoh2stack, drhoh2stack = weightmean(allou['rho'], allou['drho'])
+        fluxstack, dfluxstack = weightmean(allou['flux'], allou['dflux'])
 
         outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
         outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
+        outputvals['sdelnu'], outputvals['dsdelnu'] = fluxstack, dfluxstack
         outputvals['nuobs_mean'], outputvals['z_mean'] = np.nanmean(cutlistdict['freq']), np.nanmean(cutlistdict['z'])
 
-        outputvals['sdelnu'] = linelum_to_flux(linelumstack, outputvals['z_mean'], params)
-        outputvals['dsdelnu'] = linelum_to_flux(dlinelumstack, outputvals['z_mean'], params)
+        # outputvals['sdelnu'] = linelum_to_flux(linelumstack, outputvals['z_mean'], params)
+        # outputvals['dsdelnu'] = linelum_to_flux(dlinelumstack, outputvals['z_mean'], params)
 
     # split indices up by field for easy access later
     fieldcatidx = []
@@ -626,7 +628,7 @@ def rayleigh_jeans(tb, nu, omega):
 
     return jy
 
-def line_luminosity(flux, nuobs, params, summed=True):
+def line_luminosity(flux, rms, nuobs, params, summed=True):
     """
     Function to calculate the (specifically CO) line luminosity of a line emitter from
     its flux. from Solomon et al. 1997 (https://iopscience.iop.org/article/10.1086/303765/pdf)
@@ -656,15 +658,18 @@ def line_luminosity(flux, nuobs, params, summed=True):
 
     # line luminosity
     linelum = const.c**2 / (2*const.k_B) * flux * DLs**2 / (nuobs**2 * (1+zval)**3)
+    dlinelum = const.c**2 / (2*const.k_B) * rms * DLs**2 / (nuobs**2 * (1+zval)**3)
 
     # fix units
     linelum = linelum.to(u.K*u.km/u.s*u.pc**2)
+    dlinelum = dlinelum.to(u.K*u.km/u.s*u.pc**2)
 
     # if summed, sum across channels for an overall line luminosity
     if summed:
         linelum = np.sum(linelum)
+        dlinelum = np.sqrt(np.sum(dlinelum**2))
 
-    return linelum
+    return linelum, dlinelum
 
 def linelum_to_flux(linelum, meanz, params):
 
@@ -912,14 +917,13 @@ def observer_units_sum(tbvals, rmsvals, cutout, params):
     Sval_chan, Srms_chan = perchannel_flux_sum(tbvals, rmsvals, cutout.freq, params)
 
     # make the fluxes into line luminosities
-    linelum = line_luminosity(Sval_chan, cutout.freq, params)
-    linelumrms = line_luminosity(Srms_chan, cutout.freq, params)
+    linelum, linelumrms = line_luminosity(Sval_chan, Srms_chan, cutout.freq, params)
 
     rhoh2 = rho_h2(linelum, cutout.freq, params)
     rhoh2rms = rho_h2(linelumrms, cutout.freq, params)
 
-    cutout.flux = Sval_chan
-    cutout.dflux = Srms_chan
+    cutout.flux = np.sum(Sval_chan)
+    cutout.dflux = np.sqrt(np.sum(Srms_chan**2))
 
     cutout.linelum = linelum
     cutout.dlinelum = linelumrms
@@ -940,8 +944,7 @@ def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
     Sval_chan, Srms_chan = perchannel_flux_mean(tbvals, rmsvals, cutout.freq, params)
 
     # make the fluxes into line luminosities
-    linelum = line_luminosity(Sval_chan, cutout.freq, params)
-    linelumrms = line_luminosity(Srms_chan, cutout.freq, params)
+    linelum, linelumrms = line_luminosity(Sval_chan, Srms_chan, cutout.freq, params)
 
     rhoh2 = rho_h2(linelum, cutout.freq, params)
     rhoh2rms = rho_h2(linelumrms, cutout.freq, params)
