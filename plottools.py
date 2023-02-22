@@ -659,7 +659,8 @@ def spectral_plotter(stackspec, params):
 
     return 0
 
-def combined_plotter(stackim, stackrms, stackspec, params, cmap='PiYG_r', stackresult=None,
+""" *** PASS CUBELET DIRECTLY *** """
+def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap='PiYG_r', stackresult=None,
                      unsmooth_vext=None, smooth_vext=None, freq_ext=None, comment=None):
 
     plt.style.use('default')
@@ -809,17 +810,37 @@ def combined_plotter(stackim, stackrms, stackspec, params, cmap='PiYG_r', stackr
     freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
     freqax.set_ylim(yext)
 
-    # radial profile of the unsmoothed image
-    chanprof, rmsprof = radprof(stackim, stackrms, params)
+    """ radial profile plots """
+    # indexing
+    nextra = 4
+    nchans = nextra*2 + 1
+    freqcent = int(cubelet.shape[0] / 2)
+    chans = np.arange(nchans) + freqcent - nextra
 
-    xaxis = np.arange(len(chanprof))*2 + 2
-    xaxis[0] = 0
+    carr = np.abs((np.arange(len(chans)) - len(chans)//2) / (len(chans)//2) * 0.9)
 
-    radax.step(xaxis, chanprof/1e10, zorder=20, where='mid',
-            color='0.5', lw=3)
+    chanprofs = []
+    for i, chan in enumerate(chans):
+        chanprof, rmsprof = radprof(cubelet, rmslet, params, chan=chan)
 
-    radax.fill_between(xaxis, (chanprof-rmsprof)/1e10, (chanprof+rmsprof)/1e10,
-                    color='0.9', zorder=0)
+        if params.plotunits == 'linelum':
+            chanprof, rmsprof = chanprof/1e10, rmsprof/1e10
+
+        chanprofs.append(chanprof)
+
+        xaxis = np.arange(len(chanprof))*2 + 2
+        xaxis[0] = 0
+
+        if chan == freqcent:
+            radax.step(xaxis, chanprof, where='mid', zorder=100,
+                       color=str(carr[i]), lw=3, label='Channel {}'.format(str(i-nextra)))
+
+            radax.fill_between(xaxis, (chanprof-rmsprof), (chanprof+rmsprof),
+                               color='0.9', zorder=0)
+        else:
+
+            radax.step(xaxis, chanprof, zorder=(1-carr[i])*10, where='mid',
+                       color=str(carr[i]), label='Channel {}'.format(str(i-nextra)))
 
     radax.axhline(0, color='k', ls='--')
     radax.axvline(0, color='k', ls='--')

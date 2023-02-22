@@ -405,7 +405,7 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         except AttributeError:
             comment = None
 
-        combined_plotter(stackim, imrms, stackspec, params, cmap=cmap,
+        combined_plotter(stackim, imrms, stackspec, stack, stackrms, params, cmap=cmap,
                          stackresult=outputvals, comment=comment)
 
     if params.plotcubelet:
@@ -563,7 +563,7 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
         except AttributeError:
             comment = None
 
-        combined_plotter(stackim, imrms, stackspec, params, cmap=cmap,
+        combined_plotter(stackim, imrms, stackspec, stack, stackrms, params, cmap=cmap,
                          stackresult=outputvals, comment=comment)
 
     if params.plotcubelet:
