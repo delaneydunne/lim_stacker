@@ -321,6 +321,11 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     stack = []
     stackrms = []
     for i in range(len(maplist)):
+        if params.goalnumcutouts[i] == 0:
+            print('No cutouts required in Field {}'.format(fields[i]))
+            fieldlens.append(0)
+            continue
+
         fieldcutouts, fieldstacks = field_get_cutouts(maplist[i], galcatlist[i],
                                                       params, field=fields[i],
                                                       goalnobj=numcutoutlist[i])
