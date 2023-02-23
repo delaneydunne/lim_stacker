@@ -447,6 +447,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     if params.returncutlist:
         returns.append(allcutouts)
 
+    returns.append(fieldcatidx)
+
     return returns
 
 def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
