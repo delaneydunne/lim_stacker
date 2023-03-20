@@ -344,8 +344,6 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     stack, stackrms = np.stack(stack), np.stack(stackrms)
     stack, stackrms = weightmean(stack, stackrms, axis=0)
 
-    print(stack.shape, stackrms.shape)
-
     nobj = np.sum(fieldlens)
     outputvals['nobj'] = nobj
     if params.verbose:
@@ -478,7 +476,7 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
 
     # get the cutouts for the field
     if params.cubelet:
-        allcutouts, cubestack, cuberms = field_get_cutouts(comap, galcat, params,
+        allcutouts, [cubestack, cuberms] = field_get_cutouts(comap, galcat, params,
                                                            field=field,
                                                            goalnobj = params.goalnumcutouts)
     else:
@@ -571,7 +569,7 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
         except AttributeError:
             comment = None
 
-        combined_plotter(stackim, imrms, stackspec, stack, stackrms, params, cmap=cmap,
+        combined_plotter(stackim, imrms, stackspec, cubestack, cuberms, params, cmap=cmap,
                          stackresult=outputvals, comment=comment)
 
     if params.plotcubelet:
@@ -586,7 +584,7 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
         outputvals_nu = dict_saver(outputvals, ovalfile)
 
         idxfile = params.datasavepath + '/included_cat_indices.npz'
-        np.savez(idxfile, field1=fieldcatidx[0], field2=fieldcatidx[1], field3=fieldcatidx[2])
+        np.savez(idxfile, fieldcatidx)
 
         if params.spacestackwidth:
             imfile = params.datasavepath + '/stacked_image.npz'
@@ -609,6 +607,8 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
     # return list of all cutouts w associated metadata as well if asked to
     if params.returncutlist:
         returns.append(allcutouts)
+
+    returns.append(fieldcatidx)
 
     return returns
 
@@ -716,12 +716,12 @@ def rho_h2(linelum, nuobs, params):
 
     (z, z1, z2) = freq_to_z(params.centfreq, np.array([nuobs, nu1, nu2]))
 
-    distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
+    distdiff = cosmo.luminosity_distance(z1)/(1+z1) - cosmo.luminosity_distance(z2)/(1+z2)
 
     # proper volume of the cube
     # volus = ((cosmo.kpc_proper_per_arcmin(z) * params.xwidth * 2*u.arcmin).to(u.Mpc))**2 * distdiff
     beamx = 4.5*u.arcmin/(2*np.sqrt(2*np.log(2)))
-    volus = ((cosmo.kpc_proper_per_arcmin(z) * params.xwidth * beamx).to(u.Mpc))**2 * distdiff
+    volus = ((cosmo.kpc_comoving_per_arcmin(z) * params.xwidth * beamx).to(u.Mpc))**2 * distdiff
 
     rhoh2 = (mh2 / volus).to(u.Msun/u.Mpc**3)
 

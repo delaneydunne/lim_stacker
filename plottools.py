@@ -701,40 +701,45 @@ def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap
         (vmin,vmax) = unsmooth_vext
 
     # plot with all three stack representations
-    gs_kw = dict(width_ratios=[1, 1, 1], height_ratios=[3,2])
-    fig,axs = plt.subplots(2,3, figsize=(10,5), gridspec_kw=gs_kw, tight_layout=True)
+    gs_kw = dict(width_ratios=[1, 1, 1, 1, 1], height_ratios=[3,2])
+    fig,axs = plt.subplots(2,5, figsize=(15,5), gridspec_kw=gs_kw, tight_layout=True)
     gs = axs[0,-1].get_gridspec()
 
-    for ax in axs[1,(0,1)]:
+    for ax in axs[1, :-2]:
         ax.remove()
 
     """ label axes """
-    freqax = fig.add_subplot(gs[-1,:-1])
-    radax = axs[0,2]
-    labax = axs[1,2]
+    freqax = fig.add_subplot(gs[-1,:-2])
+    radax = axs[1,-2]
+    labax = axs[1,-1]
+    usax = axs[0,0]
+    smax = axs[0,1]
+    rmsax = axs[0,2]
+    usnax = axs[0,3]
+    ssnax = axs[0,4]
 
     labax.set_axis_off()
 
-    c = axs[0,0].pcolormesh(stackim/1e10, cmap=cmap, vmin=vmin/1e10, vmax=vmax/1e10)
-    axs[0,0].plot(xcorners, ycorners, color='k', linewidth=4, zorder=10)
-    axs[0,0].set_title('Unsmoothed')
+    c = usax.pcolormesh(stackim/1e10, cmap=cmap, vmin=vmin/1e10, vmax=vmax/1e10)
+    usax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
+    usax.set_title('Unsmoothed')
 
     if params.lowmodefilter or params.chanmeanfilter:
-        axs[0,0].plot(lmxcorners, lmycorners, color='0.5')
-        axs[0,0].plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
+        usax.plot(lmxcorners, lmycorners, color='0.5')
+        usax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
 
-    axs[0,0].tick_params(axis='y',
+    usax.tick_params(axis='y',
                             labelleft=False,
                             labelright=False,
                             left=False,
                             right=False)
-    axs[0,0].tick_params(axis='x',
+    usax.tick_params(axis='x',
                          labeltop=False,
                          labelbottom=False,
                          top=False,
                          bottom=False)
 
-    divider = make_axes_locatable(axs[0,0])
+    divider = make_axes_locatable(usax)
     cax0 = divider.new_horizontal(size='5%', pad=0.05)
     fig.add_axes(cax0)
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
@@ -742,7 +747,7 @@ def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap
         cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
     elif params.plotunits == 'flux':
         cbar.ax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
-    axs[0,0].set_aspect(aspect=1)
+    usax.set_aspect(aspect=1)
 
     # smoothed
     smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
@@ -752,26 +757,26 @@ def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap
         vmin, vmax = -vext, vext
     else:
         (vmin,vmax) = smooth_vext
-    c = axs[0,1].pcolormesh(smoothed_spacestack_gauss/1e10, cmap=cmap, vmin=vmin/1e10, vmax=vmax/1e10)
-    axs[0,1].plot(xcorners, ycorners, color='k', linewidth=4, zorder=10)
-    axs[0,1].set_title('Gaussian-smoothed')
+    c = smax.pcolormesh(smoothed_spacestack_gauss/1e10, cmap=cmap, vmin=vmin/1e10, vmax=vmax/1e10)
+    smax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
+    smax.set_title('Gaussian-smoothed')
 
     if params.lowmodefilter or params.chanmeanfilter:
-        axs[0,1].plot(lmxcorners, lmycorners, color='0.5')
-        axs[0,1].plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
+        smax.plot(lmxcorners, lmycorners, color='0.5')
+        smax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
 
-    axs[0,1].tick_params(axis='y',
+    smax.tick_params(axis='y',
                             labelleft=False,
                             labelright=False,
                             left=False,
                             right=False)
-    axs[0,1].tick_params(axis='x',
+    smax.tick_params(axis='x',
                          labeltop=False,
                          labelbottom=False,
                          top=False,
                          bottom=False)
 
-    divider = make_axes_locatable(axs[0,1])
+    divider = make_axes_locatable(smax)
     cax0 = divider.new_horizontal(size='5%', pad=0.05)
     fig.add_axes(cax0)
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
@@ -779,7 +784,95 @@ def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap
         cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
     elif params.plotunits == 'flux':
         cbar.ax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
-    axs[0,1].set_aspect(aspect=1)
+    smax.set_aspect(aspect=1)
+
+    # rms
+    logrms = np.log10(stackrms)
+    c = rmsax.pcolormesh(logrms, cmap='plasma')
+    rmsax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
+    rmsax.set_title('Map RMS')
+
+    if params.lowmodefilter or params.chanmeanfilter:
+        rmsax.plot(lmxcorners, lmycorners, color='0.5')
+        rmsax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
+
+    rmsax.tick_params(axis='y',
+                            labelleft=False,
+                            labelright=False,
+                            left=False,
+                            right=False)
+    rmsax.tick_params(axis='x',
+                         labeltop=False,
+                         labelbottom=False,
+                         top=False,
+                         bottom=False)
+
+    divider = make_axes_locatable(rmsax)
+    cax0 = divider.new_horizontal(size='5%', pad=0.05)
+    fig.add_axes(cax0)
+    cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
+    cbar.ax.set_ylabel(r"$\sigma(L'_{CO})$")
+    rmsax.set_aspect(aspect=1)
+
+    # SNR units
+    snrim = stackim / stackrms
+    vext = np.nanmax(np.abs(snrim))
+    c = usnax.pcolormesh(snrim, cmap=cmap, vmin=-vext, vmax=vext)
+    usnax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
+    usnax.set_title('S/N Units')
+
+    if params.lowmodefilter or params.chanmeanfilter:
+        usnax.plot(lmxcorners, lmycorners, color='0.5')
+        usnax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
+
+    usnax.tick_params(axis='y',
+                            labelleft=False,
+                            labelright=False,
+                            left=False,
+                            right=False)
+    usnax.tick_params(axis='x',
+                         labeltop=False,
+                         labelbottom=False,
+                         top=False,
+                         bottom=False)
+
+    divider = make_axes_locatable(usnax)
+    cax0 = divider.new_horizontal(size='5%', pad=0.05)
+    fig.add_axes(cax0)
+    cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
+    cbar.ax.set_ylabel(r"$L'_{CO} / \sigma(L'_{CO})$")
+    usnax.set_aspect(aspect=1)
+
+    # SNR units
+    snrim = stackim / stackrms
+    ssnrim = convolve(snrim, params.gauss_kernel)
+    vext = np.nanmax(np.abs(ssnrim))
+    c = ssnax.pcolormesh(ssnrim, cmap=cmap, vmin=-vext, vmax=vext)
+    ssnax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
+    ssnax.set_title('S/N Units (Smoothed)')
+
+    if params.lowmodefilter or params.chanmeanfilter:
+        ssnax.plot(lmxcorners, lmycorners, color='0.5')
+        ssnax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
+
+    ssnax.tick_params(axis='y',
+                            labelleft=False,
+                            labelright=False,
+                            left=False,
+                            right=False)
+    ssnax.tick_params(axis='x',
+                         labeltop=False,
+                         labelbottom=False,
+                         top=False,
+                         bottom=False)
+
+    divider = make_axes_locatable(ssnax)
+    cax0 = divider.new_horizontal(size='5%', pad=0.05)
+    fig.add_axes(cax0)
+    cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
+    cbar.ax.set_ylabel(r"$L'_{CO} / \sigma(L'_{CO})$")
+    ssnax.set_aspect(aspect=1)
+
 
     if params.freqwidth % 2 == 0:
         freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3

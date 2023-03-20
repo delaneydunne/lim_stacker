@@ -88,6 +88,8 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=No
         # match catalogue wcs
         cat.match_wcs(rawmap, pipemap, params)
 
+    pipemap.fieldcent = SkyCoord(ra=0*u.deg, dec=0*u.deg)
+
 
     # trim the catalogue to match the pipeline map
     cat.cull_to_map(pipemap, params, maxsep=2*u.deg)
