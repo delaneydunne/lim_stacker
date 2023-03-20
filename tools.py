@@ -645,7 +645,7 @@ class maps():
                 if not np.any(rmstemparr):
                     rmstemparr = np.array(file.get('sigma_wn_coadd'))
                     self.freq = np.array(file.get('freq_centers'))
-                    self.ra = np.array(file.get('ra_centers'))
+                    self.ra = np.flip(np.array(file.get('ra_centers')))
                     self.dec = np.array(file.get('dec_centers'))
 
             else:
