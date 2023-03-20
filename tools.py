@@ -641,6 +641,10 @@ class maps():
                     self.ra = np.array(file.get('ra_centers'))
                     self.dec = np.array(file.get('dec_centers'))
 
+                # even newer naming conventions
+                if not np.any(rmstemparr):
+                    rmstemparr = np.array(file.get('sigma_wn_coadd'))
+
             else:
                 # if a feed parameter is passed, load only the relevant feed from the
                 # input maps to stack on that
