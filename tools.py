@@ -644,6 +644,9 @@ class maps():
                 # even newer naming conventions
                 if not np.any(rmstemparr):
                     rmstemparr = np.array(file.get('sigma_wn_coadd'))
+                    self.freq = np.array(file.get('freq_centers'))
+                    self.ra = np.array(file.get('ra_centers'))
+                    self.dec = np.array(file.get('dec_centers'))
 
             else:
                 # if a feed parameter is passed, load only the relevant feed from the
