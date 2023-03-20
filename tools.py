@@ -663,6 +663,7 @@ class maps():
 
         # mark pixels with zero rms and mask them in the rms/map arrays (how the pipeline stores infs)
         mapbadpix = np.logical_or(rmstemparr < 1e-10, rmstemparr > 0.01)
+        mapbadpix = np.logical_or(mapbadpix, np.isinf(rmstemparr))
         # also mark anything with less than 10 000 hits (another way to clean off map edges)
         hitbadpix = hittemparr < params.voxelhitlimit
         self.badpix = np.where(np.logical_or(mapbadpix, hitbadpix))
