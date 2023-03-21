@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import SymLogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.patches import Rectangle
 import matplotlib.gridspec as gridspec
 from photutils.aperture import CircularAnnulus, CircularAperture, aperture_photometry
@@ -1019,8 +1020,10 @@ def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True,
 
         logrms = np.log10(np.nanmean(maplist[i].rms, axis=0))
         vmax = np.nanmax(logrms)  * 0.95
-        axs[i].pcolormesh(maplist[i].rabe, maplist[i].decbe, logrms, vmax=vmax,
-                          zorder=0, cmap='Greys')
+        rac = axs[i].pcolormesh(maplist[i].rabe, maplist[i].decbe, logrms, vmax=vmax,
+                                zorder=0, cmap='Greys')
+        if i == 0:
+            keeprac = rac
         c = axs[i].scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4, s=2)
 
         axs[i].set_xlabel('Dec (deg)')#, fontsize='large')
@@ -1053,6 +1056,11 @@ def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True,
     axs[3].set_position([left+(width+pad)*2+width+cbarpad, bottom, 0.01, height])
     cbar = fig.colorbar(c, cax = axs[3])
     cbar.ax.set_ylabel('Redshift')
+
+    # rmscbarax = inset_axes(axs[0], width='50%', height='5%', loc='upper right')
+    # # rmscbarax.xaxis.set_ticks_position('top')
+    # rcbar = fig.colorbar(keeprac, cax=rmscbarax, orientation='horizontal')
+    # rcbar.ax.set_xlabel(r'log(RMS/$\mu$K)')
 
     if params.saveplots:
         fig.savefig(params.plotsavepath + '/catalogue_object_distribution.png')

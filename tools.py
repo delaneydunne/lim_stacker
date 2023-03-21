@@ -643,7 +643,9 @@ class maps():
 
                 # even newer naming conventions
                 if not np.any(rmstemparr):
-                    rmstemparr = np.array(file.get('sigma_wn_coadd'))
+                    rmstemparr = np.flip(np.array(file.get('sigma_wn_coadd')), axis=1)
+                    maptemparr = np.flip(maptemparr, axis=1)
+                    hittemparr = np.flip(hittemparr, axis=1)
                     self.freq = np.array(file.get('freq_centers'))
                     self.ra = np.flip(np.array(file.get('ra_centers')))
                     self.dec = np.array(file.get('dec_centers'))
