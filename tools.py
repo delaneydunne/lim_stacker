@@ -613,6 +613,11 @@ class maps():
         return copy.deepcopy(self)
 
     def load(self, inputfile, params, reshape=True):
+
+        """
+        map shape is [4, 64, 120, 120]: sidebands, freq, dec, ra
+        """
+
         # this is the COMAP pipeline format currently -- would have to change this if
         # using some other file format
         self.type = 'data'
@@ -643,11 +648,9 @@ class maps():
 
                 # even newer naming conventions
                 if not np.any(rmstemparr):
-                    rmstemparr = np.flip(np.array(file.get('sigma_wn_coadd')), axis=1)
-                    maptemparr = np.flip(maptemparr, axis=1)
-                    hittemparr = np.flip(hittemparr, axis=1)
+                    rmstemparr = np.array(file.get('sigma_wn_coadd'))
                     self.freq = np.array(file.get('freq_centers'))
-                    self.ra = np.flip(np.array(file.get('ra_centers')))
+                    self.ra = np.array(file.get('ra_centers'))
                     self.dec = np.array(file.get('dec_centers'))
 
             else:
@@ -687,6 +690,15 @@ class maps():
         # build the other convenience coordinate arrays, make sure the coordinates map to
         # the correct part of the voxel
         self.setup_coordinates()
+
+        # newest iteration flips the ra axis, so undo that:
+        if self.xstep < 0:
+            self.xstep = -self.xstep
+            self.ra = np.flip(self.ra)
+            self.rabe = np.flip(self.rabe)
+            self.map = np.flip(self.map, axis=-1)
+            self.rms = np.flip(self.rms, axis=-1)
+            self.hit = np.flip(self.hit, axis=-1)
 
 
     def load_sim(self, inputfile):
