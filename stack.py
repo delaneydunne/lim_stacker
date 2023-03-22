@@ -652,7 +652,7 @@ def line_luminosity(flux, rms, nuobs, params, summed=True):
     linelum: L'_CO in K km/s pc^2
     """
 
-    dnuobs = 0.03125*u.GHz * (np.ones(len(flux)) - len(flux)//2)
+    dnuobs = 0.03125*u.GHz * (np.arange(len(flux)) - len(flux)//2)
     nuobs = nuobs*u.GHz + dnuobs
 
     if not summed:

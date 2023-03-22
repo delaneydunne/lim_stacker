@@ -662,7 +662,7 @@ def spectral_plotter(stackspec, params):
 
 """ *** PASS CUBELET DIRECTLY *** """
 def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap='PiYG_r', stackresult=None,
-                     unsmooth_vext=None, smooth_vext=None, freq_ext=None, comment=None):
+                     unsmooth_vext=None, smooth_vext=None, freq_ext=None, comment=None, filename=None):
 
     plt.style.use('default')
 
@@ -972,7 +972,9 @@ def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap
             labax.text(0, 0.75-0.25-0.25*i, comment[i])
 
     if params.saveplots:
-        fig.savefig(params.plotsavepath + '/combinedstackim.png')
+        if not filename:
+            filename = '/combinedstackim.png'
+        fig.savefig(params.plotsavepath + filename)
 
     return fig
 
