@@ -630,7 +630,7 @@ class maps():
             self.ra = np.array(file.get('x'))
             self.dec = np.array(file.get('y'))
 
-            if not params.usefeed:
+            if isinstance(params.usefeed, bool):
                 maptemparr = np.array(file.get('map_coadd'))
                 rmstemparr = np.array(file.get('rms_coadd'))
                 hittemparr = np.array(file.get('nhit_coadd'))
