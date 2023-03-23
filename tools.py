@@ -670,6 +670,9 @@ class maps():
                     rmstemparr = np.array(file.get('sigma_wn'))[params.usefeed,:,:,:,:]
                     print(rmstemparr.shape)
 
+                # if going per-feed, need to knock the hit limit way down
+                params.voxelhitlimit /= 19
+
                 # *** this is currently stupid slow because it has to load the whole 4D array
                 # to pull only one feed. maybe better way to store these?
                 # feed = params.usefeed - 1
