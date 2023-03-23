@@ -616,7 +616,7 @@ class maps():
     def load(self, inputfile, params, reshape=True):
 
         """
-        map shape is [4, 64, 120, 120]: sidebands, freq, dec, ra
+        map shape is [4, 64(256), 120, 120]: sidebands, freq, dec, ra
         """
 
         # this is the COMAP pipeline format currently -- would have to change this if
@@ -696,11 +696,12 @@ class maps():
         self.unit = 'K'
 
         if reshape:
+            chanpersb = self.map.shape[1]
             # also reshape into 3 dimensions instead of separating sidebands
-            self.freq = np.reshape(self.freq, 4*self.map.shape[1])
-            self.map = np.reshape(self.map, (4*self.map.shape[1], len(self.ra), len(self.dec)))
-            self.rms = np.reshape(self.rms, (4*self.map.shape[1], len(self.ra), len(self.dec)))
-            self.hit = np.reshape(self.hit, (4*self.map.shape[1], len(self.ra), len(self.dec)))
+            self.freq = np.reshape(self.freq, 4*chanpersb)
+            self.map = np.reshape(self.map, (4*chanpersb, len(self.ra), len(self.dec)))
+            self.rms = np.reshape(self.rms, (4*chanpersb, len(self.ra), len(self.dec)))
+            self.hit = np.reshape(self.hit, (4*chanpersb, len(self.ra), len(self.dec)))
 
         # build the other convenience coordinate arrays, make sure the coordinates map to
         # the correct part of the voxel
