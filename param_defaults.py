@@ -14,8 +14,8 @@ beamwidth 1
 
 """ stacking metaparameters """
 # only take a specific feed to stack on
-# (load all feeds in if set negative)
-usefeed -1
+# (load all feeds in if set > 20)
+usefeed 100
  # save cubelets instead of separate spatial/spectral stacks for diagnostic
  # images. this will combine cutouts iteratively instead of returning the
  # full list of them

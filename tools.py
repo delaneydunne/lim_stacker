@@ -86,7 +86,7 @@ class parameters():
                 warnings.warn("Parameter '"+attr+"' should be an integer", RuntimeWarning)
                 setattr(self, attr, None)
         # condition for pulling a specific feed
-        if self.usefeed < 0:
+        if self.usefeed > 20:
             self.usefeed = False
 
         # float-valued parameters
