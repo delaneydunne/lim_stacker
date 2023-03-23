@@ -167,14 +167,16 @@ def single_cutout(idx, galcat, comap, params):
         crmsval = np.rot90(crmsval, cutout.rotangle, axes=(1,2))
 
     """ put into the requested units """
-    fcpixval, fcrmsval = perpixel_flux(cpixval, crmsval, cutout.freq, params)
-    if params.plotunits == 'flux':
-        cutout.cubestack = fcpixval.value
-        cutout.cubestackrms = fcrmsval.value
-    elif params.plotunits == 'linelum':
-        lcoval, dlcoval = line_luminosity(fcpixval, fcrmsval, cutout.freq, params, summed=False)
-        cutout.cubestack = lcoval.value
-        cutout.cubestackrms = dlcoval.value
+    # fcpixval, fcrmsval = perpixel_flux(cpixval, crmsval, cutout.freq, params)
+    # if params.plotunits == 'flux':
+    #     cutout.cubestack = fcpixval.value
+    #     cutout.cubestackrms = fcrmsval.value
+    # elif params.plotunits == 'linelum':
+    #     lcoval, dlcoval = line_luminosity(fcpixval, fcrmsval, cutout.freq, params, summed=False)
+    #     cutout.cubestack = lcoval.value
+    #     cutout.cubestackrms = dlcoval.value
+    cutout.cubestack = cpixval
+    cutout.cubestackrms = crmsval
 
 
     # pull the actual values to stack
@@ -220,14 +222,14 @@ def single_cutout(idx, galcat, comap, params):
         return None
 
     # find the actual Tb in the cutout -- weighted average over all axes
-    Tbval = np.nansum(pixval)
-    Tbrms = np.sqrt(np.nansum(rmsval**2))
+    # Tbval = np.nansum(pixval)
+    # Tbrms = np.sqrt(np.nansum(rmsval**2))
 
-    if np.isnan(Tbval):
-        return None
+    # if np.isnan(Tbval):
+    #     return None
 
-    cutout.T = Tbval
-    cutout.rms = Tbrms
+    # cutout.T = Tbval
+    # cutout.rms = Tbrms
 
     if params.obsunits:
         observer_units_weightedsum(pixval, rmsval, cutout, params)
@@ -247,6 +249,14 @@ def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
         params.spacestackwidth = params.xwidth
     if not params.freqstackwidth:
         params.freqstackwidth = params.freqwidth
+
+    if comap.unit == 'K':
+        fluxmap, fluxrms = perpixel_flux(comap.map, comap.rms, comap.freq[len(comap.freq)//2], params)
+        if params.plotunits == 'linelum':
+            linelum, linelumrms = line_luminosity(fluxmap, fluxrms, comap.freq[len(comap.freq)//2], params, summed=False)
+            comap.map = linelum.value
+            comap.rms = linelumrms.value
+            comap.unit = 'linelum'
 
     ti = 0
     # if we're keeping track of the number of cutouts
@@ -363,16 +373,16 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         #                        cutlistdict['freq'], params)
 
         allou = {'L': cutlistdict['linelum'], 'dL': cutlistdict['dlinelum'],
-                 'rho': cutlistdict['rhoh2'], 'drho': cutlistdict['drhoh2'],
-                 'flux': cutlistdict['flux'], 'dflux': cutlistdict['dflux']}
+                 'rho': cutlistdict['rhoh2'], 'drho': cutlistdict['drhoh2']}#,
+                 # 'flux': cutlistdict['flux'], 'dflux': cutlistdict['dflux']}
 
         linelumstack, dlinelumstack = weightmean(allou['L'], allou['dL'])
         rhoh2stack, drhoh2stack = weightmean(allou['rho'], allou['drho'])
-        fluxstack, dfluxstack = weightmean(allou['flux'], allou['dflux'])
+        # fluxstack, dfluxstack = weightmean(allou['flux'], allou['dflux'])
 
         outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
         outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
-        outputvals['sdelnu'], outputvals['dsdelnu'] = fluxstack, dfluxstack
+        # outputvals['sdelnu'], outputvals['dsdelnu'] = fluxstack, dfluxstack
         outputvals['nuobs_mean'], outputvals['z_mean'] = np.nanmean(cutlistdict['freq']), np.nanmean(cutlistdict['z'])
 
         # outputvals['sdelnu'] = linelum_to_flux(linelumstack, outputvals['z_mean'], params)
@@ -386,8 +396,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         previdx += catlen
 
     # overall stack for T value
-    stacktemp, stacktemprms = weightmean(cutlistdict['T'], cutlistdict['rms'])
-    outputvals['T'], outputvals['rms'] = stacktemp, stacktemprms
+    # stacktemp, stacktemprms = weightmean(cutlistdict['T'], cutlistdict['rms'])
+    # outputvals['T'], outputvals['rms'] = stacktemp, stacktemprms
 
     """ PLOTS """
     if params.saveplots:
@@ -949,16 +959,21 @@ def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
     """
 
     # per-channel fluxes
-    Sval_chan, Srms_chan = perchannel_flux_mean(tbvals, rmsvals, cutout.freq, params)
+    # Sval_chan, Srms_chan = perchannel_flux_mean(tbvals, rmsvals, cutout.freq, params)
 
     # make the fluxes into line luminosities
-    linelum, linelumrms = line_luminosity(Sval_chan, Srms_chan, cutout.freq, params)
+    # linelum, linelumrms = line_luminosity(Sval_chan, Srms_chan, cutout.freq, params)
+    pcllum, dpcllum = weightmean(tbvals, rmsvals, axis=(1,2))
+    linelum = np.sum(pcllum)*u.K*u.km/u.s*u.pc**2
+    linelumrms = np.sqrt(np.sum(dpcllum**2))*u.K*u.km/u.s*u.pc**2
 
+    # rhoh2 = rho_h2(linelum, cutout.freq, params)
+    # rhoh2rms = rho_h2(linelumrms, cutout.freq, params)
     rhoh2 = rho_h2(linelum, cutout.freq, params)
     rhoh2rms = rho_h2(linelumrms, cutout.freq, params)
 
-    cutout.flux = Sval_chan.value
-    cutout.dflux = Srms_chan.value
+    # cutout.flux = Sval_chan.value
+    # cutout.dflux = Srms_chan.value
 
     cutout.linelum = linelum.value
     cutout.dlinelum = linelumrms.value

@@ -654,14 +654,26 @@ class maps():
                     self.dec = np.array(file.get('dec_centers'))
 
             else:
-                # if a feed parameter is passed, load only the relevant feed from the
-                # input maps to stack on that
+                # load each of the individual feed maps
+                maptemparr = np.array(file.get('map'))[params.usefeed,:,:,:,:]
+                rmstemparr = np.array(file.get('rms'))[params.usefeed,:,:,:,:]
+                hittemparr = np.array(file.get('nhit'))[params.usefeed,:,:,:,:]
+
+                if not np.any(self.freq):
+                    self.freq = np.array(file.get('freq_centers'))
+                    self.ra = np.array(file.get('ra_centers'))
+                    self.dec = np.array(file.get('dec_centers'))
+
+                if not np.any(rmstemparr):
+                    rmstemparr = np.array(file.get('sigma_wn'))[params.usefeed,:,:,:,:]
+                    print(rmstemparr.shape)
+
                 # *** this is currently stupid slow because it has to load the whole 4D array
                 # to pull only one feed. maybe better way to store these?
-                feed = params.usefeed - 1
-                maptemparr = np.array(file.get('map'))[feed,:,:,:]
-                rmstemparr = np.array(file.get('rms'))[feed,:,:,:]
-                hittemparr = np.array(file.get('nhit'))[feed,:,:,:]
+                # feed = params.usefeed - 1
+                # maptemparr = np.array(file.get('map'))[feed,:,:,:]
+                # rmstemparr = np.array(file.get('rms'))[feed,:,:,:]
+                # hittemparr = np.array(file.get('nhit'))[feed,:,:,:]
 
             patch_cent = np.array(file.get('patch_center'))
             self.fieldcent = SkyCoord(patch_cent[0]*u.deg, patch_cent[1]*u.deg)
@@ -679,6 +691,7 @@ class maps():
         self.map = maptemparr
         self.rms = rmstemparr
         self.hit = hittemparr
+        self.unit = 'K'
 
         if reshape:
             # also reshape into 3 dimensions instead of separating sidebands
