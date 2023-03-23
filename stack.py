@@ -486,7 +486,7 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
 
     # get the cutouts for the field
     if params.cubelet:
-        allcutouts, [cubestack, cuberms] = field_get_cutouts(comap, galcat, params,
+        allcutouts, [stack, stackrms] = field_get_cutouts(comap, galcat, params,
                                                            field=field,
                                                            goalnobj = params.goalnumcutouts)
     else:
@@ -502,63 +502,37 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
     if params.verbose:
         print('number of objects in field is: {}'.format(fieldlen))
 
+    """ pull aperture values for each stack """
     # unzip all your cutout objects
     cutlistdict = unzip(allcutouts)
 
     # put into physical units if requested
     if params.obsunits:
-        allou = observer_units(cutlistdict['T'], cutlistdict['rms'], cutlistdict['z'],
-                               cutlistdict['freq'], params)
+        # allou = observer_units(cutlistdict['T'], cutlistdict['rms'], cutlistdict['z'],
+        #                        cutlistdict['freq'], params)
 
+        allou = {'L': cutlistdict['linelum'], 'dL': cutlistdict['dlinelum'],
+                 'rho': cutlistdict['rhoh2'], 'drho': cutlistdict['drhoh2']}#,
+                 # 'flux': cutlistdict['flux'], 'dflux': cutlistdict['dflux']}
 
         linelumstack, dlinelumstack = weightmean(allou['L'], allou['dL'])
         rhoh2stack, drhoh2stack = weightmean(allou['rho'], allou['drho'])
+        # fluxstack, dfluxstack = weightmean(allou['flux'], allou['dflux'])
 
         outputvals['linelum'], outputvals['dlinelum'] = linelumstack, dlinelumstack
         outputvals['rhoh2'], outputvals['drhoh2'] = rhoh2stack, drhoh2stack
-        outputvals['nuobs_mean'], outputvals['z_mean'] = allou['nuobs_mean'], allou['z_mean']
+        # outputvals['sdelnu'], outputvals['dsdelnu'] = fluxstack, dfluxstack
+        outputvals['nuobs_mean'], outputvals['z_mean'] = np.nanmean(cutlistdict['freq']), np.nanmean(cutlistdict['z'])
+
+        # outputvals['sdelnu'] = linelum_to_flux(linelumstack, outputvals['z_mean'], params)
+        # outputvals['dsdelnu'] = linelum_to_flux(dlinelumstack, outputvals['z_mean'], params)
 
     # split indices up by field for easy access later
     fieldcatidx = cutlistdict['catidx']
 
     # overall stack for T value
-    stacktemp, stackrms = weightmean(cutlistdict['T'], cutlistdict['rms'])
-    outputvals['T'], outputvals['rms'] = stacktemp, stackrms
-
-    """ EXTRA STACKS """
-    # if cubelets returned, do all three stack versions
-    if params.spacestackwidth and params.freqstackwidth:
-        if params.cubelet:
-            # only want the beam for the axes that aren't being shown
-            lcfidx = (cubestack.shape[0] - params.freqwidth) // 2
-            cfidx = (lcfidx, lcfidx + params.freqwidth)
-
-            lcxidx = (cubestack.shape[1] - params.xwidth) // 2
-            cxidx = (lcxidx, lcxidx + params.xwidth)
-
-            stackim, imrms = weightmean(cubestack[cfidx[0]:cfidx[1],:,:],
-                                        cuberms[cfidx[0]:cfidx[1],:,:], axis=0)
-            stackspec, specrms = weightmean(cubestack[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            cuberms[:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            axis=(1,2))
-        else:
-            stackim, imrms = weightmean(cutlistdict['cubestack'][:,cfidx[0]:cfidx[1],:,:],
-                                        cutlistdict['cubestackrms'][:,cfidx[0]:cfidx[1],:,:],
-                                        axis=(0,1))
-            stackspec, specrms = weightmean(cutlistdict['cubestack'][:,:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            cutlistdict['cubestackrms'][:,:,cxidx[0]:cxidx[1],cxidx[0]:cxidx[1]],
-                                            axis=(0,2,3))
-    elif params.spacestackwidth and not params.freqstackwidth:
-        # overall spatial stack
-        stackim, imrms = weightmean(cutlistdict['spacestack'], cutlistdict['spacestackrms'], axis=0)
-        stackspec, specrms = None, None
-    elif params.freqstackwidth and not params.spacestackwidth:
-        # overall frequency stack
-        stackspec, specrms = weightmean(cutlistdict['freqstack'], cutlistdict['freqstackrms'], axis=0)
-        stackim, imrms = None, None
-    else:
-        stackim, imrms = None, None
-        stackspec, specrms = None, None
+    # stacktemp, stackrms = weightmean(cutlistdict['T'], cutlistdict['rms'])
+    # outputvals['T'], outputvals['rms'] = stacktemp, stackrms
 
 
     """ PLOTS """
@@ -567,23 +541,29 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
         params.make_output_pathnames()
         field_catalogue_plotter(galcat, fieldcatidx, params)
 
-    if params.spacestackwidth and params.plotspace:
+    if params.plotspace:
+        stackim, imrms = aperture_collapse_cubelet_freq(stack, stackrms, params)
         spatial_plotter(stackim, params, cmap=cmap)
 
-    if params.freqstackwidth and params.plotfreq:
+    if params.plotfreq:
+        stackspec, specrms = aperture_collapse_cubelet_space(stack, stackrms, params)
         spectral_plotter(stackspec, params)
 
-    if params.spacestackwidth and params.freqstackwidth and params.plotspace and params.plotfreq:
+    if params.plotspace and params.plotfreq:
         try:
             comment = params.plotcomment
+            if field:
+                comment.append('Field {} Only'.format(field))
+            else:
+                comment.append('Single-field stack')
         except AttributeError:
-            comment = None
+            comment = 'Single-field stack'
 
-        combined_plotter(stackim, imrms, stackspec, cubestack, cuberms, params, cmap=cmap,
+        combined_plotter(stackim, imrms, stackspec, stack, stackrms, params, cmap=cmap,
                          stackresult=outputvals, comment=comment)
 
     if params.plotcubelet:
-        cubelet_plotter(cubestack, cuberms, params)
+        cubelet_plotter(stack, stackrms, params)
 
     """ SAVE DATA """
     if params.savedata:
@@ -606,13 +586,16 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
 
         if params.cubelet:
             cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
-            np.savez(cubefile, T=cubestack, rms=cuberms)
+            np.savez(cubefile, T=stack, rms=stackrms)
 
     # objects to be returned
-    if params.cubelet:
-        returns = [outputvals, stackim, stackspec, fieldcatidx, cubestack, cuberms]
-    else:
-        returns = [outputvals, stackim, stackspec, fieldcatidx]
+    returns = [outputvals, [stack, stackrms]]
+
+    # return image and spectrum if they were generated
+    if params.plotspace:
+        returns.append([stackim, imrms])
+    if params.plotfreq:
+        returns.append([stackspec, specrms])
 
     # return list of all cutouts w associated metadata as well if asked to
     if params.returncutlist:
@@ -776,7 +759,7 @@ def perchannel_flux_sum(tbvals, rmsvals, nuobs, params):
     omega_B = ((2*u.arcmin)**2).to(u.sr)
 
     # central frequency of each individual spectral channel
-    nuobsvals = (np.arange(params.freqwidth) - params.freqwidth//2) * 31.25*u.MHz
+    nuobsvals = (np.arange(params.freqwidth) - params.freqwidth//2) * params.chanwidth * u.GHz
     nuobsvals = nuobsvals + nuobs*u.GHz
 
     Sval_chans = np.ones(params.freqwidth)*u.Jy
@@ -793,7 +776,7 @@ def perchannel_flux_sum(tbvals, rmsvals, nuobs, params):
         Srms_chans[i] = Srms_chan
 
     # channel widths in km/s
-    delnus = (31.25*u.MHz / nuobsvals * const.c).to(u.km/u.s)
+    delnus = (params.chanwidth * u.GHz / nuobsvals * const.c).to(u.km/u.s)
 
     Snu_Delnu = Sval_chans * delnus
     d_Snu_Delnu = Srms_chans * delnus
@@ -839,7 +822,7 @@ def perchannel_flux_mean(tbvals, rmsvals, nuobs, params):
     omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
 
     # central frequency of each individual spectral channel
-    nuobsvals = (np.arange(freqwidth) - freqwidth//2) * 31.25*u.MHz
+    nuobsvals = (np.arange(freqwidth) - freqwidth//2) * params.chanwidth * u.GHz
     nuobsvals = nuobsvals + nuobs*u.GHz
 
     Sval_chans = np.ones(freqwidth)*u.Jy
@@ -857,7 +840,7 @@ def perchannel_flux_mean(tbvals, rmsvals, nuobs, params):
         Srms_chans[i] = Srms_chan
 
     # channel widths in km/s
-    delnus = (31.25*u.MHz / nuobsvals * const.c).to(u.km/u.s)
+    delnus = (params.chanwidth * u.GHz / nuobsvals * const.c).to(u.km/u.s)
 
     Snu_Delnu = Sval_chans * delnus
     d_Snu_Delnu = Srms_chans * delnus
@@ -907,7 +890,7 @@ def perpixel_flux(tbvals, rmsvals, nuobs, params):
     omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
 
     # central frequency of each individual spectral channel
-    nuobsvals = (np.arange(freqwidth) - freqwidth//2) * 31.25*u.MHz
+    nuobsvals = (np.arange(freqwidth) - freqwidth//2) * params.chanwidth * u.GHz
     nuobsvals = nuobsvals + nuobs*u.GHz
     # reshaped to match the cubelet
     nuobsvals = np.tile(nuobsvals, (tbvals.shape[2], tbvals.shape[1], 1)).T
@@ -917,7 +900,7 @@ def perpixel_flux(tbvals, rmsvals, nuobs, params):
     Srmss = rayleigh_jeans(rmsvals*u.K, nuobsvals, omega_B)
 
     # multiply by the channel width in km/s
-    delnus = (31.25*u.MHz / nuobsvals * const.c).to(u.km/u.s)
+    delnus = (params.chanwidth * u.GHz / nuobsvals * const.c).to(u.km/u.s)
 
     Snu_Delnu = Svals * delnus
     dSnu_Delnu = Srmss * delnus
@@ -1090,7 +1073,7 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     Srms = (rmsvals*u.K).to(u.Jy, equivalencies=u.brightness_temperature(nuobsvals, omega_B))
 
     # channel widths in km/s
-    delnus = (31.25*u.MHz*params.freqwidth / nuobsvals * const.c).to(u.km/u.s)
+    delnus = (params.chanwidth*u.GHz*params.freqwidth / nuobsvals * const.c).to(u.km/u.s)
 
     # luminosity distances in Mpc
     DLs = cosmo.luminosity_distance(zvals)

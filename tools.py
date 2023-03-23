@@ -233,6 +233,7 @@ class parameters():
         if not os.path.exists(outputdir):
             os.makedirs(outputdir)
 
+        self.savepath = outputdir
         self.plotsavepath = outputdir + '/plots'
         self.datasavepath = outputdir + '/data'
         self.cubesavepath = outputdir + '/plots/cubelet'
@@ -654,12 +655,13 @@ class maps():
                     self.dec = np.array(file.get('dec_centers'))
 
             else:
+                feedidx = params.usefeed - 1
                 if params.verbose:
                     print('loading feed {} only'.format(params.usefeed))
                 # load each of the individual feed maps
-                maptemparr = np.array(file.get('map'))[params.usefeed,:,:,:,:]
-                rmstemparr = np.array(file.get('rms'))[params.usefeed,:,:,:,:]
-                hittemparr = np.array(file.get('nhit'))[params.usefeed,:,:,:,:]
+                maptemparr = np.array(file.get('map'))[feedidx,:,:,:,:]
+                rmstemparr = np.array(file.get('rms'))[feedidx,:,:,:,:]
+                hittemparr = np.array(file.get('nhit'))[feedidx,:,:,:,:]
 
                 if not np.any(self.freq):
                     self.freq = np.array(file.get('freq_centers'))
@@ -667,18 +669,13 @@ class maps():
                     self.dec = np.array(file.get('dec_centers'))
 
                 if not np.any(rmstemparr):
-                    rmstemparr = np.array(file.get('sigma_wn'))[params.usefeed,:,:,:,:]
+                    rmstemparr = np.array(file.get('sigma_wn'))[feedidx,:,:,:,:]
                     print(rmstemparr.shape)
 
                 # if going per-feed, need to knock the hit limit way down
                 params.voxelhitlimit /= 19
-
-                # *** this is currently stupid slow because it has to load the whole 4D array
-                # to pull only one feed. maybe better way to store these?
-                # feed = params.usefeed - 1
-                # maptemparr = np.array(file.get('map'))[feed,:,:,:]
-                # rmstemparr = np.array(file.get('rms'))[feed,:,:,:]
-                # hittemparr = np.array(file.get('nhit'))[feed,:,:,:]
+                # flag the feed you're using
+                self.feed = params.usefeed
 
             patch_cent = np.array(file.get('patch_center'))
             self.fieldcent = SkyCoord(patch_cent[0]*u.deg, patch_cent[1]*u.deg)
@@ -700,10 +697,10 @@ class maps():
 
         if reshape:
             # also reshape into 3 dimensions instead of separating sidebands
-            self.freq = np.reshape(self.freq, 4*64)
-            self.map = np.reshape(self.map, (4*64, len(self.ra), len(self.dec)))
-            self.rms = np.reshape(self.rms, (4*64, len(self.ra), len(self.dec)))
-            self.hit = np.reshape(self.hit, (4*64, len(self.ra), len(self.dec)))
+            self.freq = np.reshape(self.freq, 4*self.map.shape[1])
+            self.map = np.reshape(self.map, (4*self.map.shape[1], len(self.ra), len(self.dec)))
+            self.rms = np.reshape(self.rms, (4*self.map.shape[1], len(self.ra), len(self.dec)))
+            self.hit = np.reshape(self.hit, (4*self.map.shape[1], len(self.ra), len(self.dec)))
 
         # build the other convenience coordinate arrays, make sure the coordinates map to
         # the correct part of the voxel
@@ -717,6 +714,10 @@ class maps():
             self.map = np.flip(self.map, axis=-1)
             self.rms = np.flip(self.rms, axis=-1)
             self.hit = np.flip(self.hit, axis=-1)
+
+        # move some things to params to keep the info handy
+        params.nchans = 4*self.map.shape[1]
+        params.chanwidth = np.abs(self.freq[1] - self.freq[0])
 
 
     def load_sim(self, inputfile):

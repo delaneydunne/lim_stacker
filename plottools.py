@@ -629,9 +629,9 @@ def spectral_plotter(stackspec, params):
 
     fig, ax = plt.subplots(1, figsize=(9,4), constrained_layout=True)
     if params.freqwidth % 2 == 0:
-        freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
+        freqarr = np.arange(params.freqstackwidth * 2)*params.chanwidth - (params.freqstackwidth-0.5)*params.chanwidth
     else:
-        freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
+        freqarr = np.arange(params.freqstackwidth * 2 + 1)*params.chanwidth - (params.freqstackwidth)*params.chanwidth
 
     if params.plotunits == 'linelum':
         ax.step(freqarr, stackspec/1e10, color='indigo', zorder=10, where='mid')
@@ -648,7 +648,7 @@ def spectral_plotter(stackspec, params):
     yext = ax.get_ylim()
 
     # show which channels contribute to the stack
-    apmin, apmax = 0 - params.freqwidth / 2 * 31.25e-3, 0 + params.freqwidth / 2 * 31.25e-3
+    apmin, apmax = 0 - params.freqwidth / 2 * params.chanwidth, 0 + params.freqwidth / 2 * params.chanwidth
     ax.axvline(apmin, color='0.7', ls=':')
     ax.axvline(apmax, color='0.7', ls=':')
     ax.fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
@@ -876,9 +876,9 @@ def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap
 
 
     if params.freqwidth % 2 == 0:
-        freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
+        freqarr = np.arange(params.freqstackwidth * 2)*params.chanwidth - (params.freqstackwidth-0.5)*params.chanwidth
     else:
-        freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
+        freqarr = np.arange(params.freqstackwidth * 2 + 1)*params.chanwidth - (params.freqstackwidth)*params.chanwidth
 
     if params.plotunits == 'linelum':
         freqax.step(freqarr, stackspec/1e10, color='indigo', zorder=10, where='mid')
@@ -895,7 +895,7 @@ def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap
         yext = freqax.get_ylim()
     else:
         yext = freq_ext
-    apmin, apmax = 0 - params.freqwidth / 2 * 31.25e-3, 0 + params.freqwidth / 2 * 31.25e-3
+    apmin, apmax = 0 - params.freqwidth / 2 * params.chanwidth, 0 + params.freqwidth / 2 * params.chanwidth
 
     # show which channels contribute to the stack
     freqax.axvline(apmin,  color='0.7', ls=':')
