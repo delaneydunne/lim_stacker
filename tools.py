@@ -654,6 +654,8 @@ class maps():
                     self.dec = np.array(file.get('dec_centers'))
 
             else:
+                if params.verbose:
+                    print('loading feed {} only'.format(params.usefeed))
                 # load each of the individual feed maps
                 maptemparr = np.array(file.get('map'))[params.usefeed,:,:,:,:]
                 rmstemparr = np.array(file.get('rms'))[params.usefeed,:,:,:,:]
