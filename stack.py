@@ -417,7 +417,7 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         except AttributeError:
             comment = None
 
-        combined_plotter(stack, stackrms, params, stackim=stackim, imrms=imrms,
+        combined_plotter(stack, stackrms, params, stackim=stackim, stackrms=imrms,
                          stackspec=stackspec, cmap=cmap,
                          stackresult=outputvals, comment=comment)
 
@@ -556,7 +556,7 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
         except AttributeError:
             comment = 'Single-field stack'
 
-        combined_plotter(stack, stackrms, params, stackim=stackim, imrms=imrms,
+        combined_plotter(stack, stackrms, params, stackim=stackim, stackrms=imrms,
                          stackspec=stackspec, cmap=cmap,
                          stackresult=outputvals, comment=comment)
 

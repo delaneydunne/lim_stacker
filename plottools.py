@@ -335,25 +335,27 @@ def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0, profsum=False):
 
     chanprofs = []
     for i, chan in enumerate(chans):
-        chanprof, rmsprof = radprof(cubelet, rmslet, params, chan=chan)
+        chanprof, rmsprof, xaxis = radprof(cubelet, rmslet, params, chan=chan)
 
         if profsum:
             chanprof = np.cumsum(chanprof)
 
+        chanprof = np.concatenate([[chanprof[0]], chanprof])
+        rmsprof = np.concatenate([[rmsprof[0]], rmsprof])
+
         chanprofs.append(chanprof)
 
-        xaxis = np.arange(len(chanprof))*2 + 2
-        xaxis[0] = 0
+        xaxis = np.concatenate([[0], xaxis])
 
         if chan == freqcent:
-            ax.step(xaxis, chanprof*1e6, zorder=20, where='mid',
+            ax.step(xaxis, chanprof*1e6, zorder=20, where='pre',
                     color=cmap(carr[i]), lw=3, label='Channel {}'.format(str(i-nextra)))
 
             ax.fill_between(xaxis, (chanprof-rmsprof)*1e6, (chanprof+rmsprof)*1e6,
                             color='0.9', zorder=0)
         else:
 
-            ax.step(xaxis, chanprof*1e6, zorder=10, where='mid',
+            ax.step(xaxis, chanprof*1e6, zorder=10, where='pre',
                     color=cmap(carr[i]), label='Channel {}'.format(str(i-nextra)))
 
     ax.axhline(0, color='k', ls='--')
@@ -675,9 +677,9 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
     plt.style.use('default')
 
     # collapse the cube if the collapsed versions aren't already passed
-    if not stackim:
+    if not np.any(stackim):
         stackim, stackrms = aperture_collapse_cubelet_freq(cubelet, rmslet, params)
-    if not stackspec:
+    if not np.any(stackspec):
         stackspec, specrms = aperture_collapse_cubelet_space(cubelet, rmslet, params)
 
     # corners for the beam rectangle
@@ -984,7 +986,7 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
                                color='0.9', zorder=0)
         else:
 
-            radax.step(xaxis, chanprof, zorder=(1-carr[i])*10, where='mid',
+            radax.step(xaxis, chanprof, zorder=(1-carr[i])*10, where='pre',
                        color=str(carr[i]), label='Channel {}'.format(str(i-nextra)))
 
     radax.axhline(0, color='k', ls='--')
