@@ -394,7 +394,7 @@ def spaceweightmean(cubelet, rmslet):
 
     return ccubelet, crmslet
 
-def specgridx(cubelet, rmslet, params, nextra=2, offset=0):
+def specgridx(cubelet, rmslet, params, nextra=3, offset=0):
 
     plt.style.use('default')
 
@@ -438,7 +438,7 @@ def specgridx(cubelet, rmslet, params, nextra=2, offset=0):
 
     return fig
 
-def specgridy(cubelet, rmslet, params, nextra=2, offset=0):
+def specgridy(cubelet, rmslet, params, nextra=3, offset=0):
 
     plt.style.use('default')
 
