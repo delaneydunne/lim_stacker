@@ -1097,7 +1097,102 @@ def setup(mapfiles, cataloguefile, params):
     return maplist, catlist
 
 
+""" CUBE SLICERS """
+# convenience functions
+def aperture_collapse_cubelet_freq(cvals, crmss, params, recent=0):
+    """
+    take a 3D cubelet cutout and collapse it along the frequency axis to be an average over the
+    stack aperture frequency channels
+    either cutout is an empty_table instance or a list of [vals, rmss]
+    """
 
+    # indexes of the channels to include
+    lcfidx = (cvals.shape[0] - params.freqwidth) // 2 + recent
+    cfidx = (lcfidx, lcfidx + params.freqwidth)
+
+    # collapsed image
+    cutim, imrms = weightmean(cvals[cfidx[0]:cfidx[1],:,:],
+                              crmss[cfidx[0]:cfidx[1],:,:], axis=0)
+
+    return cutim, imrms
+
+def aperture_collapse_cubelet_space(cvals, crmss, params, linelum=False, recentx=0, recenty=0):
+    """
+    take a 3D cubelet cutout and collapse it along the spatial axis to be an average over the stack
+    aperture spaxels (ie make a spectrum)
+    """
+
+    # indices of the x and y axes
+    lcxidx = (cvals.shape[1] - params.xwidth) // 2 + recentx
+    lcyidx = (cvals.shape[2] - params.ywidth) // 2 + recenty
+    cxidx = (lcxidx, lcxidx + params.xwidth)
+    cyidx = (lcyidx, lcyidx + params.ywidth)
+
+    # clip out values to stack
+    fpixval = cvals[:, cyidx[0]:cyidx[1], cxidx[0]:cxidx[1]]
+    frmsval = crmss[:, cyidx[0]:cyidx[1], cxidx[0]:cxidx[1]]
+
+    cutspec, specrms = weightmean(fpixval, frmsval, axis=(1,2))
+
+    return cutspec, specrms
+
+
+def padder(cubelet, rmslet, params):
+
+    xypad = params.xwidth
+    fpad = params.freqwidth
+
+    padcubelet = np.pad(cubelet, ((fpad,fpad), (xypad,xypad), (xypad,xypad)), mode='constant', constant_values=np.nan)
+    padrmslet = np.pad(rmslet, ((fpad,fpad), (xypad,xypad), (xypad,xypad)), mode='constant', constant_values=np.nan)
+
+    return padcubelet, padrmslet
+
+def cubelet_collapse_pointed(cubelet, rmslet, newcentpix, params, collapse=True):
+
+    if cubelet.shape[0] == params.freqstackwidth*2+1:
+        cubelet, rmslet = padder(cubelet, rmslet, params)
+
+    # goal center voxel of the padded cube
+    newfcent = newcentpix[0] + params.freqwidth
+    newxcent = newcentpix[1] + params.xwidth
+    newycent = newcentpix[2] + params.xwidth
+
+    # number of pixels other than the center to include in each axis
+    foff = (params.freqwidth - 1) // 2
+    xoff = (params.xwidth - 1) // 2
+    yoff = xoff
+
+    # indices to keep
+    cfidx = (newfcent - foff, newfcent + foff + 1)
+    cxidx = (newxcent - xoff, newxcent + xoff + 1)
+    cyidx = (newycent - yoff, newycent + yoff + 1)
+
+    apcutout = cubelet[cfidx[0]:cfidx[1], cxidx[0]:cxidx[1], cyidx[0]:cyidx[1]]
+    apcutrms = rmslet[cfidx[0]:cfidx[1], cxidx[0]:cxidx[1], cyidx[0]:cyidx[1]]
+
+    if collapse:
+        apval, aprms = weightmean(apcutout, apcutrms, axis=(1,2))
+        apval = np.sum(apval)
+        aprms = np.sqrt(np.sum(aprms**2))
+    else:
+        apval, aprms = apcutout, apcutrms
+
+    return apval, aprms
+
+def aperture_vid(cubelet, rmslet, params):
+
+    pcube, prms = padder(cubelet, rmslet, params)
+
+    outvallist, outdvallist = [], []
+    for i in np.arange(1,cubelet.shape[0]-1):
+        for j in np.arange(1, cubelet.shape[1]-1):
+            for k in np.arange(1, cubelet.shape[2]-1):
+                val, dval = cubelet_collapse_pointed(pcube, prms, (i, j, k), params)
+
+                outvallist.append(val)
+                outdvallist.append(dval)
+
+    return np.array(outvallist).flatten(), np.array(outdvallist).flatten()
 
 
 """ SETUP FOR SIMS/BOOTSTRAPS """

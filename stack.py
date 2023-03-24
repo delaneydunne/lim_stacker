@@ -401,8 +401,6 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
 
     """ PLOTS """
     if params.saveplots:
-        # just in case this was done elsewhere in the file structure
-        params.make_output_pathnames()
         catalogue_overplotter(galcatlist, maplist, fieldcatidx, params)
 
     if params.plotspace:
@@ -419,7 +417,8 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
         except AttributeError:
             comment = None
 
-        combined_plotter(stackim, imrms, stackspec, stack, stackrms, params, cmap=cmap,
+        combined_plotter(stack, stackrms, params, stackim=stackim, imrms=imrms,
+                         stackspec=stackspec, cmap=cmap,
                          stackresult=outputvals, comment=comment)
 
     if params.plotcubelet:
@@ -537,8 +536,6 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
 
     """ PLOTS """
     if params.saveplots:
-        # just in case this was accidentally done elsewhere in the dir structure
-        params.make_output_pathnames()
         field_catalogue_plotter(galcat, fieldcatidx, params)
 
     if params.plotspace:
@@ -559,7 +556,8 @@ def field_stacker(comap, galcat, params, cmap='PiYG_r', field=None):
         except AttributeError:
             comment = 'Single-field stack'
 
-        combined_plotter(stackim, imrms, stackspec, stack, stackrms, params, cmap=cmap,
+        combined_plotter(stack, stackrms, params, stackim=stackim, imrms=imrms,
+                         stackspec=stackspec, cmap=cmap,
                          stackresult=outputvals, comment=comment)
 
     if params.plotcubelet:
@@ -967,43 +965,7 @@ def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
     return cutout
 
 
-# convenience functions
-def aperture_collapse_cubelet_freq(cvals, crmss, params):
-    """
-    take a 3D cubelet cutout and collapse it along the frequency axis to be an average over the
-    stack aperture frequency channels
-    either cutout is an empty_table instance or a list of [vals, rmss]
-    """
 
-    # indexes of the channels to include
-    lcfidx = (cvals.shape[0] - params.freqwidth) // 2
-    cfidx = (lcfidx, lcfidx + params.freqwidth)
-
-    # collapsed image
-    cutim, imrms = weightmean(cvals[cfidx[0]:cfidx[1],:,:],
-                              crmss[cfidx[0]:cfidx[1],:,:], axis=0)
-
-    return cutim, imrms
-
-def aperture_collapse_cubelet_space(cvals, crmss, params, linelum=False):
-    """
-    take a 3D cubelet cutout and collapse it along the spatial axis to be an average over the stack
-    aperture spaxels (ie make a spectrum)
-    """
-
-    # indices of the x and y axes
-    lcxidx = (cvals.shape[1] - params.xwidth) // 2
-    lcyidx = (cvals.shape[2] - params.ywidth) // 2
-    cxidx = (lcxidx, lcxidx + params.xwidth)
-    cyidx = (lcyidx, lcyidx + params.ywidth)
-
-    # clip out values to stack
-    fpixval = cvals[:, cyidx[0]:cyidx[1], cxidx[0]:cxidx[1]]
-    frmsval = crmss[:, cyidx[0]:cyidx[1], cxidx[0]:cxidx[1]]
-
-    cutspec, specrms = weightmean(fpixval, frmsval, axis=(1,2))
-
-    return cutspec, specrms
 
     # # collapse along spatial axes to get a spectral profile
     # if not linelum:

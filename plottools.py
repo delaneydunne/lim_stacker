@@ -267,7 +267,7 @@ def changrid(cubelet, rmslet, params, smooth=None, rad=None, ext=None, offset=0,
 
     return fig
 
-def radprof(cubelet, rmslet, params, chan=None):
+def radprof(cubelet, rmslet, params, chan=None, apcoll=False, centwidth=0.5, apwidth=0.5):
     """
     gets the integrated Tb in circular annuli extending radially outwards from
     the central spaxel in a given channel
@@ -284,28 +284,34 @@ def radprof(cubelet, rmslet, params, chan=None):
         if not chan:
             chan = freqcent
 
-        im, imrms = cubelet[chan,:,:], rmslet[chan,:,:]
+        if apcoll:
+            im, imrms = aperture_collapse_cubelet_freq(cubelet, rmslet, params, recent=chan)
+        else:
+            im, imrms = cubelet[chan,:,:], rmslet[chan,:,:]
     else:
         im, imrms = cubelet, rmslet
         spaceext = im.shape[0]
         spacecent = int(spaceext / 2)
 
     # central circular aperture
-    cent = CircularAperture((spacecent, spacecent), 1.5)
+    cent = CircularAperture((spacecent, spacecent), centwidth)
     centmask = cent.to_mask()
     centim, centrms = weightmean(centmask.cutout(im), centmask.cutout(imrms), axis=(0,1))
 
+    router = np.arange(centwidth+apwidth, spacecent, apwidth) # in pixels
     # the rest of the annuli
     meanlist = [centim]
     rmsmeanlist = [centrms]
-    for r in np.arange(spacecent - 2) + 2.5:
-        aper = CircularAnnulus((spacecent, spacecent), r-1, r)
+    for r in router:
+        aper = CircularAnnulus((spacecent, spacecent), r-apwidth, r)
         apmask = aper.to_mask()#.to_image(im.shape)
         apim, aprms = weightmean(apmask.cutout(im), apmask.cutout(imrms), axis=(0,1))
         meanlist.append(apim)
         rmsmeanlist.append(aprms)
 
-    return np.array(meanlist), np.array(rmsmeanlist)
+    router = np.concatenate([[centwidth], router])
+
+    return np.array(meanlist), np.array(rmsmeanlist), router
 
 def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0, profsum=False):
     """
@@ -313,6 +319,8 @@ def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0, profsum=False):
     if nonzero), and nextra channels on either side of the central one. will
     also shade in the 1-sigma rms around the central channel
     """
+
+    #**** THE ONE IN COMBINED PLOTTER ACTUALLY WORKS
 
     plt.style.use('seaborn-talk')
 
@@ -661,10 +669,16 @@ def spectral_plotter(stackspec, params):
     return 0
 
 """ *** PASS CUBELET DIRECTLY *** """
-def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap='PiYG_r', stackresult=None,
+def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stackspec=None, cmap='PiYG_r', stackresult=None,
                      unsmooth_vext=None, smooth_vext=None, freq_ext=None, comment=None, filename=None):
 
     plt.style.use('default')
+
+    # collapse the cube if the collapsed versions aren't already passed
+    if not stackim:
+        stackim, stackrms = aperture_collapse_cubelet_freq(cubelet, rmslet, params)
+    if not stackspec:
+        stackspec, specrms = aperture_collapse_cubelet_space(cubelet, rmslet, params)
 
     # corners for the beam rectangle
     if params.xwidth % 2 == 0:
@@ -716,8 +730,8 @@ def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap
     usax = axs[0,0]
     smax = axs[0,1]
     rmsax = axs[0,2]
-    usnax = axs[0,3]
-    ssnax = axs[0,4]
+    ubax = axs[0,3]
+    sbax = axs[0,4]
 
     labax.set_axis_off()
 
@@ -812,67 +826,101 @@ def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap
     cax0 = divider.new_horizontal(size='5%', pad=0.05)
     fig.add_axes(cax0)
     cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
-    cbar.ax.set_ylabel(r"$\sigma(L'_{CO})$")
+    cbar.ax.set_ylabel(r"log($\sigma(L'_{CO})$)")
     rmsax.set_aspect(aspect=1)
 
+    # vid
+    ubax.hist(cubelet.flatten()/1e10, color='indigo', bins=100)
+    ubax.set_xlabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+    ubax.set_ylabel('Counts')
+    ubax.set_title('VID')
+
+    cubevals,_ = cubelet_collapse_pointed(cubelet, rmslet,
+                                         (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth),
+                                         params, collapse=False)
+    for val in cubevals.flatten():
+        ubax.axvline(val/1e10, color='0.5', lw=0.5)
+
+
+    # aperture intensity distribution
+    padcube, padrms = padder(cubelet, rmslet, params)
+    apvid, dapvid = aperture_vid(cubelet, rmslet, params)
+
+    counts, _, _ = sbax.hist(apvid/1e10, color='indigo', bins=100)
+
+    yext = sbax.get_ylim()
+
+    if stackresult:
+        llum = stackresult['linelum'] / 1e10
+        dllum = stackresult['dlinelum'] / 1e10
+        rect = Rectangle((llum-dllum, -1), 2*dllum, yext[1], color='0.5', alpha=0.5)
+        sbax.add_patch(rect)
+        sbax.axvline(llum, color='0.5', ls='--', label="Stack RMS")
+
+    sbax.set_ylim((0., np.max(counts)*1.05))
+
+    sbax.set_xlabel(r"$L'_{CO} \times 10^{10}$ (K km/s pc$^2$)")
+    sbax.set_ylabel('Counts')
+    sbax.set_title('Aperture ID')
+
     # SNR units
-    snrim = stackim / stackrms
-    vext = np.nanmax(np.abs(snrim))
-    c = usnax.pcolormesh(snrim, cmap=cmap, vmin=-vext, vmax=vext)
-    usnax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
-    usnax.set_title('S/N Units')
-
-    if params.lowmodefilter or params.chanmeanfilter:
-        usnax.plot(lmxcorners, lmycorners, color='0.5')
-        usnax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
-
-    usnax.tick_params(axis='y',
-                            labelleft=False,
-                            labelright=False,
-                            left=False,
-                            right=False)
-    usnax.tick_params(axis='x',
-                         labeltop=False,
-                         labelbottom=False,
-                         top=False,
-                         bottom=False)
-
-    divider = make_axes_locatable(usnax)
-    cax0 = divider.new_horizontal(size='5%', pad=0.05)
-    fig.add_axes(cax0)
-    cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
-    cbar.ax.set_ylabel(r"$L'_{CO} / \sigma(L'_{CO})$")
-    usnax.set_aspect(aspect=1)
+    # snrim = stackim / stackrms
+    # vext = np.nanmax(np.abs(snrim))
+    # c = usnax.pcolormesh(snrim, cmap=cmap, vmin=-vext, vmax=vext)
+    # usnax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
+    # usnax.set_title('S/N Units')
+    #
+    # if params.lowmodefilter or params.chanmeanfilter:
+    #     usnax.plot(lmxcorners, lmycorners, color='0.5')
+    #     usnax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
+    #
+    # usnax.tick_params(axis='y',
+    #                         labelleft=False,
+    #                         labelright=False,
+    #                         left=False,
+    #                         right=False)
+    # usnax.tick_params(axis='x',
+    #                      labeltop=False,
+    #                      labelbottom=False,
+    #                      top=False,
+    #                      bottom=False)
+    #
+    # divider = make_axes_locatable(usnax)
+    # cax0 = divider.new_horizontal(size='5%', pad=0.05)
+    # fig.add_axes(cax0)
+    # cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
+    # cbar.ax.set_ylabel(r"$L'_{CO} / \sigma(L'_{CO})$")
+    # usnax.set_aspect(aspect=1)
 
     # SNR units
-    snrim = stackim / stackrms
-    ssnrim = convolve(snrim, params.gauss_kernel)
-    vext = np.nanmax(np.abs(ssnrim))
-    c = ssnax.pcolormesh(ssnrim, cmap=cmap, vmin=-vext, vmax=vext)
-    ssnax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
-    ssnax.set_title('S/N Units (Smoothed)')
-
-    if params.lowmodefilter or params.chanmeanfilter:
-        ssnax.plot(lmxcorners, lmycorners, color='0.5')
-        ssnax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
-
-    ssnax.tick_params(axis='y',
-                            labelleft=False,
-                            labelright=False,
-                            left=False,
-                            right=False)
-    ssnax.tick_params(axis='x',
-                         labeltop=False,
-                         labelbottom=False,
-                         top=False,
-                         bottom=False)
-
-    divider = make_axes_locatable(ssnax)
-    cax0 = divider.new_horizontal(size='5%', pad=0.05)
-    fig.add_axes(cax0)
-    cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
-    cbar.ax.set_ylabel(r"$L'_{CO} / \sigma(L'_{CO})$")
-    ssnax.set_aspect(aspect=1)
+    # snrim = stackim / stackrms
+    # ssnrim = convolve(snrim, params.gauss_kernel)
+    # vext = np.nanmax(np.abs(ssnrim))
+    # c = ssnax.pcolormesh(ssnrim, cmap=cmap, vmin=-vext, vmax=vext)
+    # ssnax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
+    # ssnax.set_title('S/N Units (Smoothed)')
+    #
+    # if params.lowmodefilter or params.chanmeanfilter:
+    #     ssnax.plot(lmxcorners, lmycorners, color='0.5')
+    #     ssnax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
+    #
+    # ssnax.tick_params(axis='y',
+    #                         labelleft=False,
+    #                         labelright=False,
+    #                         left=False,
+    #                         right=False)
+    # ssnax.tick_params(axis='x',
+    #                      labeltop=False,
+    #                      labelbottom=False,
+    #                      top=False,
+    #                      bottom=False)
+    #
+    # divider = make_axes_locatable(ssnax)
+    # cax0 = divider.new_horizontal(size='5%', pad=0.05)
+    # fig.add_axes(cax0)
+    # cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
+    # cbar.ax.set_ylabel(r"$L'_{CO} / \sigma(L'_{CO})$")
+    # ssnax.set_aspect(aspect=1)
 
 
     if params.freqwidth % 2 == 0:
@@ -909,24 +957,27 @@ def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap
     nextra = 4
     nchans = nextra*2 + 1
     freqcent = int(cubelet.shape[0] / 2)
-    chans = np.arange(nchans) + freqcent - nextra
+    chans = np.arange(nchans)*params.freqwidth + freqcent - nextra*params.freqwidth
 
     carr = np.abs((np.arange(len(chans)) - len(chans)//2) / (len(chans)//2) * 0.9)
 
     chanprofs = []
     for i, chan in enumerate(chans):
-        chanprof, rmsprof = radprof(cubelet, rmslet, params, chan=chan)
+        chanprof, rmsprof, xaxis = radprof(cubelet, rmslet, params, chan=chan, apcoll=True)
 
         if params.plotunits == 'linelum':
             chanprof, rmsprof = chanprof/1e10, rmsprof/1e10
 
+        chanprof = np.concatenate([[chanprof[0]], chanprof])
+        rmsprof = np.concatenate([[rmsprof[0]], rmsprof])
+
         chanprofs.append(chanprof)
 
-        xaxis = np.arange(len(chanprof))*2 + 2
-        xaxis[0] = 0
+        xaxis = xaxis * 2
+        xaxis = np.concatenate([[0], xaxis])
 
         if chan == freqcent:
-            radax.step(xaxis, chanprof, where='mid', zorder=100,
+            radax.step(xaxis, chanprof, where='pre', zorder=100,
                        color=str(carr[i]), lw=3, label='Channel {}'.format(str(i-nextra)))
 
             radax.fill_between(xaxis, (chanprof-rmsprof), (chanprof+rmsprof),
@@ -954,6 +1005,7 @@ def combined_plotter(stackim, stackrms, stackspec, cubelet, rmslet, params, cmap
 
     radax.set_xlabel('Radius (arcmin)')
     radax.set_xlim((-2, 20))
+    radax.set_ylim((np.nanmin(chanprofs)*1.1, np.nanmax(chanprofs)*1.1))
 
     if stackresult:
         if params.plotunits == 'linelum':
