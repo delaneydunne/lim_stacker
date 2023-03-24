@@ -1116,7 +1116,7 @@ def aperture_collapse_cubelet_freq(cvals, crmss, params, recent=0):
 
     return cutim, imrms
 
-def aperture_collapse_cubelet_space(cvals, crmss, params, linelum=False, recentx=0, recenty=0):
+def aperture_collapse_cubelet_space(cvals, crmss, params, recentx=0, recenty=0):
     """
     take a 3D cubelet cutout and collapse it along the spatial axis to be an average over the stack
     aperture spaxels (ie make a spectrum)

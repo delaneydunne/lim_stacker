@@ -250,13 +250,14 @@ def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
     if not params.freqstackwidth:
         params.freqstackwidth = params.freqwidth
 
-    if comap.unit == 'K':
-        fluxmap, fluxrms = perpixel_flux(comap.map, comap.rms, comap.freq[len(comap.freq)//2], params)
-        if params.plotunits == 'linelum':
-            linelum, linelumrms = line_luminosity(fluxmap, fluxrms, comap.freq[len(comap.freq)//2], params, summed=False)
-            comap.map = linelum.value
-            comap.rms = linelumrms.value
-            comap.unit = 'linelum'
+    if params.plotunits != 'temp':
+        if comap.unit == 'K':
+            fluxmap, fluxrms = perpixel_flux(comap.map, comap.rms, comap.freq[len(comap.freq)//2], params)
+            if params.plotunits == 'linelum':
+                linelum, linelumrms = line_luminosity(fluxmap, fluxrms, comap.freq[len(comap.freq)//2], params, summed=False)
+                comap.map = linelum.value
+                comap.rms = linelumrms.value
+                comap.unit = 'linelum'
 
     ti = 0
     # if we're keeping track of the number of cutouts
@@ -665,7 +666,7 @@ def line_luminosity(flux, rms, nuobs, params, summed=True):
     linelum: L'_CO in K km/s pc^2
     """
 
-    dnuobs = 0.03125*u.GHz * (np.arange(len(flux)) - len(flux)//2)
+    dnuobs = params.chanwidth * u.GHz * (np.arange(len(flux)) - len(flux)//2)
     nuobs = nuobs*u.GHz + dnuobs
 
     if not summed:
@@ -724,8 +725,8 @@ def rho_h2(linelum, nuobs, params):
     # h2 masses
     mh2 = linelum * alphaco
 
-    nu1 = ((nuobs*u.GHz - params.freqwidth/2*0.03125*u.GHz).to(u.GHz)).value
-    nu2 = ((nuobs*u.GHz + params.freqwidth/2*0.03125*u.GHz).to(u.GHz)).value
+    nu1 = ((nuobs*u.GHz - params.freqwidth/2* params.chanwidth*u.GHz).to(u.GHz)).value
+    nu2 = ((nuobs*u.GHz + params.freqwidth/2* params.chanwidth*u.GHz).to(u.GHz)).value
 
     (z, z1, z2) = freq_to_z(params.centfreq, np.array([nuobs, nu1, nu2]))
 
@@ -1079,8 +1080,8 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     mh2obs = linelumact * alphaco
     mh2rms = linelumrms * alphaco
 
-    nu1 = nuobsvals - params.freqwidth/2*0.03125*u.GHz
-    nu2 = nuobsvals + params.freqwidth/2*0.03125*u.GHz
+    nu1 = nuobsvals - params.freqwidth/2* params.chanwidth*u.GHz
+    nu2 = nuobsvals + params.freqwidth/2* params.chanwidth*u.GHz
 
     z = (params.centfreq*u.GHz - nuobsvals) / nuobsvals
     z1 = (params.centfreq*u.GHz - nu1) / nu1
