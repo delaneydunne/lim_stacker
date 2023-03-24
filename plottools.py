@@ -313,7 +313,7 @@ def radprof(cubelet, rmslet, params, chan=None, apcoll=False, centwidth=0.5, apw
 
     return np.array(meanlist), np.array(rmsmeanlist), router
 
-def radprofoverplot(cubelet, rmslet, params, nextra=3, offset=0, profsum=False):
+def radprofoverplot(cubelet, rmslet, params, nextra=2, offset=0, profsum=False):
     """
     plots the radial profile of the central frequency channel (offset by offset
     if nonzero), and nextra channels on either side of the central one. will
@@ -394,7 +394,7 @@ def spaceweightmean(cubelet, rmslet):
 
     return ccubelet, crmslet
 
-def specgridx(cubelet, rmslet, params, nextra=3, offset=0):
+def specgridx(cubelet, rmslet, params, nextra=2, offset=0):
 
     plt.style.use('default')
 
@@ -438,7 +438,7 @@ def specgridx(cubelet, rmslet, params, nextra=3, offset=0):
 
     return fig
 
-def specgridy(cubelet, rmslet, params, nextra=3, offset=0):
+def specgridy(cubelet, rmslet, params, nextra=2, offset=0):
 
     plt.style.use('default')
 
@@ -956,7 +956,7 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
 
     """ radial profile plots """
     # indexing
-    nextra = 4
+    nextra = 2
     nchans = nextra*2 + 1
     freqcent = int(cubelet.shape[0] / 2)
     chans = np.arange(nchans)*params.freqwidth + freqcent - nextra*params.freqwidth
