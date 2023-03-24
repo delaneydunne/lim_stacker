@@ -399,16 +399,38 @@ def stacker(maplist, galcatlist, params, cmap='PiYG_r'):
     # stacktemp, stacktemprms = weightmean(cutlistdict['T'], cutlistdict['rms'])
     # outputvals['T'], outputvals['rms'] = stacktemp, stacktemprms
 
+    """ SAVE DATA """
+    if params.savedata:
+        # save the output values
+        ovalfile = params.datasavepath + '/output_values.csv'
+        # strip the values of their units before saving them (otherwise really annoying
+        # to read out on the other end)
+        outputvals_nu = dict_saver(outputvals, ovalfile)
+
+        idxfile = params.datasavepath + '/included_cat_indices.npz'
+        np.savez(idxfile, field1=fieldcatidx[0], field2=fieldcatidx[1], field3=fieldcatidx[2])
+
+        cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
+        np.savez(cubefile, T=stack, rms=stackrms)
+
+        if params.plotspace:
+            stackim, imrms = aperture_collapse_cubelet_freq(stack, stackrms, params)
+            imfile = params.datasavepath + '/stacked_image.npz'
+            np.savez(imfile, T=stackim, rms=imrms)
+
+        if params.plotfreq:
+            stackspec, specrms = aperture_collapse_cubelet_space(stack, stackrms, params)
+            specfile = params.datasavepath + '/stacked_spectrum.npz'
+            np.savez(specfile, T=stackspec, rms=specrms)
+
     """ PLOTS """
     if params.saveplots:
         catalogue_overplotter(galcatlist, maplist, fieldcatidx, params)
 
     if params.plotspace:
-        stackim, imrms = aperture_collapse_cubelet_freq(stack, stackrms, params)
         spatial_plotter(stackim, params, cmap=cmap)
 
     if params.plotfreq:
-        stackspec, specrms = aperture_collapse_cubelet_space(stack, stackrms, params)
         spectral_plotter(stackspec, params)
 
     if params.plotspace and params.plotfreq:
