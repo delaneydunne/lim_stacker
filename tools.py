@@ -717,7 +717,7 @@ class maps():
             self.hit = np.flip(self.hit, axis=-1)
 
         # move some things to params to keep the info handy
-        params.nchans = 4*self.map.shape[1]
+        params.nchans = self.map.shape[0]
         params.chanwidth = np.abs(self.freq[1] - self.freq[0])
 
 
@@ -1111,8 +1111,10 @@ def aperture_collapse_cubelet_freq(cvals, crmss, params, recent=0):
     cfidx = (lcfidx, lcfidx + params.freqwidth)
 
     # collapsed image
-    cutim, imrms = weightmean(cvals[cfidx[0]:cfidx[1],:,:],
-                              crmss[cfidx[0]:cfidx[1],:,:], axis=0)
+    # cutim, imrms = weightmean(cvals[cfidx[0]:cfidx[1],:,:],
+    #                           crmss[cfidx[0]:cfidx[1],:,:], axis=0)
+    cutim = np.nansum(cvals[cfidx[0]:cfidx[1],:,:], axis=0)
+    imrms = np.sqrt(np.nansum(crmss[cfidx[0]:cfidx[1],:,:]**2, axis=0))
 
     return cutim, imrms
 
