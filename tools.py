@@ -90,7 +90,7 @@ class parameters():
             self.usefeed = False
 
         # float-valued parameters
-        for attr in ['centfreq', 'beamwidth', 'fitmeanlimit']:
+        for attr in ['centfreq', 'beamwidth', 'fitmeanlimit', 'voxelrmslimit']:
             try:
                 val = float(default_dir[attr])
                 setattr(self, attr, val)
@@ -681,7 +681,7 @@ class maps():
             self.fieldcent = SkyCoord(patch_cent[0]*u.deg, patch_cent[1]*u.deg)
 
         # mark pixels with zero rms and mask them in the rms/map arrays (how the pipeline stores infs)
-        mapbadpix = np.logical_or(rmstemparr < 1e-10, rmstemparr > 0.01)
+        mapbadpix = np.logical_or(rmstemparr < 1e-10, rmstemparr > params.voxelrmslimit)
         mapbadpix = np.logical_or(mapbadpix, np.isinf(rmstemparr))
         # also mark anything with less than 10 000 hits (another way to clean off map edges)
         hitbadpix = hittemparr < params.voxelhitlimit

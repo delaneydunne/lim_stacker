@@ -48,6 +48,8 @@ fitmeanlimit 100
 fitvallims 100 10 10
 # min number of hits in a single voxel for inclusion in the stack
 voxelhitlimit 50000
+# max RMS in K to include in the stack
+voxelrmslimit 0.01
 # verbose output when running
 verbose True
 # save the stack data
