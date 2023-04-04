@@ -1,4 +1,6 @@
 from __future__ import print_function
+# from .plottools import *
+# from .stack import *
 import numpy as np
 import astropy.units as u
 import astropy.constants as const
@@ -895,6 +897,196 @@ class maps():
         print("Max T: {:.3e} uK".format(np.nanmax(self.map)*1e6))
         print("Min T: {:.3e} uK".format(np.nanmin(self.map)*1e6))
         print("-------------")
+
+
+class cubelet():
+
+    def __init__(self, cutout, params):
+
+        # housekeeping info
+        self.unit = params.plotunits
+        self.ncutouts = 1
+        self.catidx = [cutout.catidx]
+        self.nuobs_mean = [cutout.freq]
+        self.z_mean = [cutout.z]
+
+        # read in aperture/cubelet sizes
+        self.xwidth = params.xwidth
+        self.ywidth = params.ywidth
+        self.freqwidth = params.freqwidth
+
+        # read in full cubelet values
+        cubeshape = cutout.cubestack.shape
+        self.cubexwidth = cubeshape[2]
+        self.cubeywidth = cubeshape[1]
+        self.cubefreqwidth = cubeshape[0]
+
+        # do math about it
+        xoff = params.xwidth // 2
+        foff = params.freqwidth // 2
+        self.centpix = (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth)
+        self.apminpix = (params.freqstackwidth-foff, params.spacestackwidth-xoff, params.spacestackwidth-xoff)
+        self.apmaxpix = (params.freqstackwidth+xoff+1, params.spacestackwidth+xoff+1, params.spacestackwidth+xoff+1)
+
+        # set up frequency/angular arrays
+        if params.freqwidth % 2 == 0:
+            self.freqarr = np.arange(params.freqstackwidth * 2)*params.chanwidth - (params.freqstackwidth-0.5)*params.chanwidth
+        else:
+            self.freqarr = np.arange(params.freqstackwidth * 2 + 1)*params.chanwidth - (params.freqstackwidth)*params.chanwidth
+
+        if params.xwidth % 2 == 0:
+            self.xarr = np.arange(params.spacestackwidth * 2)*2 - (params.spacestackwidth-0.5)*2
+        else:
+            self.xarr = np.arange(params.spacestackwidth * 2 + 1)*2 - (params.spacestackwidth)*2
+
+        # read in the cutout values
+        self.cube = cutout.cubestack
+        self.cuberms = cutout.cubestackrms
+        self.linelum = cutout.linelum
+        self.dlinelum = cutout.dlinelum
+        self.rhoh2 = cutout.rhoh2
+        self.drhoh2 = cutout.drhoh2
+
+        return self
+
+
+    def stackin(self, cutout):
+
+        # stack together the 3D cubelets
+        cubevals = np.stack((self.cube, cutout.cubestack))
+        rmsvals = np.stack((self.cuberms, cutout.cubestackrms))
+
+        self.cube, self.cuberms = weightmean(cubevals, rmsvals, axis=0)
+
+        # stack together the single values
+        self.linelum, self.dlinelum = weightmean(np.array((self.linelum, cutout.linelum)),
+                                                 np.array((self.dlinelum, cutout.dlinelum)))
+        self.rhoh2, self.drhoh2 = weightmean(np.array((self.rhoh2, cutout.rhoh2)),
+                                             np.array((self.drhoh2, cutout.drhoh2)))
+
+        # housekeeping
+        self.catidx.append(cutout.catidx)
+        nuobs_mean = (self.nuobs_mean*self.ncutouts + cutout.freq)/(self.ncutouts+1)
+        self.nuobs_mean = nuobs_mean
+        z_mean = (self.z_mean*self.ncutouts + cutout.z)/(self.ncutouts+1)
+        self.z_mean = z_mean
+        self.ncutouts += 1
+
+        # get rid of the cutout entirely
+        del(cutout)
+
+
+    def get_spectrum(self, in_place=False):
+
+        apspec = self.cube[:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+        dapspec = self.cuberms[:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+
+        spec, dspec = weightmean(apspec, dapspec, axis=(1,2))
+
+        if in_place:
+            self.spectrum = spec
+            self.spectrumrms = dspec
+
+        return spec, dspec
+
+    def get_image(self, in_place=False):
+
+        apim = self.cube[self.apminpix[0]:self.apmaxpix[0],:,:]
+        dapim = self.cuberms[self.apminpix[0]:self.apmaxpix[0],:,:]
+
+        im = np.nansum(apim, axis=0)
+        dim = np.sqrt(np.nansum(dapim**2, axis=0))
+
+        if in_place:
+            self.image = im
+            self.imagerms = dim
+
+        return im, dim
+
+    def get_aperture(self, in_place=False):
+
+        ap = self.cube[self.apminpix[0]:self.apmaxpix[0]:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+        dap = self.cuberms[self.apminpix[0]:self.apmaxpix[0],self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+
+        spec, dspec = weightmean(ap, dap, axis=(1,2))
+
+        val = np.nansum(spec)
+        dval = np.sqrt(np.nansum(dspec**2))
+
+        if in_place:
+            self.aperture_value = val
+            self.aperture_rms = dval
+
+        return val, dval
+
+    def get_output_dict(self, in_place=False):
+
+        outdict = {'linelum':self.linelum,
+                   'dlinelum':self.dlinelum,
+                   'rhoh2':self.rhoh2,
+                   'drhoh2':self.drhoh2,
+                   'nuobs_mean':self.nuobs_mean,
+                   'z_mean':self.z_mean,
+                   'nobj':self.ncutouts}
+
+        if in_place:
+            self.outdict = outdict
+
+        return outdict
+
+
+
+    def copy(self):
+        """
+        creates a deep copy of the object (ie won't overwrite original)
+        """
+        return copy.deepcopy(self)
+
+
+    def make_plots(self, comap, galcat, params):
+
+        if params.saveplots:
+            field_catalogue_plotter(galcat, self.catidx, params)
+
+        if params.plotspace and params.plotfreq:
+
+            im, dim = self.get_image()
+            spec, dspec = self.get_spectrum()
+
+            try:
+                comment = params.plotcomment
+                if field:
+                    comment.append('Field {} Only'.format(field))
+                else:
+                    comment.append('Single-field stack')
+            except AttributeError:
+                comment = ['Single-field stack']
+
+            outdict = self.get_output_dict()
+
+            combined_plotter(self.cube, self.cuberms, params, stackim=im, stackrms=dim,
+                             stackspec=spec, cmap='PiYG_r',
+                             stackresult=outdict, comment=comment)
+
+        return
+
+    def save_cubelet(self, params):
+
+        # save the output values
+        ovalfile = params.datasavepath + '/output_values.csv'
+        # strip the values of their units before saving them (otherwise really annoying
+        # to read out on the other end)
+        outdict = self.get_output_dict()
+        outputvals_nu = dict_saver(outdict, ovalfile)
+
+        idxfile = params.datasavepath + '/included_cat_indices.npz'
+        np.savez(idxfile, self.catidx)
+
+        cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
+        np.savez(cubefile, T=self.cube, rms=self.cuberms)
+
+        return
+
 
 
 def printdict(dict):

@@ -239,6 +239,55 @@ def single_cutout(idx, galcat, comap, params):
 
 """ ACTUAL STACKING """
 
+def field_stack(comap, galcat, params, field=None, goalnobj=None):
+    """
+    wrapper to stack up a single field, using the cubelet object
+    assumes comap is already in the desired units
+    """
+
+    # set up for rotating each cutout randomly if that's set to happen
+    if params.rotate:
+        params.rng = np.random.default_rng(params.rotseed)
+
+    ti = 0
+    # if we're keeping track of the number of cutouts
+    if goalnobj:
+        field_nobj = 0
+
+    for i in range(galcat.nobj):
+        cutout = single_cutout(i, galcat, comap, params)
+
+        # if it passed all the tests, keep it
+        if cutout:
+            if field:
+                cutout.field = field
+
+            # stack as you go
+            if ti == 0:
+                stackinst = cubelet(cutout, params)
+                ti = 1
+            else:
+                stackinst.stackin(cutout)
+
+            if goalnobj:
+                field_nobj += 1
+
+                if field_nobj == goalnobj:
+                    if params.verbose:
+                        print("Hit goal number of {} cutouts".format(goalnobj))
+                    return cutoutlist, [cube, cuberms]
+
+        if params.verbose:
+            if i % 100 == 0:
+                print('   done {} of {} cutouts in this field'.format(i, galcat.nobj))
+
+    stackinst.make_plots(comap, galcat, params)
+    stackinst.save_cubelet(params)
+
+    return stackinst
+
+
+
 def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
     """
     wrapper to return all cutouts for a single field

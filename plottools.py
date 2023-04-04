@@ -23,6 +23,7 @@ warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
 cmap = plt.get_cmap('twilight')
+cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
 
 
 def simlims(image, factor = 1.):
@@ -1143,3 +1144,164 @@ def field_catalogue_plotter(cat, goodcatidx, params):
         fig.savefig(params.plotsavepath + '/catalogue_object_distribution.png')
 
     return fig
+
+
+def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logcmap=False):
+
+    plt.style.use('seaborn-talk')
+
+    gs_kw = dict(width_ratios=[1, 1], height_ratios=[3,2], hspace=0.2, wspace=0.3)
+    fig,axs = plt.subplots(2,2, figsize=(11,7), gridspec_kw=gs_kw, tight_layout=True)
+    gs = axs[0,-1].get_gridspec()
+
+    for ax in axs[1,(0,1)]:
+        ax.remove()
+
+    """ label axes """
+    freqax = fig.add_subplot(gs[-1,:])
+    usax = axs[0,0]
+    sax = axs[0,1]
+
+    # corners for the beam rectangle
+    if params.xwidth % 2 == 0:
+        rectmin = params.spacestackwidth - params.xwidth/2
+        rectmax = params.spacestackwidth + params.xwidth/2
+    else:
+        rectmin = params.spacestackwidth - params.xwidth // 2
+        rectmax = params.spacestackwidth + params.xwidth // 2 + 1
+
+    xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
+    ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
+
+    vext = np.nanmax(np.abs([np.nanmin(stackim/1e10), np.nanmax(stackim/1e10)]))
+    vmin,vmax = -vext, vext
+
+    """mpc scalebar"""
+    if zmean:
+        mpcperpix = (2*u.arcmin / cosmo.arcsec_per_kpc_proper(zmean)).to(u.Mpc)
+        pixper10mpc = 10*u.Mpc / mpcperpix
+
+
+    """ unsmoothed """
+    if logcmap:
+        c = usax.pcolormesh(stackim/1e10, cmap=cmap,
+                            norm=SymLogNorm(vmin=vmin, vmax=vmax, linscale=0.1, linthresh=50))
+    else:
+        c = usax.pcolormesh(stackim/1e10, cmap=cmap, vmin=vmin, vmax=vmax)
+    usax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
+
+    # scale bar
+    topright = (params.spacestackwidth*2) + 1 - 2
+    usax.plot((2, 12), (topright, topright), color='k', lw=2)
+    usax.errorbar((2,12), (topright, topright), yerr=1, color='k', fmt='none')
+    usax.text(5, topright-2.5, '20`', fontsize='xx-large', fontweight='bold')
+
+    if zmean:
+        usax.plot((2, 2+pixper10mpc), (topright-4, topright-4), color='k', lw=2)
+        usax.errorbar((2, 2+pixper10mpc), (topright-4, topright-4), yerr=1, color='k', fmt='none')
+        usax.text(3, topright-6.7, '10 Mpc', fontsize='x-large', fontweight='bold')
+
+    # tidying
+    usax.set_aspect(aspect=1)
+
+    # turn off ticks
+    usax.tick_params(axis='y',
+                            labelleft=False,
+                            labelright=False,
+                            left=False,
+                            right=False)
+    usax.tick_params(axis='x',
+                         labeltop=False,
+                         labelbottom=False,
+                         top=False,
+                         bottom=False)
+
+    # colorbar
+    divider = make_axes_locatable(usax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    if logcmap:
+        cbar = fig.colorbar(c, cax=cax, ticks=[-1e3, -1e2, 0, 1e2, 1e3])
+    else:
+        cbar = fig.colorbar(c, cax=cax)
+    cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+    if logcmap:
+        cbar.ax.set_yticklabels([r'$-10^{3}$', r'$-10^{2}$', '0', r'$10^2$', r'$10^3$'])
+
+
+    """ smoothed """
+    smoothed_spacestack_gauss = convolve(stackim, params.gauss_kernel)
+
+    vext = np.nanmax(smoothed_spacestack_gauss/1e10)
+    vmin, vmax = -vext, vext
+
+    if logcmap:
+        c = sax.pcolormesh(smoothed_spacestack_gauss/1e10, cmap=cmap,
+                           norm=SymLogNorm(vmin=vmin, vmax=vmax, linscale=0.1, linthresh=50))
+    else:
+        c = sax.pcolormesh(smoothed_spacestack_gauss/1e10, cmap=cmap, vmin=vmin, vmax=vmax)
+    sax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
+
+    # scale bar
+    topright = (params.spacestackwidth*2) + 1 - 2
+    sax.plot((2, 12), (topright, topright), color='k', lw=2)
+    sax.errorbar((2,12), (topright, topright), yerr=1, color='k', fmt='none')
+    sax.text(5, topright-2.5, '20`', fontsize='xx-large', fontweight='bold')
+
+    if zmean:
+        sax.plot((2, 2+pixper10mpc), (topright-4, topright-4), color='k', lw=2)
+        sax.errorbar((2, 2+pixper10mpc), (topright-4, topright-4), yerr=1, color='k', fmt='none')
+        sax.text(3, topright-6.7, '10 Mpc', fontsize='x-large', fontweight='bold')
+
+    # tidying
+    sax.set_aspect(aspect=1)
+
+    # remove ticks
+    sax.tick_params(axis='y',
+                            labelleft=False,
+                            labelright=False,
+                            left=False,
+                            right=False)
+    sax.tick_params(axis='x',
+                         labeltop=False,
+                         labelbottom=False,
+                         top=False,
+                         bottom=False)
+
+    # colorbar
+    divider = make_axes_locatable(sax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cbar = fig.colorbar(c, cax=cax)
+    cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+
+    if params.freqwidth % 2 == 0:
+        freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
+    else:
+        freqarr = np.arange(params.freqstackwidth * 2 + 1)*31.25e-3 - (params.freqstackwidth)*31.25e-3
+
+    if params.plotunits == 'linelum':
+        freqax.step(freqarr, stackspec/1e10, color='indigo', zorder=10, where='mid')
+        freqax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+    elif params.plotunits == 'flux':
+        freqax.step(freqarr, stackspec,
+                color='indigo', zorder=10, where='mid')
+        freqax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
+
+    freqax.axhline(0, color='k', ls='--')
+    freqax.axvline(0, color='k', ls='--')
+
+
+    yext = freqax.get_ylim()
+    apmin, apmax = 0 - params.freqwidth / 2 * 31.25e-3, 0 + params.freqwidth / 2 * 31.25e-3
+
+    # show which channels contribute to the stack
+    freqax.axvline(apmin,  color='0.7', ls=':')
+    freqax.axvline(apmax, color='0.7', ls=':')
+    freqax.fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
+    freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
+    freqax.set_ylim(yext)
+
+
+    """annotate subplots"""
+    plt.annotate("(a)", xy=(0.11, 0.9), xycoords='figure fraction', fontsize='xx-large', fontweight='bold')
+    plt.annotate("(b)", xy=(0.55, 0.9), xycoords='figure fraction', fontsize='xx-large', fontweight='bold')
+    plt.annotate("(c)", xy=(0.11, 0.41), xycoords='figure fraction', fontsize='xx-large', fontweight='bold')
