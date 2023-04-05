@@ -1366,8 +1366,8 @@ def cubelet_collapse_pointed(cubelet, rmslet, newcentpix, params, collapse=True)
 
     if collapse:
         apval, aprms = weightmean(apcutout, apcutrms, axis=(1,2))
-        apval = np.sum(apval)
-        aprms = np.sqrt(np.sum(aprms**2))
+        apval = np.nansum(apval)
+        aprms = np.sqrt(np.nansum(aprms**2))
     else:
         apval, aprms = apcutout, apcutrms
 

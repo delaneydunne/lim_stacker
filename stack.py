@@ -737,8 +737,8 @@ def line_luminosity(flux, rms, nuobs, params, summed=True):
 
     # if summed, sum across channels for an overall line luminosity
     if summed:
-        linelum = np.sum(linelum)
-        dlinelum = np.sqrt(np.sum(dlinelum**2))
+        linelum = np.nansum(linelum)
+        dlinelum = np.sqrt(np.nansum(dlinelum**2))
 
     return linelum, dlinelum
 
@@ -994,8 +994,8 @@ def observer_units_sum(tbvals, rmsvals, cutout, params):
     rhoh2 = rho_h2(linelum, cutout.freq, params)
     rhoh2rms = rho_h2(linelumrms, cutout.freq, params)
 
-    cutout.flux = np.sum(Sval_chan)
-    cutout.dflux = np.sqrt(np.sum(Srms_chan**2))
+    cutout.flux = np.nansum(Sval_chan)
+    cutout.dflux = np.sqrt(np.nansum(Srms_chan**2))
 
     cutout.linelum = linelum
     cutout.dlinelum = linelumrms
@@ -1018,8 +1018,8 @@ def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
     # make the fluxes into line luminosities
     # linelum, linelumrms = line_luminosity(Sval_chan, Srms_chan, cutout.freq, params)
     pcllum, dpcllum = weightmean(tbvals, rmsvals, axis=(1,2))
-    linelum = np.sum(pcllum)*u.K*u.km/u.s*u.pc**2
-    linelumrms = np.sqrt(np.sum(dpcllum**2))*u.K*u.km/u.s*u.pc**2
+    linelum = np.nansum(pcllum)*u.K*u.km/u.s*u.pc**2
+    linelumrms = np.sqrt(np.nansum(dpcllum**2))*u.K*u.km/u.s*u.pc**2
 
     # rhoh2 = rho_h2(linelum, cutout.freq, params)
     # rhoh2rms = rho_h2(linelumrms, cutout.freq, params)
