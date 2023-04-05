@@ -754,7 +754,8 @@ def linelum_to_flux(linelum, meanz, params):
 def rho_h2(linelum, nuobs, params):
     """
     Function to calculate the (specifically CO) line luminosity of a line emitter from
-    its flux. from Solomon et al. 1997 (https://iopscience.iop.org/article/10.1086/303765/pdf)
+    its flux. from Solomon et al. 1997 (https://iopscience.iop.org/article/10.1086/303765/pdf).
+    Uses COMOVING distances
     -------
     INPUTS:
     -------

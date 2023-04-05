@@ -13,6 +13,7 @@ import astropy.units as u
 import astropy.constants as const
 from astropy.coordinates import SkyCoord
 from astropy.convolution import convolve, Gaussian2DKernel, Box2DKernel
+from astropy.cosmology import FlatLambdaCDM
 import os
 import h5py
 import csv
@@ -1062,7 +1063,7 @@ def catalogue_plotter(catlist, goodcatidx, params):
 
 def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True, trim=False):
 
-    fig,axs = plt.subplots(1,4, figsize=(9,3), constrained_layout=True)
+    fig,axs = plt.subplots(1,4, figsize=(8.5,3), constrained_layout=True)
 
     if printnobjs:
         plt.style.use('default')
