@@ -1077,8 +1077,9 @@ def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True,
         fieldcoord = catlist[i].coords[goodcatidx[i]]
 
         logrms = np.log10(np.nanmean(maplist[i].rms, axis=0))
-        vmax = np.nanmax(logrms)  * 0.95
-        rac = axs[i].pcolormesh(maplist[i].rabe, maplist[i].decbe, logrms, vmax=vmax,
+        vmax = np.nanmax(logrms) * 0.95
+        vmin = np.nanmin(logrms)
+        rac = axs[i].pcolormesh(maplist[i].rabe, maplist[i].decbe, logrms, vmin=vmin, vmax=vmax,
                                 zorder=0, cmap='Greys')
         if i == 0:
             keeprac = rac
