@@ -350,6 +350,7 @@ class catalogue():
                         setattr(self, attr, inputdict[attr])
 
             self.nobj = len(self.z)
+            self.catfileidx = np.arange(self.nobj)
             #*** TYPE OF CATALOGUE FLAG?
 
     def copy(self):

@@ -109,8 +109,8 @@ def plot_chan(comap, channel, params, cat=None, ext=0.95, smooth=False, lognorm=
 """ SINGLE-CUTOUT PLOTS """
 def display_cutout(cutout, comap, params, save=None, ext=1.0):
 
-    cutoutra = comap.ra[cutout.spacexidx[0]:cutout.spacexidx[1]+1]
-    cutoutdec = comap.dec[cutout.spaceyidx[0]:cutout.spaceyidx[1]+1]
+    cutoutra = comap.rabe[cutout.spacexidx[0]:cutout.spacexidx[1]+1]
+    cutoutdec = comap.decbe[cutout.spaceyidx[0]:cutout.spaceyidx[1]+1]
 
     beamra = comap.ra[cutout.xidx[0]:cutout.xidx[1]+1]
     beamdec = comap.dec[cutout.yidx[0]:cutout.yidx[1]+1]
@@ -122,8 +122,8 @@ def display_cutout(cutout, comap, params, save=None, ext=1.0):
         cutim = cutout.spacestack * 1e6
     except AttributeError:
         # only want the beam for the axes that aren't being shown
-        aperture_collapse_cubelet_freq(cutout, params)
-        cutim = cutout.spacestack * 1e6
+        cutim, cutrms = aperture_collapse_cubelet_freq(cutout.cubestack, cutout.cubestackrms, params)
+        cutim = cutim * 1e6
 
     beamcut = cutim[beamxidx[0]:beamxidx[1], beamyidx[0]:beamyidx[1]]
 
@@ -134,8 +134,8 @@ def display_cutout(cutout, comap, params, save=None, ext=1.0):
     c = ax.pcolormesh(cutoutra, cutoutdec, cutim, cmap='PiYG_r', vmin=-vext, vmax=vext)
     ax.pcolormesh(beamra, beamdec, beamcut, cmap='PiYG_r', vmin=-vext, vmax=vext, ec='k')
 
-    ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Cutout Tb = {:.2e}".format(cutout.T))
-    ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Cutout RMS = {:.2e}".format(cutout.rms))
+    ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Cutout linelum = {:.2e}".format(cutout.linelum))
+    ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Cutout RMS = {:.2e}".format(cutout.dlinelum))
     ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Catalogue frequency = {:.4f}".format(cutout.freq))
 
     ax.set_xlabel('RA')
@@ -1298,7 +1298,7 @@ def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logc
     # show which channels contribute to the stack
     freqax.axvline(apmin,  color='0.7', ls=':')
     freqax.axvline(apmax, color='0.7', ls=':')
-    freqax.fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
+    freqax.fill_betweenx(np.array(yext)*2, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
     freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
     freqax.set_ylim(yext)
 
@@ -1307,3 +1307,5 @@ def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logc
     plt.annotate("(a)", xy=(0.11, 0.9), xycoords='figure fraction', fontsize='xx-large', fontweight='bold')
     plt.annotate("(b)", xy=(0.55, 0.9), xycoords='figure fraction', fontsize='xx-large', fontweight='bold')
     plt.annotate("(c)", xy=(0.11, 0.41), xycoords='figure fraction', fontsize='xx-large', fontweight='bold')
+
+    return fig, (usax,sax,freqax)

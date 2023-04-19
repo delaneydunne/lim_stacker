@@ -59,7 +59,7 @@ def single_cutout(idx, galcat, comap, params):
     cutout = empty_table()
 
     # center values of the gal (store for future reference)
-    cutout.catidx = idx
+    cutout.catidx = galcat.catfileidx[idx]
     cutout.z = zval
     cutout.coords = galcat.coords[idx]
     cutout.freq = nuobs
@@ -304,6 +304,14 @@ def field_get_cutouts(comap, galcat, params, field=None, goalnobj=None):
             fluxmap, fluxrms = perpixel_flux(comap.map, comap.rms, comap.freq[len(comap.freq)//2], params)
             if params.plotunits == 'linelum':
                 linelum, linelumrms = line_luminosity(fluxmap, fluxrms, comap.freq[len(comap.freq)//2], params, summed=False)
+                comap.map = linelum.value
+                comap.rms = linelumrms.value
+                comap.unit = 'linelum'
+        elif comap.unit == 'flux':
+            if params.plotunits == 'linelum':
+                linelum, linelumrms = line_luminosity(comap.map*u.Jy*u.km/u.s,
+                                                      comap.rms*u.Jy*u.km/u.s,
+                                                      comap.freq[len(comap.freq)//2], params, summed=False)
                 comap.map = linelum.value
                 comap.rms = linelumrms.value
                 comap.unit = 'linelum'
