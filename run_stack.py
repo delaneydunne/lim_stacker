@@ -40,9 +40,10 @@ params = st.parameters()
 comaplist, qsolist = st.setup(mapfiles, galcatfile, params)
 
 """ RUN """
-if params.cubelet:
-    stackvals, image, spectrum, qsoidxlist, cube, cuberms = st.stacker(comaplist, qsolist, params)
-else:
-    stackvals, image, spectrum, qsoidxlist = st.stacker(comaplist, qsolist, params)
+returns = st.stacker(comaplist, qsolist, params)
+# for a list of returns, see help(st.stacker)
 
-print("stack Tb is {:.3e} +/- {:.3e} uK".format(stackvals['T']*1e6, stackvals['rms']*1e6))
+# dict of output statistics
+stackvals = returns[0]
+
+print("stack line luminosity is {:.3e} +/- {:.3e} K km/s pc^2".format(stackvals['linelum'], stackvals['dlinelum']))
