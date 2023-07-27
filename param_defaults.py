@@ -11,6 +11,8 @@ freqwidth 3
 centfreq 115.27
 # std of a gaussian 2D beam in pixels
 beamwidth 1
+# cosmology to use (default 'comap' is the one from the ES papers)
+cosmo comap
 
 """ stacking metaparameters """
 # only take a specific feed to stack on
@@ -65,6 +67,8 @@ returncutlist False
 """ plotting parameters """
 # save plots to disk
 saveplots True
+# save fields individually
+savefields True
 # do the spatial plot
 plotspace True
 # RADIUS of the output diagnostic spatial images in pixels

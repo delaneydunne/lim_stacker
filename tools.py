@@ -6,6 +6,7 @@ import astropy.units as u
 import astropy.constants as const
 from astropy.coordinates import SkyCoord
 from astropy.convolution import Gaussian2DKernel
+from astropy.cosmology import FlatLambdaCDM
 import os
 import sys
 import h5py
@@ -103,7 +104,7 @@ class parameters():
         # boolean parameters
         for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'chanmeanfilter',
                      'specmeanfilter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
-                     'plotspace', 'plotfreq', 'plotcubelet']:
+                     'savefields', 'plotspace', 'plotfreq', 'plotcubelet']:
             try:
                 val = default_dir[attr] == 'True'
                 setattr(self, attr, val)
@@ -178,6 +179,13 @@ class parameters():
             warnings.warn("Parameter 'plotunits' should be a string. defaulting to linelum units", RuntimeWarning)
             setattr(self, 'plotunits', 'linelum')
 
+        # cosmology to use
+        if default_dir['cosmo'] == 'comap':
+            setattr(self, 'cosmo', FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047))
+        else:
+            warnings.warn("Don't recognize parameter 'cosmo'. defaulting to COMAP values")
+            setattr(self, 'cosmo', FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047))
+
 
         # number of cutouts can be either a list or an int
         if default_dir['goalnumcutouts'][0] == '[':
@@ -198,6 +206,7 @@ class parameters():
         with an informational name. If there's already a path name passed, uses that one
         """
 
+        # add extra info to the filename because i will forget it
         sinfo = '_x'+str(self.xwidth)+'f'+str(self.freqwidth)
         if self.rotate:
             sinfo += '_rot'
@@ -232,6 +241,7 @@ class parameters():
             except:
                 pass
 
+        # make the new output directory
         if not os.path.exists(outputdir):
             os.makedirs(outputdir)
 
@@ -240,7 +250,11 @@ class parameters():
         self.datasavepath = outputdir + '/data'
         self.cubesavepath = outputdir + '/plots/cubelet'
 
-        # if bootstrapping, adjust those file names too
+        # if saving fields individually, set up for that
+        if self.savefields:
+            fields = ['/field1', '/field2', '/field3']
+
+        # if bootstrapping, adjust those file names too ********
         try:
             self.itersavefile = outputdir + '/' + self.itersavefile
             self.nitersavefile = outputdir + '/' + self.nitersavefile
@@ -249,11 +263,23 @@ class parameters():
 
         if self.saveplots:
             # make the directories to store the plots and data
-            os.makedirs(self.plotsavepath, exist_ok=True)
-            if self.plotcubelet:
-                os.makedirs(self.cubesavepath, exist_ok=True)
+            if self.savefields:
+                # individual ones for each field if doing that
+                for field in fields:
+                    os.makedirs(self.plotsavepath+field, exist_ok=True)
+                    if self.plotcubelet:
+                        os.makedirs(self.cubesavepath+field, exist_ok=True)
+            else:
+                os.makedirs(self.plotsavepath, exist_ok=True)
+                if self.plotcubelet:
+                    os.makedirs(self.cubesavepath, exist_ok=True)
         if self.savedata:
-            os.makedirs(self.datasavepath, exist_ok=True)
+            if self.savefields:
+                for field in fields:
+                    os.makedirs(self.datasavepath+field, exist_ok=True)
+            else:
+                os.makedirs(self.datasavepath, exist_ok=True)
+            
 
     def copy(self):
         """
@@ -340,7 +366,14 @@ class catalogue():
 
             # coordinates
             try:
-                self.coords = SkyCoord(inputdict.pop('ra')*u.deg, inputdict.pop('dec')*u.deg)
+                # fix skycoords wrapping thing around zero by just adding 3 deg to all ra coordinates if this is a simulation
+                ra = inputdict.pop('ra')
+                dec = inputdict.pop('dec')
+
+                if np.any(ra < 0):
+                    ra = ra + 3
+
+                self.coords = SkyCoord(ra*u.deg, dec*u.deg)
             except:
                 warnings.warn('No RA/Dec in input catalogue', RuntimeWarning)
 
@@ -350,6 +383,7 @@ class catalogue():
                         setattr(self, attr, inputdict[attr])
 
             self.nobj = len(self.z)
+            self.catfileidx = np.arange(self.nobj)
             #*** TYPE OF CATALOGUE FLAG?
 
     def copy(self):
@@ -606,7 +640,7 @@ class maps():
             if inputfile[-2:] == 'h5':
                 self.load(inputfile, params, reshape=reshape)
             elif inputfile[-3:] == 'npz':
-                self.load_sim(inputfile)
+                self.load_sim(inputfile, params)
             else:
                 warnings.warn('Unrecognized input file type', RuntimeWarning)
         else:
@@ -722,8 +756,84 @@ class maps():
         params.nchans = self.map.shape[0]
         params.chanwidth = np.abs(self.freq[1] - self.freq[0])
 
+    """UNIT CONVERSIONS"""
+    def to_flux(self):
+        """ converts from temperature units to flux units. won't do anything if the unit
+            isn't already in K"""
+        
+        if self.unit != 'K':
+            print('need units to be K, and current units are '+self.unit)
+            return
+        
+        # correct for primary beam response
+        self.map /= 0.72
+        self.rms /= 0.72
 
-    def load_sim(self, inputfile):
+        # actual COMAP beam
+        beam_fwhm = 4.5*u.arcmin
+        sigma_x = beam_fwhm / (2 * np.sqrt(2 * np.log(2)))
+        sigma_y = sigma_x
+        omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
+
+        # central frequency of each individual spectral channel
+        self.freqbc = self.fstep / 2 + self.freq
+        freqvals = np.tile(self.freqbc, (self.map.shape[2], self.map.shape[1], 1)).T * u.GHz
+
+        # calculate fluxes in Jy
+        Svals = rayleigh_jeans(self.map*u.K, freqvals, omega_B)
+        Srmss = rayleigh_jeans(self.rms*u.K, freqvals, omega_B)
+
+        # multiply by the channel width in km/s
+        delnus = (self.fstep* u.GHz / freqvals * const.c).to(u.km/u.s)
+
+        Snu_Delnu = Svals * delnus
+        dSnu_Delnu = Srmss * delnus
+
+        self.map = Snu_Delnu.value
+        self.rms = dSnu_Delnu.value
+        self.unit = 'flux'
+
+        return
+    
+    def to_linelum(self, params):
+
+        if self.unit == 'K':
+            self.to_flux()
+
+        elif self.unit != 'flux':
+            print('need flux or temperature units')
+            return 
+        
+        # put into the appropriate astropy units
+        self.map = self.map * u.Jy * u.km/u.s
+        self.rms = self.rms * u.Jy * u.km/u.s
+
+        nuobs = np.tile(self.freqbc, (self.map.shape[2], self.map.shape[1], 1)).T * u.GHz
+
+        # find redshift from nuobs:
+        zval = freq_to_z(params.centfreq*u.GHz, nuobs) #*****************
+
+        # luminosity distance in Mpc
+        DLs = params.cosmo.luminosity_distance(zval)
+
+        # line luminosity
+        linelum = const.c**2 / (2*const.k_B) * self.map * DLs**2 / (nuobs**2 * (1+zval)**3)
+        dlinelum = const.c**2 / (2*const.k_B) * self.rms * DLs**2 / (nuobs**2 * (1+zval)**3)
+
+        # fix units
+        linelum = linelum.to(u.K*u.km/u.s*u.pc**2)
+        dlinelum = dlinelum.to(u.K*u.km/u.s*u.pc**2)
+
+        # store in object
+        self.map = linelum.value
+        self.rms = dlinelum.value
+        self.unit = 'linelum'
+
+        return
+
+
+
+    def load_sim(self, inputfile, params):
         """
         loads in a limlam_mocker simulation in raw format instead of a pipeline simulation
         will not adjust coordinates or anything, but will format the output object to be
@@ -740,15 +850,33 @@ class maps():
             self.ra = simfile['map_pixel_ra']
             self.dec = simfile['map_pixel_dec']
 
+        # if the simulaton is centered around zero, add 2deg to the ra axis so it doesn't 
+        # wrap weird in skycoord
+        if np.any(self.ra < 0):
+            self.ra = self.ra + 3
+
         # flip frequency axis and rearrange so freq axis is the first in the map
         self.map = np.swapaxes(self.map, 0, -1)
-        self.map = np.swapaxes(self.map, 1, 2)
+        # self.map = np.swapaxes(self.map, 1, 2) #*******
         self.freq = np.flip(self.freq)
         self.map = np.flip(self.map, axis=0)
+
+        # dummy rms array
+        self.rms = np.ones(self.map.shape)
 
         # build the other convenience coordinate arrays, make sure the coordinates map to
         # the correct part of the voxel
         self.setup_coordinates()
+
+        # move some things to params to keep the info handy
+        params.nchans = self.map.shape[0]
+        params.chanwidth = np.abs(self.freq[1] - self.freq[0])
+
+        # field center 
+        self.fieldcent = SkyCoord(self.ra[len(self.ra) // 2]*u.deg, self.dec[len(self.ra) // 2]*u.deg)
+
+        # units
+        self.unit = 'K'
 
 
     def setup_coordinates(self):
@@ -785,7 +913,7 @@ class maps():
 
 
     """ COORDINATE MATCHING FUNCTIONS (FOR SIMULATIONS) """
-    def rebin_freq(self, goalmap):
+    def rebin_freq(self, goalmap, params):
         """
         simulation pipeline takes a map that's more finely sampled in the frequency axis than
         the science resolution. This will rebin input maps to match the output ones
@@ -802,13 +930,13 @@ class maps():
 
         # if the map is real (i.e. there exists an RMS map), weightmean to combine the map
         try:
-            inmap = self.map.reshape((chan_factor, -1, len(self.ra), len(self.dec)))
-            inrms = self.rms.reshape((chan_factor, -1, len(self.ra), len(self.dec)))
+            inmap = self.map.reshape((chan_factor, -1, len(self.ra), len(self.dec)), order='F')
+            inrms = self.rms.reshape((chan_factor, -1, len(self.ra), len(self.dec)), order='F')
             rebinmap, rebinrms = weightmean(inmap, inrms, axis=0)
 
         except AttributeError:
             # otherwise just a regular mean
-            inmap = self.map.reshape((chan_factor, -1, len(self.ra), len(self.dec)))
+            inmap = self.map.reshape((chan_factor, -1, len(self.ra), len(self.dec)), order='F')
             rebinmap = np.nanmean(inmap, axis=0)
             rebinrms = None
 
@@ -821,6 +949,9 @@ class maps():
         self.freq = self.freq[::chan_factor]
         self.freqbe = self.freqbe[::chan_factor]
         self.fstep = self.freq[1] - self.freq[0]
+
+        # and fix channel width in params
+        params.chanwidth = np.abs(self.fstep)
 
 
     def match_wcs(self, goalmap, params):
@@ -898,194 +1029,6 @@ class maps():
         print("Min T: {:.3e} uK".format(np.nanmin(self.map)*1e6))
         print("-------------")
 
-
-class cubelet():
-
-    def __init__(self, cutout, params):
-
-        # housekeeping info
-        self.unit = params.plotunits
-        self.ncutouts = 1
-        self.catidx = [cutout.catidx]
-        self.nuobs_mean = [cutout.freq]
-        self.z_mean = [cutout.z]
-
-        # read in aperture/cubelet sizes
-        self.xwidth = params.xwidth
-        self.ywidth = params.ywidth
-        self.freqwidth = params.freqwidth
-
-        # read in full cubelet values
-        cubeshape = cutout.cubestack.shape
-        self.cubexwidth = cubeshape[2]
-        self.cubeywidth = cubeshape[1]
-        self.cubefreqwidth = cubeshape[0]
-
-        # do math about it
-        xoff = params.xwidth // 2
-        foff = params.freqwidth // 2
-        self.centpix = (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth)
-        self.apminpix = (params.freqstackwidth-foff, params.spacestackwidth-xoff, params.spacestackwidth-xoff)
-        self.apmaxpix = (params.freqstackwidth+xoff+1, params.spacestackwidth+xoff+1, params.spacestackwidth+xoff+1)
-
-        # set up frequency/angular arrays
-        if params.freqwidth % 2 == 0:
-            self.freqarr = np.arange(params.freqstackwidth * 2)*params.chanwidth - (params.freqstackwidth-0.5)*params.chanwidth
-        else:
-            self.freqarr = np.arange(params.freqstackwidth * 2 + 1)*params.chanwidth - (params.freqstackwidth)*params.chanwidth
-
-        if params.xwidth % 2 == 0:
-            self.xarr = np.arange(params.spacestackwidth * 2)*2 - (params.spacestackwidth-0.5)*2
-        else:
-            self.xarr = np.arange(params.spacestackwidth * 2 + 1)*2 - (params.spacestackwidth)*2
-
-        # read in the cutout values
-        self.cube = cutout.cubestack
-        self.cuberms = cutout.cubestackrms
-        self.linelum = cutout.linelum
-        self.dlinelum = cutout.dlinelum
-        self.rhoh2 = cutout.rhoh2
-        self.drhoh2 = cutout.drhoh2
-
-        return self
-
-
-    def stackin(self, cutout):
-
-        # stack together the 3D cubelets
-        cubevals = np.stack((self.cube, cutout.cubestack))
-        rmsvals = np.stack((self.cuberms, cutout.cubestackrms))
-
-        self.cube, self.cuberms = weightmean(cubevals, rmsvals, axis=0)
-
-        # stack together the single values
-        self.linelum, self.dlinelum = weightmean(np.array((self.linelum, cutout.linelum)),
-                                                 np.array((self.dlinelum, cutout.dlinelum)))
-        self.rhoh2, self.drhoh2 = weightmean(np.array((self.rhoh2, cutout.rhoh2)),
-                                             np.array((self.drhoh2, cutout.drhoh2)))
-
-        # housekeeping
-        self.catidx.append(cutout.catidx)
-        nuobs_mean = (self.nuobs_mean*self.ncutouts + cutout.freq)/(self.ncutouts+1)
-        self.nuobs_mean = nuobs_mean
-        z_mean = (self.z_mean*self.ncutouts + cutout.z)/(self.ncutouts+1)
-        self.z_mean = z_mean
-        self.ncutouts += 1
-
-        # get rid of the cutout entirely
-        del(cutout)
-
-
-    def get_spectrum(self, in_place=False):
-
-        apspec = self.cube[:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
-        dapspec = self.cuberms[:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
-
-        spec, dspec = weightmean(apspec, dapspec, axis=(1,2))
-
-        if in_place:
-            self.spectrum = spec
-            self.spectrumrms = dspec
-
-        return spec, dspec
-
-    def get_image(self, in_place=False):
-
-        apim = self.cube[self.apminpix[0]:self.apmaxpix[0],:,:]
-        dapim = self.cuberms[self.apminpix[0]:self.apmaxpix[0],:,:]
-
-        im = np.nansum(apim, axis=0)
-        dim = np.sqrt(np.nansum(dapim**2, axis=0))
-
-        if in_place:
-            self.image = im
-            self.imagerms = dim
-
-        return im, dim
-
-    def get_aperture(self, in_place=False):
-
-        ap = self.cube[self.apminpix[0]:self.apmaxpix[0]:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
-        dap = self.cuberms[self.apminpix[0]:self.apmaxpix[0],self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
-
-        spec, dspec = weightmean(ap, dap, axis=(1,2))
-
-        val = np.nansum(spec)
-        dval = np.sqrt(np.nansum(dspec**2))
-
-        if in_place:
-            self.aperture_value = val
-            self.aperture_rms = dval
-
-        return val, dval
-
-    def get_output_dict(self, in_place=False):
-
-        outdict = {'linelum':self.linelum,
-                   'dlinelum':self.dlinelum,
-                   'rhoh2':self.rhoh2,
-                   'drhoh2':self.drhoh2,
-                   'nuobs_mean':self.nuobs_mean,
-                   'z_mean':self.z_mean,
-                   'nobj':self.ncutouts}
-
-        if in_place:
-            self.outdict = outdict
-
-        return outdict
-
-
-
-    def copy(self):
-        """
-        creates a deep copy of the object (ie won't overwrite original)
-        """
-        return copy.deepcopy(self)
-
-
-    def make_plots(self, comap, galcat, params):
-
-        if params.saveplots:
-            field_catalogue_plotter(galcat, self.catidx, params)
-
-        if params.plotspace and params.plotfreq:
-
-            im, dim = self.get_image()
-            spec, dspec = self.get_spectrum()
-
-            try:
-                comment = params.plotcomment
-                if field:
-                    comment.append('Field {} Only'.format(field))
-                else:
-                    comment.append('Single-field stack')
-            except AttributeError:
-                comment = ['Single-field stack']
-
-            outdict = self.get_output_dict()
-
-            combined_plotter(self.cube, self.cuberms, params, stackim=im, stackrms=dim,
-                             stackspec=spec, cmap='PiYG_r',
-                             stackresult=outdict, comment=comment)
-
-        return
-
-    def save_cubelet(self, params):
-
-        # save the output values
-        ovalfile = params.datasavepath + '/output_values.csv'
-        # strip the values of their units before saving them (otherwise really annoying
-        # to read out on the other end)
-        outdict = self.get_output_dict()
-        outputvals_nu = dict_saver(outdict, ovalfile)
-
-        idxfile = params.datasavepath + '/included_cat_indices.npz'
-        np.savez(idxfile, self.catidx)
-
-        cubefile = params.datasavepath + '/stacked_3d_cubelet.npz'
-        np.savez(cubefile, T=self.cube, rms=self.cuberms)
-
-        return
 
 
 
@@ -1228,6 +1171,28 @@ def gauss(x, a, b, c):
     1-dimensional Gaussian probability distribution with scaleable amplitude
     """
     return a*np.exp(-(x-b)**2/2/c**2)
+
+""" UNIT CONVERSIONS """
+def rayleigh_jeans(tb, nu, omega):
+    """
+    Rayleigh-Jeans law for conversion between brightness temperature and flux. Explicit
+    version of u.brightness_temperature from astropy.units.equivalencies.
+    -------
+    INPUTS:
+    -------
+    tb:    brightness temperature in temperature units (should be a quantity)
+    nu:    observed frequency in frequency units (should be a quantity)
+    omega: beam solid angle convolved with solid angle of source. has to be in steradian
+    --------
+    OUTPUTS:
+    --------
+    jy:    specific flux associated with tb (will be a quantity with units of Jy)
+    """
+    jy_per_sr = 2*nu**2*const.k_B*tb / const.c**2
+
+    jy = (jy_per_sr * omega.value).to(u.Jy)
+
+    return jy
 
 """ DOPPLER CONVERSIONS """
 def freq_to_z(nuem, nuobs):

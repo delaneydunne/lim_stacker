@@ -72,7 +72,7 @@ def plot_chan(comap, channel, params, cat=None, ext=0.95, smooth=False, lognorm=
     fig,ax = plt.subplots(1)
 
     # plot the map
-    plotmap = comap.map[channel,:,:] * 1e6
+    plotmap = comap.map[channel,:,:] * 1e6 #****
     # convovle with the beam if smooth=True
     if smooth:
         plotmap = convolve(plotmap, params.gauss_kernel)
@@ -109,8 +109,8 @@ def plot_chan(comap, channel, params, cat=None, ext=0.95, smooth=False, lognorm=
 """ SINGLE-CUTOUT PLOTS """
 def display_cutout(cutout, comap, params, save=None, ext=1.0):
 
-    cutoutra = comap.ra[cutout.spacexidx[0]:cutout.spacexidx[1]+1]
-    cutoutdec = comap.dec[cutout.spaceyidx[0]:cutout.spaceyidx[1]+1]
+    cutoutra = comap.rabe[cutout.spacexidx[0]:cutout.spacexidx[1]+1]
+    cutoutdec = comap.decbe[cutout.spaceyidx[0]:cutout.spaceyidx[1]+1]
 
     beamra = comap.ra[cutout.xidx[0]:cutout.xidx[1]+1]
     beamdec = comap.dec[cutout.yidx[0]:cutout.yidx[1]+1]
@@ -122,8 +122,8 @@ def display_cutout(cutout, comap, params, save=None, ext=1.0):
         cutim = cutout.spacestack * 1e6
     except AttributeError:
         # only want the beam for the axes that aren't being shown
-        aperture_collapse_cubelet_freq(cutout, params)
-        cutim = cutout.spacestack * 1e6
+        cutim, cutrms = aperture_collapse_cubelet_freq(cutout.cubestack, cutout.cubestackrms, params)
+        cutim = cutim * 1e6
 
     beamcut = cutim[beamxidx[0]:beamxidx[1], beamyidx[0]:beamyidx[1]]
 
@@ -134,8 +134,8 @@ def display_cutout(cutout, comap, params, save=None, ext=1.0):
     c = ax.pcolormesh(cutoutra, cutoutdec, cutim, cmap='PiYG_r', vmin=-vext, vmax=vext)
     ax.pcolormesh(beamra, beamdec, beamcut, cmap='PiYG_r', vmin=-vext, vmax=vext, ec='k')
 
-    ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Cutout Tb = {:.2e}".format(cutout.T))
-    ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Cutout RMS = {:.2e}".format(cutout.rms))
+    ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Cutout linelum = {:.2e}".format(cutout.linelum))
+    ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Cutout RMS = {:.2e}".format(cutout.dlinelum))
     ax.scatter(cutout.x, cutout.y, color='k', s=2, label="Catalogue frequency = {:.4f}".format(cutout.freq))
 
     ax.set_xlabel('RA')
@@ -315,7 +315,7 @@ def radprof(cubelet, rmslet, params, chan=None, apcoll=False, centwidth=0.5, apw
 
     return np.array(meanlist), np.array(rmsmeanlist), router
 
-def radprofoverplot(cubelet, rmslet, params, nextra=2, offset=0, profsum=False):
+def radprofoverplot(cubelet, rmslet, params, nextra=5, offset=0, profsum=False):
     """
     plots the radial profile of the central frequency channel (offset by offset
     if nonzero), and nextra channels on either side of the central one. will
@@ -327,13 +327,12 @@ def radprofoverplot(cubelet, rmslet, params, nextra=2, offset=0, profsum=False):
     plt.style.use('seaborn-talk')
 
     # indexing
-    nchans = nextra*2 + 1
     freqcent = int(cubelet.shape[0] / 2) + offset
-    chans = np.arange(nchans) + freqcent - nextra
+    chans = np.arange(freqcent - nextra, freqcent + nextra + 1)
 
     fig, ax = plt.subplots(1, figsize=(7, 5), constrained_layout=True)
 
-    carr = np.arange(len(chans)+3) / (len(chans) + 3) + 0.2
+    carr = np.abs(chans - freqcent) / (chans[-1] - freqcent)
 
     chanprofs = []
     for i, chan in enumerate(chans):
@@ -351,14 +350,14 @@ def radprofoverplot(cubelet, rmslet, params, nextra=2, offset=0, profsum=False):
 
         if chan == freqcent:
             ax.step(xaxis, chanprof*1e6, zorder=20, where='pre',
-                    color=cmap(carr[i]), lw=3, label='Channel {}'.format(str(i-nextra)))
+                    color=str(carr[i]), lw=4, label='Channel {}'.format(str(i-nextra)))
 
             ax.fill_between(xaxis, (chanprof-rmsprof)*1e6, (chanprof+rmsprof)*1e6,
                             color='0.9', zorder=0)
         else:
 
             ax.step(xaxis, chanprof*1e6, zorder=10, where='pre',
-                    color=cmap(carr[i]), label='Channel {}'.format(str(i-nextra)))
+                    color=str(carr[i]), label='Channel {}'.format(str(i-nextra)))
 
     ax.axhline(0, color='k', ls='--')
     ax.axvline(0, color='k', ls='--')
@@ -369,7 +368,7 @@ def radprofoverplot(cubelet, rmslet, params, nextra=2, offset=0, profsum=False):
 
     ax.set_ylabel(r'$T_b$ ($\mu$K)')
 
-    ax.legend(loc='upper right')
+    # ax.legend(loc='upper right')
 
     ax.set_xlabel('Radius (arcmin)')
     ax.set_xlim((-2, 20))
@@ -674,9 +673,12 @@ def spectral_plotter(stackspec, params):
 
 """ *** PASS CUBELET DIRECTLY *** """
 def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stackspec=None, cmap='PiYG_r', stackresult=None,
-                     unsmooth_vext=None, smooth_vext=None, freq_ext=None, comment=None, filename=None):
+                     unsmooth_vext=None, smooth_vext=None, freq_ext=None, comment=None, filename=None, fieldstr=None):
 
     plt.style.use('default')
+
+    if not fieldstr:
+        fieldstr=''
 
     # collapse the cube if the collapsed versions aren't already passed
     if not np.any(stackim):
@@ -958,16 +960,15 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
 
     """ radial profile plots """
     # indexing
-    nextra = 2
-    nchans = nextra*2 + 1
+    nextra = 9
     freqcent = int(cubelet.shape[0] / 2)
-    chans = np.arange(nchans)*params.freqwidth + freqcent - nextra*params.freqwidth
+    chans = np.arange(freqcent - nextra, freqcent + nextra + 1)
 
-    carr = np.abs((np.arange(len(chans)) - len(chans)//2) / (len(chans)//2) * 0.9)
+    carr = np.abs(chans - freqcent) / (chans[-1] - freqcent)
 
     chanprofs = []
     for i, chan in enumerate(chans):
-        chanprof, rmsprof, xaxis = radprof(cubelet, rmslet, params, chan=chan, apcoll=True)
+        chanprof, rmsprof, xaxis = radprof(cubelet, rmslet, params, chan=chan)
 
         if params.plotunits == 'linelum':
             chanprof, rmsprof = chanprof/1e10, rmsprof/1e10
@@ -1030,7 +1031,7 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
     if params.saveplots:
         if not filename:
             filename = '/combinedstackim.png'
-        fig.savefig(params.plotsavepath + filename)
+        fig.savefig(params.plotsavepath + fieldstr + filename)
 
     return fig
 
@@ -1061,8 +1062,14 @@ def catalogue_plotter(catlist, goodcatidx, params):
 
     return 0
 
-def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True, trim=False):
+def catalogue_overplotter(catlist, maplist, catinds, params, printnobjs=True, trim=False):
 
+    # wrangle the index list into three ones for plotting
+    goodcatidx = []
+    for cat in catlist:
+        goodcatidx.append(np.where(np.in1d(cat.idx, catinds))[0])
+
+    
     fig,axs = plt.subplots(1,4, figsize=(8.5,3), constrained_layout=True)
 
     if printnobjs:
@@ -1077,8 +1084,9 @@ def catalogue_overplotter(catlist, maplist, goodcatidx, params, printnobjs=True,
         fieldcoord = catlist[i].coords[goodcatidx[i]]
 
         logrms = np.log10(np.nanmean(maplist[i].rms, axis=0))
-        vmax = np.nanmax(logrms) * 0.95
-        vmin = np.nanmin(logrms)
+        minval, maxval = np.nanmin(logrms), np.nanmax(logrms)
+        vmax = minval + (maxval - minval)*0.95
+        vmin = minval
         rac = axs[i].pcolormesh(maplist[i].rabe, maplist[i].decbe, logrms, vmin=vmin, vmax=vmax,
                                 zorder=0, cmap='Greys')
         if i == 0:
@@ -1132,8 +1140,10 @@ def field_catalogue_plotter(cat, goodcatidx, params):
 
     fig, ax = plt.subplots(1)
 
-    fieldz = cat.z[goodcatidx]
-    fieldcoord = cat.coords[goodcatidx]
+    inobjidx = np.where(np.in1d(cat.idx, goodcatidx))
+
+    fieldz = cat.z[inobjidx]
+    fieldcoord = cat.coords[inobjidx]
 
     c = ax.scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4)
     ax.set_xlabel('RA (deg)')
@@ -1146,6 +1156,41 @@ def field_catalogue_plotter(cat, goodcatidx, params):
         fig.savefig(params.plotsavepath + '/catalogue_object_distribution.png')
 
     return fig
+
+def field_catalogue_overplotter(cat, comap, goodcatidx, params, fieldstr=None):
+
+    if not fieldstr:
+        fieldstr = ''
+    
+    plt.style.use('default')
+
+    fig,ax = plt.subplots(1)
+
+    inobjidx = np.where(np.in1d(cat.idx, goodcatidx))
+
+    fieldz = cat.z[inobjidx]
+    fieldcoord = cat.coords[inobjidx]
+
+    c = ax.scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4)
+    ax.set_xlabel('RA (deg)')
+    ax.set_ylabel('Dec (deg)')
+
+    cbar = fig.colorbar(c)
+    cbar.ax.set_ylabel('Redshift')
+
+    logrms = np.log10(np.nanmean(comap.rms, axis=0))
+    minval, maxval = np.nanmin(logrms), np.nanmax(logrms)
+    vmax = minval + (maxval - minval)*0.95
+    vmin = minval
+    ax.pcolormesh(comap.rabe, comap.decbe, logrms, vmin=vmin, vmax=vmax,
+                  zorder=0, cmap='Greys');
+    
+    if params.saveplots:
+        fig.savefig(params.plotsavepath + fieldstr + '/catalogue_object_distribution.png')
+
+    return fig
+
+
 
 
 def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logcmap=False):
@@ -1307,3 +1352,43 @@ def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logc
     plt.annotate("(a)", xy=(0.11, 0.9), xycoords='figure fraction', fontsize='xx-large', fontweight='bold')
     plt.annotate("(b)", xy=(0.55, 0.9), xycoords='figure fraction', fontsize='xx-large', fontweight='bold')
     plt.annotate("(c)", xy=(0.11, 0.41), xycoords='figure fraction', fontsize='xx-large', fontweight='bold')
+
+
+
+""" CATALOGUE EXPLORATION: VOXEL OCCUPATION HISTOGRAM """
+
+def voxel_occupation(catinst, mapinst, title=None):
+    
+    # set up the catalogue in terms of the map voxel units (ie change z to nu)
+    catfreqs = nuem_to_nuobs(115.27, catinst.z)
+    
+    # main 3d histogram
+    hist, histedges = np.histogramdd((catfreqs, catinst.ra(), catinst.dec()),
+                                     (mapinst.freqbe, mapinst.rabe, mapinst.decbe))
+    
+    # only care about this histogram where it overlaps with map voxels with actual signal 
+    # so mask out the parts of it that don't
+    dni = np.where(np.isnan(mapinst.map))
+    hist[dni] = np.nan
+    
+    # make the 'voxel occupation histogram' thing
+    vod, vodedges = np.histogram(hist.flatten(), bins=6, range=(0,6))
+    
+    # turn this into a percentage of voxels
+    pvod = vod / np.sum(vod) * 100
+    
+    # plot
+    fig,ax = plt.subplots(1)
+    
+    ax.bar(vodedges[:-1], pvod, color='deeppink')
+    ax.set_yscale('log')
+
+    ax.set_ylabel('Percentage of COMAP Voxels')
+    ax.set_xlabel('Number of Catalogue Objects per Voxel')
+
+    if title:
+        ax.set_title(title)
+        
+    perocc = np.sum(pvod[1:])
+    
+    return fig, perocc
