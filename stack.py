@@ -305,6 +305,7 @@ def single_cutout(idx, galcat, comap, params):
 
     # center values of the gal (store for future reference)
     cutout.catidx = galcat.catfileidx[idx]
+    cutout.catidx = galcat.catfileidx[idx]
     cutout.z = zval
     cutout.coords = galcat.coords[idx]
     cutout.freq = nuobs

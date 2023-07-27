@@ -109,8 +109,8 @@ def plot_chan(comap, channel, params, cat=None, ext=0.95, smooth=False, lognorm=
 """ SINGLE-CUTOUT PLOTS """
 def display_cutout(cutout, comap, params, save=None, ext=1.0):
 
-    cutoutra = comap.rabe[cutout.spacexidx[0]:cutout.spacexidx[1]+1]
-    cutoutdec = comap.decbe[cutout.spaceyidx[0]:cutout.spaceyidx[1]+1]
+    cutoutra = comap.rabebe[cutout.spacexidx[0]:cutout.spacexidx[1]+1]
+    cutoutdec = comap.decbebe[cutout.spaceyidx[0]:cutout.spaceyidx[1]+1]
 
     beamra = comap.ra[cutout.xidx[0]:cutout.xidx[1]+1]
     beamdec = comap.dec[cutout.yidx[0]:cutout.yidx[1]+1]
@@ -1343,7 +1343,7 @@ def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logc
     # show which channels contribute to the stack
     freqax.axvline(apmin,  color='0.7', ls=':')
     freqax.axvline(apmax, color='0.7', ls=':')
-    freqax.fill_betweenx(yext, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
+    freqax.fill_betweenx(np.array(yext)*2, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
     freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
     freqax.set_ylim(yext)
 
@@ -1392,3 +1392,4 @@ def voxel_occupation(catinst, mapinst, title=None):
     perocc = np.sum(pvod[1:])
     
     return fig, perocc
+    return fig, (usax,sax,freqax)
