@@ -962,7 +962,7 @@ class maps():
         inmap = self.map.reshape((factor, -1, len(self.ra), len(self.dec)), order='F')
         inrms = self.rms.reshape((factor, -1, len(self.ra), len(self.dec)), order='F')
         # rebin by weighted meaning
-        rebinmap, rebinrms = st.weightmean(inmap, inrms, axis=0)
+        rebinmap, rebinrms = weightmean(inmap, inrms, axis=0)
 
         # housekeeping channel width in params
         params.chanwidth = np.abs(self.fstep)
