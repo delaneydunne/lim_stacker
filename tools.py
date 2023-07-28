@@ -953,7 +953,43 @@ class maps():
         # and fix channel width in params
         params.chanwidth = np.abs(self.fstep)
 
+    def rebin_freq_byfactor(self, factor, params, in_place=True):
+        """ 
+        rebin in frequency by a given factor and not to match to another map
+        """
 
+        # reshape to make rebinning easier
+        inmap = self.map.reshape((factor, -1, len(self.ra), len(self.dec)), order='F')
+        inrms = self.rms.reshape((factor, -1, len(self.ra), len(self.dec)), order='F')
+        # rebin by weighted meaning
+        rebinmap, rebinrms = st.weightmean(inmap, inrms, axis=0)
+
+        # housekeeping channel width in params
+        params.chanwidth = np.abs(self.fstep)
+
+        if in_place:
+            self.map = rebinmap
+            self.rms = rebinrms 
+
+            # housekeeping frequency axes
+            self.freq = self.freq[::factor]
+            self.freqbe = self.freqbe[::factor]
+            self.fstep = self.freq[1] - self.freq[0]
+
+        else:
+            binnedmap = self.copy()
+
+            binnedmap.map = rebinmap
+            binnedmap.rms = rebinrms 
+
+            # housekeeping frequency axes
+            binnedmap.freq = self.freq[::factor]
+            binnedmap.freqbe = self.freqbe[::factor]
+            binnedmap.fstep = self.freq[1] - self.freq[0]
+
+            return binnedmap
+
+        
     def match_wcs(self, goalmap, params):
         """
         for simulations -- will adjust the map wcs from whatever is already in self to wcs matching
