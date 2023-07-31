@@ -1230,6 +1230,27 @@ def rayleigh_jeans(tb, nu, omega):
 
     return jy
 
+""" SIMULATION UNIT CONVERSION """
+def simlum_to_stacklum(simlum, stackout, params):
+    # first Lsun to Ico
+    convfac = 4.0204e-2 # Jy/sr per Lsol/Mpc/Mpc/GHz
+    DLs = params.cosmo.luminosity_distance(stackout.z_mean) # luminosity distances
+    Ico     = convfac * 13193.02434159/4/np.pi/(DLs.value)**2/(1+stackout.z_mean)**2/params.chanwidth
+
+    # channel widths as velocities
+    delnus = (params.chanwidth*u.GHz / (stackout.nuobs_mean*u.GHz)*const.c).to(u.km/u.s)
+    
+    # flux value
+    flux = Ico * delnus*3 * u.Jy
+    
+    # line luminosity
+    linelum = const.c**2 / (2*const.k_B) * flux * DLs**2 / ((stackout.nuobs_mean*u.GHz)**2 * (1+stackout.z_mean)**3)
+    
+    # beam adjustment, units
+    outlum = linelum.to(u.K*u.km/u.s*u.pc**2) * 0.72
+    
+    return outlum, stackout.linelum / outlum.value
+
 """ DOPPLER CONVERSIONS """
 def freq_to_z(nuem, nuobs):
     """
