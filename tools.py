@@ -490,6 +490,25 @@ class catalogue():
         except AttributeError:
             self.set_chan(comap, params)
 
+    def z_offset(self, mean, scatter, params, type='z'):
+        """
+        randomly offset the velocities in the catalogue using a gaussian kernal
+        if type is z, mean/scatter are redshifts
+        if type is freq, mean/scatter are (observed) frequencies****
+        if type is vel, mean/scatter are velocities
+        """
+
+        rng = params.rng
+
+        if type == 'z':
+            offset_redshifts(self, mean, scatter, rng)
+        elif type == 'vel':
+            offset_velocities(self, mean, scatter, rng)
+        elif type == 'freq':
+            offset_frequencies(self, mean, scatter, rng)
+        else:
+            print('????. Not offsetting')
+
 
     def cull_to_chan(self, comap, params, chan, in_place=True):
         """
@@ -1235,7 +1254,7 @@ def simlum_to_stacklum(simlum, stackout, params):
     # first Lsun to Ico
     convfac = 4.0204e-2 # Jy/sr per Lsol/Mpc/Mpc/GHz
     DLs = params.cosmo.luminosity_distance(stackout.z_mean) # luminosity distances
-    Ico     = convfac * 13193.02434159/4/np.pi/(DLs.value)**2/(1+stackout.z_mean)**2/params.chanwidth
+    Ico     = convfac * simlum/4/np.pi/(DLs.value)**2/(1+stackout.z_mean)**2/params.chanwidth
 
     # channel widths as velocities
     delnus = (params.chanwidth*u.GHz / (stackout.nuobs_mean*u.GHz)*const.c).to(u.km/u.s)
@@ -1250,6 +1269,60 @@ def simlum_to_stacklum(simlum, stackout, params):
     outlum = linelum.to(u.K*u.km/u.s*u.pc**2) * 0.72
     
     return outlum, stackout.linelum / outlum.value
+
+""" SIMULATION OFFSETTING """
+def offset_velocities(catinst, meanoff, scatter, rng):
+    """
+    randomly offsets the redshift of the catalogue objects with a gaussian kernel
+    with mean value meanoff and standard deviation scatter (given as VELOCITIES). 
+    RNG is the input random number generator for consistency
+    """
+    # get recession velocities from the catalog redshifts
+    rec_vels = const.c * ((1+catinst.z)**2 - 1) / ((1+catinst.z)**2 + 1)
+    rec_vels = rec_vels.to(u.km/u.s)
+
+    # random list of velocity offsets
+    off_vels = rng.normal(loc=meanoff, scale=scatter, size=catinst.nobj) * u.km/u.s
+
+    # add these in and generate a new list of redshifts
+    new_vels = off_vels + rec_vels 
+    new_z = np.sqrt((const.c+new_vels) / (const.c-new_vels)) - 1
+
+    catinst.z = new_z
+
+def offset_redshifts(catinst, meanoff, scatter, rng):
+    """
+    randomly offsets the redshift of the catalogue objects with a gaussian kernel
+    with mean value meanoff and standard deviation scatter (given directly as redshifts). 
+    RNG is the input random number generator for consistency
+    """
+    # random list of redshift offsets
+    off_zs = rng.normal(loc=meanoff, scale=scatter, size=catinst.nobj)
+
+    # add these in and generate a new list of redshifts 
+    new_zs = off_zs + catinst.z
+
+    catinst.z = new_zs
+
+def offset_frequencies(catinst, meanoff, scatter, rng):
+    """
+    randomly offsets the redshift of the catalogue objects with a gaussian kernel
+    with mean value meanoff and standard deviation scatter (given as FREQUENCIES). 
+    RNG is the input random number generator for consistency
+    """
+    
+    # observed frequency of each of the objects
+    obs_freqs = nuem_to_nuobs(115.27, catinst.z)
+    
+    # generate a distribution of offset frequencies first
+    off_freqs = rng.normal(loc=meanoff, scale=scatter, size=catinst.nobj)
+    
+    # add these in and generate a new list of redshifts
+    new_freqs = off_freqs + obs_freqs
+    new_z = freq_to_z(new_freqs, 115.27)
+    
+    catinst.z = new_z
+
 
 """ DOPPLER CONVERSIONS """
 def freq_to_z(nuem, nuobs):
