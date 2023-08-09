@@ -490,24 +490,50 @@ class catalogue():
         except AttributeError:
             self.set_chan(comap, params)
 
-    def z_offset(self, mean, scatter, params, type='z'):
+    def z_offset(self, mean, scatter, params, type='z', in_place=True, verbose=True):
         """
         randomly offset the velocities in the catalogue using a gaussian kernal
         if type is z, mean/scatter are redshifts
-        if type is freq, mean/scatter are (observed) frequencies****
+        if type is freq, mean/scatter are (observed) frequencies
         if type is vel, mean/scatter are velocities
+        if not in_place, returns a copy
+        if verbose, will also spit out the passed offset and mean as freq/velocity/redshift if not given
         """
 
         rng = params.rng
 
-        if type == 'z':
-            offset_redshifts(self, mean, scatter, rng)
-        elif type == 'vel':
-            offset_velocities(self, mean, scatter, rng)
-        elif type == 'freq':
-            offset_frequencies(self, mean, scatter, rng)
+        # if verbose:
+        #     zmean = np.mean(catinst.z)
+        #     if type == 'vel':
+        #         rvmean = const.c*((1+zmean)**2 - 1) / ((1+zmean)**2 + 1)
+        #         nrvmean = rvmean + mean 
+
+                
+
+        if in_place:
+            # just scatter the original
+            if type == 'z':
+                offset_redshifts(self, mean, scatter, rng)
+            elif type == 'vel':
+                offset_velocities(self, mean, scatter, rng)
+            elif type == 'freq':
+                offset_frequencies(self, mean, scatter, rng)
+            else:
+                print('????. Not offsetting')
+            return
         else:
-            print('????. Not offsetting')
+            # scatter a copy so the original is kept
+            catinst = self.copy()
+            if type == 'z':
+                offset_redshifts(catinst, mean, scatter, rng)
+            elif type == 'vel':
+                offset_velocities(catinst, mean, scatter, rng)
+            elif type == 'freq':
+                offset_frequencies(catinst, mean, scatter, rng)
+            else:
+                print('????. Not offsetting')
+            return catinst
+
 
 
     def cull_to_chan(self, comap, params, chan, in_place=True):
@@ -1273,6 +1299,7 @@ def simlum_to_stacklum(simlum, stackout, params):
 """ SIMULATION OFFSETTING """
 def offset_velocities(catinst, meanoff, scatter, rng):
     """
+    **** fix this. it is wrong
     randomly offsets the redshift of the catalogue objects with a gaussian kernel
     with mean value meanoff and standard deviation scatter (given as VELOCITIES). 
     RNG is the input random number generator for consistency
@@ -1319,7 +1346,7 @@ def offset_frequencies(catinst, meanoff, scatter, rng):
     
     # add these in and generate a new list of redshifts
     new_freqs = off_freqs + obs_freqs
-    new_z = freq_to_z(new_freqs, 115.27)
+    new_z = freq_to_z(115.27, new_freqs)
     
     catinst.z = new_z
 
