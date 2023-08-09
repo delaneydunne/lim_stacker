@@ -1322,12 +1322,13 @@ def offset_redshifts(catinst, meanoff, scatter, rng):
     randomly offsets the redshift of the catalogue objects with a gaussian kernel
     with mean value meanoff and standard deviation scatter (given directly as redshifts). 
     RNG is the input random number generator for consistency
+    this is based off (delta z)/(1+z) (like in fig 6 of paper draft)
     """
     # random list of redshift offsets
     off_zs = rng.normal(loc=meanoff, scale=scatter, size=catinst.nobj)
 
     # add these in and generate a new list of redshifts 
-    new_zs = off_zs + catinst.z
+    new_zs = off_zs*(1+catinst.z) + catinst.z
 
     catinst.z = new_zs
 
