@@ -383,6 +383,7 @@ class catalogue():
                         setattr(self, attr, inputdict[attr])
 
             self.nobj = len(self.z)
+            # index in the actual catalogue file passed
             self.catfileidx = np.arange(self.nobj)
             #*** TYPE OF CATALOGUE FLAG?
 
@@ -533,6 +534,55 @@ class catalogue():
             else:
                 print('????. Not offsetting')
             return catinst
+        
+
+    def add_false_positives(self, percent, comap, params, in_place=True):
+        """
+        replace x percent of the catalogue with (randomly generated) false postivies hits
+        -------
+        INPUTS:
+        -------
+            percent:   the percentage of the catalogut that should be false positves
+            comap:     the map object that will be stacked on (as a percentage, ie 100 for all)
+            params:    the parameters object
+            in_place:  (bool; default=True) if False, will make a copy to insert FPs into
+                        otherwise, just changes self
+        """
+
+        # calculate the actual number of false positives necessary to get percent
+        num_fp = int(self.nobj * percent / 100)
+        num_keep = int(self.nobj * (100-percent)/100)
+
+        # generate that number of random coordinates
+        ravals = params.rng.uniform(comap.xlims[0], comap.xlims[1], size=num_fp)
+        decvals = params.rng.uniform(comap.ylims[0], comap.ylims[1], size=num_fp)
+        coordvals = SkyCoord(ravals*u.deg, decvals*u.deg)
+
+        zlims = freq_to_z(params.centfreq, np.array([comap.flims[0], comap.flims[1]]))
+        zvals = params.rng.uniform(zlims[1], zlims[0], size=num_fp)
+
+        # generate random indices to replace with false positives
+        fpidx = params.rng.integers(0, self.nobj, num_fp)
+
+        if in_place:
+            # store the indices that are false positives in the catalogue object for future reference
+            self.fpidx = fpidx 
+            # change the coords at the FP indices to the random ones
+            self.coords[fpidx] = coordvals 
+            self.z[fpidx] = zvals 
+
+            return 
+        
+        else:
+            # generate a copy of self to store the fp values in
+            newcat = self.copy()
+            # store the fp indices for future reference 
+            newcat.fpidx = fpidx 
+            # change the coords at the FP indices to the random ones
+            newcat.coords[fpidx] = coordvals 
+            newcat.z[fpidx] = zvals 
+
+            return newcat
 
 
 
@@ -1277,6 +1327,16 @@ def rayleigh_jeans(tb, nu, omega):
 
 """ SIMULATION UNIT CONVERSION """
 def simlum_to_stacklum(simlum, stackout, params):
+    """
+    INPUTS:
+    simlum: luminosity (in Lsun) from the input catalogue
+    stackout: output stacked cube
+
+    RETURNS:
+    outlum: the luminosity from the input catalogue converted into the measured luminosity
+            (in K km/s) that would correspond to in the stack
+    frac: the percentage of this output luminosity that was actually measured in the stack
+    """
     # first Lsun to Ico
     convfac = 4.0204e-2 # Jy/sr per Lsol/Mpc/Mpc/GHz
     DLs = params.cosmo.luminosity_distance(stackout.z_mean) # luminosity distances
@@ -1293,8 +1353,10 @@ def simlum_to_stacklum(simlum, stackout, params):
     
     # beam adjustment, units
     outlum = linelum.to(u.K*u.km/u.s*u.pc**2) * 0.72
+
+    frac = stackout.linelum / outlum.value
     
-    return outlum, stackout.linelum / outlum.value
+    return outlum, frac
 
 """ SIMULATION OFFSETTING """
 def offset_velocities(catinst, meanoff, scatter, rng):
