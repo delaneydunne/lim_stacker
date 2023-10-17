@@ -75,6 +75,7 @@ def cat_rand_offset(mapinst, catinst, params, offrng=None):
     offcat.freq = freqoff
     offcat.z = zoff
     offcat.nobj = 2*catinst.nobj
+    offcat.catfileidx = np.arange(len(zoff))
 
     return offcat
 
