@@ -544,6 +544,8 @@ def stacker(maplist, catlist, params):
 
     # change units of the map
     if maplist[0].unit != 'linelum':
+        if params.verbose:
+            print('Units are '+maplist[0].unit+'. Changing to linelum')
         for map in maplist:
             map.to_flux()
             map.to_linelum(params)
@@ -555,7 +557,8 @@ def stacker(maplist, catlist, params):
                 cubelist.append(None)
                 continue
         
-        print(i)
+        if params.verbose:
+            print('Starting field {}'.format(i+1))
         cube = field_stack(maplist[i], catlist[i], params, field=fields[i], goalnobj=numcutoutlist[i])
         cubelist.append(cube)
 
