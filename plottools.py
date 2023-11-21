@@ -1070,7 +1070,7 @@ def catalogue_overplotter(catlist, maplist, catinds, params, printnobjs=True, tr
         goodcatidx.append(np.where(np.in1d(cat.idx, catinds))[0])
 
     
-    fig,axs = plt.subplots(1,4, figsize=(8.5,3), constrained_layout=True)
+    fig,axs = plt.subplots(1,4, figsize=(8.5,3.3), constrained_layout=True)
 
     if printnobjs:
         plt.style.use('default')
@@ -1091,9 +1091,9 @@ def catalogue_overplotter(catlist, maplist, catinds, params, printnobjs=True, tr
                                 zorder=0, cmap='Greys')
         if i == 0:
             keeprac = rac
-        c = axs[i].scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4, s=2)
+        c = axs[i].scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4, s=10)
 
-        axs[i].set_xlabel('Dec (deg)')#, fontsize='large')
+        axs[i].set_xlabel('Dec (deg)', fontsize='large')
         if printnobjs:
             axs[i].set_title(fields[i]+' ('+str(len(goodcatidx[i]))+' objects)')
         else:
@@ -1102,8 +1102,8 @@ def catalogue_overplotter(catlist, maplist, catinds, params, printnobjs=True, tr
         width = 0.23
         pad = 0.05
         cbarpad = 0.01
-        bottom = 0.18
-        height = 0.7
+        bottom = 0.2
+        height = 0.6
         left = 0.1
 
         axs[i].set_position([left+(width+pad)*i, bottom, width, height])
@@ -1119,10 +1119,10 @@ def catalogue_overplotter(catlist, maplist, catinds, params, printnobjs=True, tr
 
         axs[i].set_axis_on()
 
-    axs[0].set_ylabel('RA (deg)')#, fontsize='large')
+    axs[0].set_ylabel('RA (deg)', fontsize='x-large')
     axs[3].set_position([left+(width+pad)*2+width+cbarpad, bottom, 0.01, height])
     cbar = fig.colorbar(c, cax = axs[3])
-    cbar.ax.set_ylabel('Redshift')
+    cbar.ax.set_ylabel('Redshift', fontsize='x-large')
 
     # rmscbarax = inset_axes(axs[0], width='50%', height='5%', loc='upper right')
     # # rmscbarax.xaxis.set_ticks_position('top')
@@ -1320,6 +1320,7 @@ def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logc
     cbar = fig.colorbar(c, cax=cax)
     cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
 
+    """ spectrum """
     if params.freqwidth % 2 == 0:
         freqarr = np.arange(params.freqstackwidth * 2)*31.25e-3 - (params.freqstackwidth-0.5)*31.25e-3
     else:
@@ -1341,8 +1342,8 @@ def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logc
     apmin, apmax = 0 - params.freqwidth / 2 * 31.25e-3, 0 + params.freqwidth / 2 * 31.25e-3
 
     # show which channels contribute to the stack
-    freqax.axvline(apmin,  color='0.7', ls=':')
-    freqax.axvline(apmax, color='0.7', ls=':')
+    # freqax.axvline(apmin,  color='0.7', ls=':')
+    # freqax.axvline(apmax, color='0.7', ls=':')
     freqax.fill_betweenx(np.array(yext)*2, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
     freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
     freqax.set_ylim(yext)

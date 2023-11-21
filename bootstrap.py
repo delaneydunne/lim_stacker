@@ -535,7 +535,10 @@ def linelumhistoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=
     ax.set_xlabel(r"$L'_{CO} \times 10^{10}$ (K km/s pc$^2$)", fontsize='large')
     ax.set_ylabel('Counts', fontsize='large')
 
-    p_og = norm.cdf(x=opt[1], loc=stackdict['T'], scale=opt[2])
+    try:
+        p_og = norm.cdf(x=opt[1], loc=stackdict['T'], scale=opt[2])
+    except KeyError:
+        p_og = norm.cdf(x=opt[1], loc=stackdict['linelum'], scale=opt[2])
 
     # save the output as a csv
     if writefit:

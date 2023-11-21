@@ -84,6 +84,7 @@ def sim_field_setup(pipemapfile, catfile, params, rawsimfile=None, outcatfile=No
     if rawsimfile:
         # map objects setup
         rawmap = maps(params, inputfile=rawsimfile)
+        cat.cull_to_map(rawmap, params)
 
         # match catalogue wcs
         cat.match_wcs(rawmap, pipemap, params)

@@ -627,6 +627,9 @@ class catalogue():
 
         fieldidx = np.where(np.logical_and(fieldxbool, fieldzbool))[0]
 
+        if len(fieldidx) == 0:
+            print('Warning: cull removed all objects from field')
+
         # either return a new catalogue object or cut the original one with only objects
         # in the field
         self.subset(fieldidx, in_place=True)
