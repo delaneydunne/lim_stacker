@@ -657,6 +657,7 @@ class catalogue():
             _ = self.x
         except AttributeError:
             self.set_pix(inmap, params)
+            
         self.cull_to_map(inmap, params) 
 
         # check the frequency axis
