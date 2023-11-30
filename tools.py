@@ -657,7 +657,7 @@ class catalogue():
             _ = self.x
         except AttributeError:
             self.set_pix(inmap, params)
-            
+
         self.cull_to_map(inmap, params) 
 
         # check the frequency axis
@@ -697,7 +697,7 @@ class catalogue():
         midvector = utils.ang2rect((middec, -midra))
 
         # send equator coordinates to output field
-        outvector = utils.rectt2ang(outrotmatrix @ midvector)
+        outvector = utils.rect2ang(outrotmatrix @ midvector)
 
         # save to catalog object
         outra, outdec = outvector 
