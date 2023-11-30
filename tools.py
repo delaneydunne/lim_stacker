@@ -7,6 +7,7 @@ import astropy.constants as const
 from astropy.coordinates import SkyCoord
 from astropy.convolution import Gaussian2DKernel
 from astropy.cosmology import FlatLambdaCDM
+from pixell import utils
 import os
 import sys
 import h5py
@@ -644,6 +645,68 @@ class catalogue():
 
     """ COORDINATE MATCHING FUNCTIONS (SIMULATIONS) """
     def match_wcs(self, inmap, outmap, params):
+        """
+        for simulations -- will adjust the catalogue wcs from matching one map to matching another
+        only adjusts ra/dec -- frequency axes should be identical between the two already unless
+        inmap is more finely sampled than outmap
+        ** new version using interpolation **
+        """
+
+        # if the catalogue hasn't already been mapped to inmap, do so
+        try:
+            _ = self.x
+        except AttributeError:
+            self.set_pix(inmap, params)
+        self.cull_to_map(inmap, params) 
+
+        # check the frequency axis
+        if len(inmap.freq) > len(outmap.freq):
+            # if the difference isn't integer we've got a problem
+            if len(inmap.freq) % len(outmap.freq) != 0:
+                warnings.warn('mismatch in number of channels between input and output map',
+                              RuntimeWarning)
+                return
+
+            subchan_factor = len(inmap.freq) // len(outmap.freq)
+            # frequency entries in the catalogue should be fine -- it's just chan
+            # that needs to change
+            # floor to the nearest integer channel number
+            self.chan = self.chan // subchan_factor
+
+        # set up rotation matrix to zero
+        incentra, incentdec = inmap.fieldcent.ra.deg, inmap.fieldcent.dec.deg
+        inra = utils.rotmatrix(np.deg2rad(-incentra), raxis='z')
+        indec = utils.rotmatrix(np.deg2rad(-incentdec), raxis='y')
+        inrotmatrix = inra @ indec
+
+        # set up rotation matrix from zero to new coordinate center
+        outcentra, outcentdec = outmap.fieldcent.ra.deg, outmap.fieldcent.dec.deg
+        outra = utils.rotmatrix(np.deg2rad(outcentra), raxis='z')
+        outdec = utils.rotmatrix(np.deg2rad(outcentdec), raxis='y')
+        outrotmatrix = outra @ outdec
+
+        # put coordinates to rotate into pixell format
+        invector = utils.ang2rect((np.deg2rad(self.ra()), np.deg2rad(self.dec())))
+
+        # send input coordinates to equator
+        midvector = utils.rect2ang(inrotmatrix @ invector)
+        midra, middec = midvector 
+
+        # flip ra and dec once at the equator
+        midvector = utils.ang2rect((middec, -midra))
+
+        # send equator coordinates to output field
+        outvector = utils.rectt2ang(outrotmatrix @ midvector)
+
+        # save to catalog object
+        outra, outdec = outvector 
+        outra, outdec = np.rad2deg(outra), np.rad2deg(outdec)
+        outra = outra + outmap.ystep
+        self.coords = SkyCoord(outra*u.deg, -outdec*u.deg)
+
+
+
+    def match_wcs_old(self, inmap, outmap, params):
         """
         for simulations -- will adjust the catalogue wcs from matching one map to matching another
         only adjusts ra/dec -- frequency axes should be identical between the two already unless
