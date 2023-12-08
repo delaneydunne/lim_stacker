@@ -14,6 +14,7 @@ from astropy.convolution import convolve, Gaussian2DKernel, Tophat2DKernel
 from astropy.modeling import models, fitting
 import warnings
 import csv
+import pandas as pd
 warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
 warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
@@ -25,8 +26,18 @@ cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
 """ CUBELET OBJECT TO HOLD STACK RESULTS """
 class cubelet():
 
-    def __init__(self, cutout, params):
+    def __init__(self, input, params):
+        """
+        can pass either a path to load data from or a cutout object
+        """
 
+        if type(input) == str:
+            self.from_files(input, params)
+        else:
+            self.from_cutout(input, params)
+
+
+    def from_cutout(self, cutout, params):
         # housekeeping info
         self.unit = params.plotunits
         self.ncutouts = 1
@@ -70,6 +81,71 @@ class cubelet():
         self.dlinelum = cutout.dlinelum
         self.rhoh2 = cutout.rhoh2
         self.drhoh2 = cutout.drhoh2
+
+    
+    def from_files(self, path, params):
+
+        # paths to specific data files
+        cubefile = path + '/stacked_3d_cubelet.npz'
+        valuefile = path + '/output_values.csv'
+        idxfile = path + '/included_cat_indices.npz'
+
+        # params info
+        self.unit = params.plotunits
+
+        # read in aperture/cubelet sizes
+        self.xwidth = params.xwidth
+        self.ywidth = params.ywidth
+        self.freqwidth = params.freqwidth
+
+        # load in cubelet
+        with np.load(cubefile) as f:
+            cubevals = f['T']
+            rmsvals = f['rms']
+
+        self.cube = cubevals
+        self.cuberms = rmsvals 
+
+        # metainfo about cubelet
+        cubeshape = cubevals.shape
+        self.cubexwidth = cubeshape[2]
+        self.cubeywidth = cubeshape[1]
+        self.cubefreqwidth = cubeshape[0]
+        xoff = params.xwidth // 2
+        foff = params.freqwidth // 2
+        self.centpix = (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth)
+        self.apminpix = (params.freqstackwidth-foff, params.spacestackwidth-xoff, params.spacestackwidth-xoff)
+        self.apmaxpix = (params.freqstackwidth+xoff+1, params.spacestackwidth+xoff+1, params.spacestackwidth+xoff+1)
+
+        # set up frequency/angular arrays
+        if params.freqwidth % 2 == 0:
+            self.freqarr = np.arange(params.freqstackwidth * 2)*params.chanwidth - (params.freqstackwidth-0.5)*params.chanwidth
+        else:
+            self.freqarr = np.arange(params.freqstackwidth * 2 + 1)*params.chanwidth - (params.freqstackwidth)*params.chanwidth
+
+        if params.xwidth % 2 == 0:
+            self.xarr = np.arange(params.spacestackwidth * 2)*2 - (params.spacestackwidth-0.5)*2
+        else:
+            self.xarr = np.arange(params.spacestackwidth * 2 + 1)*2 - (params.spacestackwidth)*2
+
+
+        # load in output values
+        outvals = pd.read_csv(valuefile)
+
+        self.linelum = outvals.linelum[0]
+        self.dlinelum = outvals.dlinelum[0]
+        self.rhoh2 = outvals.rhoh2[0]
+        self.drhoh2 = outvals.drhoh2[0]
+
+        self.ncutouts = outvals.nobj[0]
+        self.nuobs_mean = outvals['nuobs_mean ()'][0]
+        self.z_mean = outvals['z_mean ()'][0]
+
+        # load in catalog indices
+        with np.load(idxfile) as f:
+            indices = f['arr_0']
+
+        self.catidx = indices 
 
 
 
