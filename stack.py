@@ -138,8 +138,14 @@ class cubelet():
         self.drhoh2 = outvals.drhoh2[0]
 
         self.ncutouts = outvals.nobj[0]
-        self.nuobs_mean = outvals['nuobs_mean ()'][0]
-        self.z_mean = outvals['z_mean ()'][0]
+        try:
+            self.nuobs_mean = outvals['nuobs_mean ()'][0]
+        except KeyError:
+            self.nuobs_mean = outvals.nuobs_mean[0]
+        try:
+            self.z_mean = outvals['z_mean ()'][0]
+        except KeyError:
+            self.z_mean = outvals.z_mean[0]
 
         # load in catalog indices
         with np.load(idxfile) as f:
