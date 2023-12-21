@@ -202,7 +202,6 @@ class cubelet():
         
         # housekeeping
         self.catidx = np.concatenate((self.catidx, cubelet.catidx))
-        print(self.ncutouts, cubelet.ncutouts)
         nuobs_mean = (self.nuobs_mean*self.ncutouts + cubelet.nuobs_mean*cubelet.ncutouts) / (self.ncutouts + cubelet.ncutouts)
         self.nuobs_mean = nuobs_mean 
         z_mean = (self.z_mean*self.ncutouts + cubelet.z_mean*cubelet.ncutouts) / (self.ncutouts + cubelet.ncutouts)
