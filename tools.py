@@ -1413,7 +1413,7 @@ def simlum_to_stacklum(simlum, stackout, params):
     delnus = (params.chanwidth*u.GHz / (stackout.nuobs_mean*u.GHz)*const.c).to(u.km/u.s)
     
     # flux value
-    flux = Ico * delnus*3 * u.Jy
+    flux = Ico * delnus * params.freqwidth * u.Jy
     
     # line luminosity
     linelum = const.c**2 / (2*const.k_B) * flux * DLs**2 / ((stackout.nuobs_mean*u.GHz)**2 * (1+stackout.z_mean)**3)

@@ -146,6 +146,12 @@ class cubelet():
             self.z_mean = outvals['z_mean ()'][0]
         except KeyError:
             self.z_mean = outvals.z_mean[0]
+            
+        # fix values if they've been stored weird
+        if type(self.z_mean) == str:
+            self.z_mean = float(self.z_mean[1:-1])
+        if type(self.nuobs_mean) == str:
+            self.nuobs_mean = float(self.nuobs_mean[1:-1])
 
         # load in catalog indices
         with np.load(idxfile) as f:

@@ -1270,7 +1270,7 @@ def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logc
         cbar = fig.colorbar(c, cax=cax, ticks=[-1e3, -1e2, 0, 1e2, 1e3])
     else:
         cbar = fig.colorbar(c, cax=cax)
-    cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+    cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)", fontsize='x-large')
     if logcmap:
         cbar.ax.set_yticklabels([r'$-10^{3}$', r'$-10^{2}$', '0', r'$10^2$', r'$10^3$'])
 
@@ -1318,7 +1318,7 @@ def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logc
     divider = make_axes_locatable(sax)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     cbar = fig.colorbar(c, cax=cax)
-    cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+    cbar.ax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)", fontsize='x-large')
 
     """ spectrum """
     if params.freqwidth % 2 == 0:
@@ -1328,11 +1328,11 @@ def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logc
 
     if params.plotunits == 'linelum':
         freqax.step(freqarr, stackspec/1e10, color='indigo', zorder=10, where='mid')
-        freqax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+        freqax.set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)", fontsize='x-large')
     elif params.plotunits == 'flux':
         freqax.step(freqarr, stackspec,
                 color='indigo', zorder=10, where='mid')
-        freqax.set_ylabel(r"$S\Delta v$ (Jy km/s)")
+        freqax.set_ylabel(r"$S\Delta v$ (Jy km/s)", fontsize='x-large')
 
     freqax.axhline(0, color='k', ls='--')
     freqax.axvline(0, color='k', ls='--')
@@ -1345,7 +1345,7 @@ def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logc
     # freqax.axvline(apmin,  color='0.7', ls=':')
     # freqax.axvline(apmax, color='0.7', ls=':')
     freqax.fill_betweenx(np.array(yext)*2, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
-    freqax.set_xlabel(r'$\Delta_\nu$ [GHz]')
+    freqax.set_xlabel(r'$\Delta_\nu$ [GHz]', fontsize='x-large')
     freqax.set_ylim(yext)
 
 
