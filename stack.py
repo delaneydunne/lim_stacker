@@ -61,7 +61,7 @@ class cubelet():
         foff = params.freqwidth // 2
         self.centpix = (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth)
         self.apminpix = (params.freqstackwidth-foff, params.spacestackwidth-xoff, params.spacestackwidth-xoff)
-        self.apmaxpix = (params.freqstackwidth+xoff+1, params.spacestackwidth+xoff+1, params.spacestackwidth+xoff+1)
+        self.apmaxpix = (params.freqstackwidth+foff+1, params.spacestackwidth+xoff+1, params.spacestackwidth+xoff+1)
 
         # set up frequency/angular arrays
         if params.freqwidth % 2 == 0:
@@ -115,7 +115,7 @@ class cubelet():
         foff = params.freqwidth // 2
         self.centpix = (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth)
         self.apminpix = (params.freqstackwidth-foff, params.spacestackwidth-xoff, params.spacestackwidth-xoff)
-        self.apmaxpix = (params.freqstackwidth+xoff+1, params.spacestackwidth+xoff+1, params.spacestackwidth+xoff+1)
+        self.apmaxpix = (params.freqstackwidth+foff+1, params.spacestackwidth+xoff+1, params.spacestackwidth+xoff+1)
 
         # set up frequency/angular arrays
         if params.freqwidth % 2 == 0:
@@ -225,6 +225,10 @@ class cubelet():
 
         spec, dspec = weightmean(apspec, dapspec, axis=(1,2))
 
+        # correct for adjusted solid angle
+        # spec = spec * self.xwidth * self.ywidth
+        # dspec = dspec * self.xwidth * self.ywidth
+
         if in_place:
             self.spectrum = spec
             self.spectrumrms = dspec
@@ -251,6 +255,10 @@ class cubelet():
         dap = self.cuberms[self.apminpix[0]:self.apmaxpix[0],self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
 
         spec, dspec = weightmean(ap, dap, axis=(1,2))
+
+        # correct for adjusted solid angle
+        # spec = spec * self.xwidth * self.ywidth
+        # dspec = dspec * self.xwidth * self.ywidth
 
         val = np.nansum(spec)
         dval = np.sqrt(np.nansum(dspec**2))
@@ -986,6 +994,9 @@ def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
     # make the fluxes into line luminosities
     # linelum, linelumrms = line_luminosity(Sval_chan, Srms_chan, cutout.freq, params)
     pcllum, dpcllum = weightmean(tbvals, rmsvals, axis=(1,2))
+    # ap_area = params.xwidth * params.ywidth
+    # pcllum, dpcllum = pcllum * ap_area, dpcllum * ap_area
+
     linelum = np.nansum(pcllum)*u.K*u.km/u.s*u.pc**2
     linelumrms = np.sqrt(np.nansum(dpcllum**2))*u.K*u.km/u.s*u.pc**2
 

@@ -1093,7 +1093,7 @@ def catalogue_overplotter(catlist, maplist, catinds, params, printnobjs=True, tr
             keeprac = rac
         c = axs[i].scatter(fieldcoord.ra.deg, fieldcoord.dec.deg, c=fieldz, cmap='jet', vmin=2.4, vmax=3.4, s=10)
 
-        axs[i].set_xlabel('Dec (deg)', fontsize='large')
+        axs[i].set_xlabel('RA (deg)', fontsize='large')
         if printnobjs:
             axs[i].set_title(fields[i]+' ('+str(len(goodcatidx[i]))+' objects)')
         else:
@@ -1119,7 +1119,7 @@ def catalogue_overplotter(catlist, maplist, catinds, params, printnobjs=True, tr
 
         axs[i].set_axis_on()
 
-    axs[0].set_ylabel('RA (deg)', fontsize='x-large')
+    axs[0].set_ylabel('Dec (deg)', fontsize='x-large')
     axs[3].set_position([left+(width+pad)*2+width+cbarpad, bottom, 0.01, height])
     cbar = fig.colorbar(c, cax = axs[3])
     cbar.ax.set_ylabel('Redshift', fontsize='x-large')

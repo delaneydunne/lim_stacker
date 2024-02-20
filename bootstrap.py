@@ -491,7 +491,7 @@ def histoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False,
 
 
 def linelumhistoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=False,
-                        writefit=None):
+                        writefit=None, plotmaprms=False):
     """
     Function to plot the output of a bootstrap run as a histogram
     """
@@ -520,16 +520,18 @@ def linelumhistoverplot(bootfile, stackdict, nbins=30, p0=(1000, 0, 2), rethist=
 
     rect = Rectangle((opt[1] - opt[2], -1), 2*opt[2], yext[1]*2, color='0.1', alpha=0.5, zorder=10)
     ax.add_patch(rect)
-    ax.axvline(opt[1], color='0.1', ls=':', label="Bootstrap")
+    ax.axvline(opt[1], color='0.5', ls=':', label="Bootstrap")
 
-    rect = Rectangle((actT-actrms, -1), 2*actrms,
-                      yext[1], color='0.5', alpha=0.5)
-    ax.add_patch(rect)
-    ax.axvline(actT, color='0.5', ls='--', label="Stack RMS")
+    if plotmaprms:
+        rect = Rectangle((actT-actrms, -1), 2*actrms,
+                        yext[1], color='0.5', alpha=0.5)
+        ax.add_patch(rect)
+        ax.axvline(actT, color='0.5', ls='--', label="Stack RMS")
 
     ax.set_ylim((0., np.max(counts)*1.05))
 
-    ax.legend(fontsize='large')
+    if plotmaprms:
+        ax.legend(fontsize='large')
 
 
     ax.set_xlabel(r"$L'_{CO} \times 10^{10}$ (K km/s pc$^2$)", fontsize='large')

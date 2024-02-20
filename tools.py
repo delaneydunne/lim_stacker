@@ -937,6 +937,10 @@ class maps():
         sigma_y = sigma_x
         omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
 
+        # voxel solid angle
+        # l_vox = 2*u.arcmin
+        # omega_B = (l_vox**2).to(u.sr)
+
         # central frequency of each individual spectral channel
         self.freqbc = self.fstep / 2 + self.freq
         freqvals = np.tile(self.freqbc, (self.map.shape[2], self.map.shape[1], 1)).T * u.GHz
@@ -1150,6 +1154,60 @@ class maps():
             binnedmap.fstep = self.freq[1] - self.freq[0]
 
             return binnedmap
+        
+
+    def upgrade(self, factor, params, in_place=False):
+        """
+        oversample the spatial axes by a factor of factor. ***implement this in the spectral axis as well
+        currently doesn't interpolate at all, just repeats
+        look into the pixell structure where the function is defined seperately***
+        """
+
+        # oversample the input map
+        bigmap = np.repeat(self.map, factor, axis=1).repeat(factor, axis=2)
+
+        # new metainfo for spatial coordinates
+        bigx = np.arange(bigmap.shape[1])
+        bigy = np.arange(bigmap.shape[2])
+
+        bigxstep = self.xstep / factor
+        bigystep = self.ystep / factor 
+
+        bigra = self.ra[0] + bigx * bigxstep 
+        bigdec = self.dec[0] + bigy * bigystep 
+
+        bigrabe = self.rabe[0] + bigx * bigxstep 
+        bigdecbe = self.decbe[0] + bigy * bigystep 
+
+        if in_place:
+            # populate the object with the new values
+            self.map = bigmap 
+            self.x = bigx 
+            self.y = bigy 
+            self.xstep = bigxstep 
+            self.ystep = bigystep 
+            self.ra = bigra 
+            self.dec = bigdec 
+            self.rabe = bigrabe 
+            self.decbe = bigdecbe
+
+            return 
+
+        else:
+            # create a new object populated with the new values 
+            outmap = self.copy()
+            outmap.map = bigmap
+            outmap.x = bigx 
+            outmap.y = bigy 
+            outmap.xstep = bigxstep 
+            outmap.ystep = bigystep
+            outmap.ra = bigra 
+            outmap.dec = bigdec 
+            outmap.rabe = bigrabe 
+            outmap.decbe = bigdecbe
+
+            return outmap
+
 
         
     def match_wcs(self, goalmap, params):
