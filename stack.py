@@ -366,6 +366,7 @@ class cubelet():
 """ CUTOUT-SPECIFIC FUNCTIONS """
 def single_cutout(idx, galcat, comap, params):
 
+    """ can i make this prettier """
     # find gal in each axis, test to make sure it falls into field
     ## freq
     zval = galcat.z[idx]
@@ -378,23 +379,46 @@ def single_cutout(idx, galcat, comap, params):
     else:
         fdiff = 1
 
-    x = galcat.coords[idx].ra.deg
-    if x < np.min(comap.ra) or x > np.max(comap.ra + comap.xstep):
-        return None
-    xidx = np.max(np.where(comap.ra < x))
-    if np.abs(x - comap.ra[xidx]) < comap.xstep / 2:
-        xdiff = -1
-    else:
-        xdiff = 1
+    # if the map has been rescaled, these arrays will be 2d 
+    if len(comap.ra.shape) == 2:
 
-    y = galcat.coords[idx].dec.deg
-    if y < np.min(comap.dec) or y > np.max(comap.dec + comap.ystep):
-        return None
-    yidx = np.max(np.where(comap.dec < y))
-    if np.abs(y - comap.dec[yidx]) < comap.ystep / 2:
-        ydiff = -1
+        x = galcat.coords[idx].ra.deg
+        if x < np.min(comap.ra) or x > np.max(comap.ra) + np.max(comap.xstep):
+            return None
+        xidx = np.max(np.where(comap.ra[freqidx] < x))
+        if np.abs(x - comap.ra[freqidx, xidx]) < comap.xstep[freqidx] / 2:
+            xdiff = -1
+        else:
+            xdiff = 1
+
+        y = galcat.coords[idx].dec.deg
+        if y < np.min(comap.dec) or y > np.max(comap.dec) + np.max(comap.ystep):
+            return None
+        yidx = np.max(np.where(comap.dec[freqidx] < y))
+        if np.abs(y - comap.dec[freqidx, yidx]) < comap.ystep[freqidx] / 2:
+            ydiff = -1
+        else:
+            ydiff = 1
+            
     else:
-        ydiff = 1
+        
+        x = galcat.coords[idx].ra.deg
+        if x < np.min(comap.ra) or x > np.max(comap.ra + comap.xstep):
+            return None
+        xidx = np.max(np.where(comap.ra < x))
+        if np.abs(x - comap.ra[xidx]) < comap.xstep / 2:
+            xdiff = -1
+        else:
+            xdiff = 1
+
+        y = galcat.coords[idx].dec.deg
+        if y < np.min(comap.dec) or y > np.max(comap.dec + comap.ystep):
+            return None
+        yidx = np.max(np.where(comap.dec < y))
+        if np.abs(y - comap.dec[yidx]) < comap.ystep / 2:
+            ydiff = -1
+        else:
+            ydiff = 1
 
     # start setting up cutout object if it passes all these tests
     cutout = empty_table()
@@ -608,7 +632,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
         stackinst.make_plots(comap, galcat, params, field=field)
     except UnboundLocalError:
         print('No values to stack in this field')
-        return None
+        # return None
 
     if field:
         fieldstr = '/field'+str(field)
