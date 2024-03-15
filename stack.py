@@ -642,7 +642,10 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
     if params.savedata:
         stackinst.save_cubelet(params, fieldstr)
 
-    return stackinst
+    if stackinst:
+        return stackinst
+    else: 
+        return None
 
 def stacker(maplist, catlist, params):
     """
