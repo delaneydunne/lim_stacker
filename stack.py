@@ -638,7 +638,9 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
         fieldstr = '/field'+str(field)
     else:
         fieldstr = ''
-    stackinst.save_cubelet(params, fieldstr)
+
+    if params.savedata:
+        stackinst.save_cubelet(params, fieldstr)
 
     return stackinst
 
