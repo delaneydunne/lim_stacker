@@ -642,9 +642,9 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
     if params.savedata:
         stackinst.save_cubelet(params, fieldstr)
 
-    if stackinst:
+    try:
         return stackinst
-    else: 
+    except UnboundLocalError: 
         return None
 
 def stacker(maplist, catlist, params):
