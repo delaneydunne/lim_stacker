@@ -5,9 +5,11 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as const
 from astropy.coordinates import SkyCoord
-from astropy.convolution import Gaussian2DKernel
+from astropy.convolution import Gaussian2DKernel, convolve
+from astropy import wcs
 from astropy.cosmology import FlatLambdaCDM
 from pixell import utils
+from reproject import reproject_adaptive
 import os
 import sys
 import h5py
@@ -1208,6 +1210,149 @@ class maps():
 
             return outmap
 
+    def cosmic_volume_spacing(self, goalres, params, oversamp=5):
+        """
+        evenly space a maps object in proper cosmic distance
+        -------
+        inputs:
+            self: stacker.maps object
+            goalres: 
+            oversamp: factor by which the map should be oversampled while reprojecting
+        
+        """
+        
+        # add a bin centers attr for the frequency direction
+        # and redshift axis
+        self.freqbc = self.fstep / 2 + self.freq
+        self.z = freq_to_z(115.27, self.freqbc)
+        
+        # conversion factor for each channel (assuming constant across map)
+        chanscales = params.cosmo.kpc_proper_per_arcmin(self.z)
+        
+        # actual COMAP beam
+        beam_fwhm = 4.5*u.arcmin
+        sigma_x = beam_fwhm / (2 * np.sqrt(2 * np.log(2)))
+        sigma_y = sigma_x
+        omega_B = (2 * np.pi * sigma_x * sigma_y)
+        
+        # beam fwhm in Mpc
+        sigmazmpc = (sigma_x * chanscales).to(u.Mpc)
+        
+        # kernel to put them all on the same size beam
+        sigmamax = sigmazmpc[-1]
+        sigmaconvmpc = np.sqrt(sigmamax**2 - sigmazmpc**2)
+        sigmaconv = (sigmaconvmpc / chanscales).to(u.arcmin)
+        
+        # oversample
+        bigmap = self.upgrade(5, params)
+        
+        # kernel in pixels
+        sigmaconvpix = sigmaconv / ((bigmap.xstep*u.deg).to(u.arcmin))
+        
+        # width of each channel in Mpc
+        chansizes = (chanscales * bigmap.xstep*u.deg).to(u.Mpc)
+        
+        # set up original wcs: empty wcs thing to store it in
+        bigwcsdict = {"CTYPE1": 'RA---CAR', 
+                    "CTYPE2": 'DEC--CAR'}
+        # populate it with the correct values ***THESE ARE WRONG********
+        bigwcs = wcs.WCS(bigwcsdict)
+        centidx = np.array([len(bigmap.x)//2, len(bigmap.y)//2])
+        bigwcs.wcs.crpix = centidx
+        bigwcs.wcs.crval = np.array([bigmap.ra[centidx[0]], bigmap.dec[centidx[1]]])
+        bigwcs.wcs.cdelt = np.array([bigmap.xstep, bigmap.ystep])
+        
+        # goal width
+        if not type(goalres) == u.quantity.Quantity:
+            goalres *= u.Mpc
+            
+        # factor by which to resample
+        resampfacs = (goalres / chansizes).value
+        
+        # new degree scale of each channel
+        newcdelt = np.array([bigmap.xstep*resampfacs, bigmap.ystep*resampfacs])
+        
+        # current width of the map
+        mapwidth = bigmap.map.shape[1] * bigmap.xstep
+        
+        # what is this in the new cdelt pixels in each channel
+        mapsizes = mapwidth / newcdelt
+        mapsize = int(np.round(np.max(mapsizes)))
+        mapcent = mapsize // 2
+        
+        # set up output wcs
+        outwcs = copy.deepcopy(bigwcs)
+        outwcs.wcs.crpix = np.array([mapcent, mapcent])
+        
+        
+        # loop through channels, reconvolve and reproject
+        rprcmaplist = []
+        outwcslist = []
+        for freq in range(len(bigmap.freq)):
+            # reconvolve
+            kernel = Gaussian2DKernel(sigmaconvpix[freq].value)
+            rcchan = convolve(bigmap.map[freq,:,:], kernel, fill_value=np.nan)
+            
+            # adjust output wcs
+            chanwcs = copy.deepcopy(outwcs)
+            chanwcs.wcs.cdelt = np.array([newcdelt[0][freq], newcdelt[1][freq]])
+            outwcslist.append(chanwcs)
+            
+            # reproject
+            rprcchan, _ = reproject_adaptive((rcchan, bigwcs), chanwcs,
+                                            shape_out=(mapsize,mapsize),
+                                            kernel='gaussian', boundary_mode='strict')
+            rprcmaplist.append(rprcchan)
+            
+            if params.verbose:
+                if freq % 10 == 0:
+                    print(freq)
+        rprcmap = np.array(rprcmaplist)
+        
+        # set up 3d map object with variable pixel scales
+        outmap = bigmap.copy()
+        outmap.map = rprcmap
+        outmap.x = np.arange(mapsize)
+        outmap.y = np.arange(mapsize)
+        
+        outmap.rms = np.ones(np.shape(outmap.map)) # *********
+        
+        raidx = outmap.x - mapcent
+        decidx = outmap.y - mapcent
+        newxstep = []
+        newystep = []
+        newra = []
+        newdec = []
+        for freq in range(len(outmap.freq)):
+            
+            cdelts = outwcslist[freq].wcs.cdelt
+            chanxstep = cdelts[0]
+            chanystep = cdelts[1]
+            
+            chanra = outwcslist[0].wcs.crval[0] + raidx * chanxstep
+            chandec = outwcslist[0].wcs.crval[1] + decidx * chanystep
+            
+            newxstep.append(np.ones(238)*chanxstep)
+            newystep.append(np.ones(238)*chanystep)
+            newra.append(chanra)
+            newdec.append(chandec)
+        
+        newxstep = np.array(newxstep)
+        newystep = np.array(newystep)
+        ra = np.array(newra)
+        dec = np.array(newdec)
+        
+        outmap.xstep = newxstep[:,0]
+        outmap.ystep = newystep[:,0]
+        outmap.ra = ra
+        outmap.dec = dec
+        outmap.rabc = ra - newxstep / 2
+        outmap.decbc = dec - newystep / 2
+        
+        # *** save spacing in mpc also
+        
+        
+        return outmap
 
         
     def match_wcs(self, goalmap, params):
