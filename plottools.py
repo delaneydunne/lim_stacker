@@ -1166,7 +1166,7 @@ def field_catalogue_overplotter(cat, comap, goodcatidx, params, fieldstr=None):
 
     fig,ax = plt.subplots(1)
 
-    inobjidx = np.where(np.in1d(cat.idx, goodcatidx))
+    inobjidx = np.where(np.in1d(cat.catfileidx, goodcatidx))
 
     fieldz = cat.z[inobjidx]
     fieldcoord = cat.coords[inobjidx]

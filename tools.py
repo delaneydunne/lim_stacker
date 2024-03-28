@@ -1350,6 +1350,7 @@ class maps():
         outmap.decbc = dec - newystep / 2
         
         # *** save spacing in mpc also
+        # *** do this in-place
         
         
         return outmap

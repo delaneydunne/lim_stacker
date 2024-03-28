@@ -15,9 +15,15 @@ from astropy.modeling import models, fitting
 import warnings
 import csv
 import pandas as pd
+
+from spectral_cube import SpectralCube
+from spectral_cube.utils import SpectralCubeWarning
+from radio_beam import Beam
+
 warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
 warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
+warnings.filterwarnings("ignore", category=SpectralCubeWarning, append=True)
 
 
 # standard COMAP cosmology
@@ -216,6 +222,23 @@ class cubelet():
 
         del(cubelet)
         return
+    
+    def upgrade(self, factor):
+        """ 
+        oversample only the spatial axes by a factor of factor
+        currently doesn't interpolate at all, just repeats
+        """
+        
+        bigcube = np.repeat(self.cubestack, factor, axis=1).repeat(factor, axis=2)
+        bigrms = np.repeat(self.cubestackrms, factor, axis=1).repeat(factor, axis=2)
+        
+        self.cubestack = bigcube
+        self.cubestsackrms = bigrms
+        
+        # store how much it's oversampled by
+        self.upgradefactor = factor
+        
+        return    
 
 
     def get_spectrum(self, in_place=False):
@@ -362,6 +385,188 @@ class cubelet():
         np.savez(cubefile, T=self.cube, rms=self.cuberms)
 
         return
+    
+""" CUTOUT FILTERS """
+def upgrade(cubelet, factor):
+    """ 
+    oversample only the spatial axes of a cutout object by a factor of factor
+    currently doesn't interpolate at all, just repeats
+    """
+
+    bigcube = np.repeat(cubelet.cubestack, factor, axis=1).repeat(factor, axis=2)
+    bigrms = np.repeat(cubelet.cubestackrms, factor, axis=1).repeat(factor, axis=2)
+    
+    cubelet.cubestack = bigcube
+    cubelet.cubestsackrms = bigrms
+    
+    # store how much it's oversampled by
+    cubelet.upgradefactor = factor
+    
+    return 
+
+def physical_spacing_setup(mapinst, params):
+    """
+    setup function so calculations regarding scale to do physical spacing don't have to be redone
+    every single time. stores the outputs in params
+    
+    """
+    
+    # redshift range to be considering
+    fexts = np.array([mapinst.freq[0], mapinst.freq[-1]])
+    zexts = freq_to_z(params.centfreq, fexts)
+    
+    # kpc/arcmin in the extrema
+    worstchanscale = params.cosmo.kpc_proper_per_arcmin(zexts[1])
+    
+    # worst beam scale in mpc
+    worstbeamscale = (worstchanscale * params.beamwidth*u.arcmin).to(u.Mpc)
+    
+    # worst velocity resolution
+    goaldv = const.c.to(u.km/u.s) * (zexts[0] + 1) * params.chanwidth / 115.27
+    
+    # naxis for the x and y axes
+    oldnaxis2 = params.spacestackwidth*2 + 1
+    
+    worstchansize = (worstchanscale * mapinst.xstep*u.deg).to(u.Mpc)
+    resampfac = (params.goalres / worstchansize).value
+    worstoutcdelt2 = mapinst.xstep * resampfac
+    
+    worstsize = oldnaxis2 * mapinst.xstep / worstoutcdelt2
+    worstsize = int(np.round(worstsize))
+    
+    # naxis for the spectral axis
+    oldnaxis1 = params.freqstackwidth*2 + 1
+    
+    params.goalbeamscale = worstbeamscale
+    params.goalxsize = oldnaxis2
+    params.goaldv = goaldv
+    params.goalfsize = oldnaxis1  
+
+def physical_spacing(cutout, mapinst, params, oversamp_factor=5):
+    """
+    questions:
+    - should the inital oversampling be an interpolation? currently just using np.repeat
+    - requires a beamwidth as a FWHM from params
+    - what's the best fit standard to have constant-sized spaxels? currently using plate carree
+    - supress warnings (annoying)
+    - calculate (set?) the goal spatial range / number of pixels
+    - calculate (set?) the goal spectral range / number of pixels
+    - i think ra and dec are now correct but i'm still not convinced it's lined up properly
+    - gotta deal with rms also
+    - what to save in cutout output
+    - catch the other warning
+    - how should the aperture size change
+    """
+
+    # test to make sure the prep function has been run
+    try:
+        _ = params.goalbeamscale
+    except AttributeError:
+        physical_spacing_setup(mapinst, params)
+    
+    # oversample for the beam convolution
+    outcutout = cutout.copy()
+    upgrade(outcutout, oversamp_factor)
+    
+    
+    ### set up the input cube
+    # WCS object w the oversampling taken into account
+    xstep = mapinst.xstep / oversamp_factor
+    xpixcent = params.spacestackwidth * oversamp_factor
+    fpixval = (mapinst.freq[outcutout.freqidx[0]+params.freqwidth//2]+mapinst.fstep / 2)*1e9 #****
+    xpixval = mapinst.ra[outcutout.xidx[0]+params.xwidth//2] + mapinst.xstep / 2
+    ypixval = mapinst.dec[outcutout.yidx[0]+params.ywidth//2] + mapinst.ystep / 2
+#     inwcsdict = {"CTYPE1": 'FREQ', 'CDELT1': mapinst.fstep * 1e9, 'CRPIX1': 40, 
+#              'CRVAL1': fpixval,
+#              "CTYPE2": 'RA---CAR', 'CUNIT2': 'deg', 'CDELT2': xstep, 'CRPIX2': xpixcent, 'CRVAL2': xpixval,
+#              "CTYPE3": 'DEC--CAR', 'CUNIT3': 'deg', 'CDELT3': xstep, 'CRPIX3': xpixcent, 'CRVAL3': ypixval,
+#              "ZSOURCE": outcutout.z}
+    inwcsdict = {"CTYPE1": 'FREQ', 'CDELT1': mapinst.fstep * 1e9, 'CRPIX1': params.freqstackwidth+1, 
+             'CRVAL1': fpixval,
+             "CTYPE3": 'RA---CAR', 'CUNIT3': 'deg', 'CDELT3': xstep, 'CRPIX3': xpixcent, 'CRVAL3': xpixval,
+             "CTYPE2": 'DEC--CAR', 'CUNIT2': 'deg', 'CDELT2': xstep, 'CRPIX2': xpixcent, 'CRVAL2': ypixval,
+             "ZSOURCE": outcutout.z}
+    inwcs = wcs.WCS(inwcsdict)
+    # print(inwcsdict)
+    # input cube
+    cube = SpectralCube(data=outcutout.cubestack.T, wcs=inwcs)
+    # beam for the input cube
+    cube_beam = Beam(params.beamwidth * u.arcmin)
+    cube = cube.with_beam(cube_beam)
+    # give the cube an empty mask so an annoying error doesn't pop up
+    blankmask = ~np.isnan(cube)
+    cube = cube.with_mask(blankmask)
+    
+    
+    ### reconvolve to the uniform beam scale
+    # physical scale conversion in this channel
+    chanscale = params.cosmo.kpc_proper_per_arcmin(outcutout.z)
+    # beam size in this channel to give constant beam resolution in mpc
+    goalchanbeam = (params.goalbeamscale / chanscale).to(u.arcmin)
+    # as a beam object -- this is the common beam to convolve to
+    goal_beam = Beam(goalchanbeam)
+    # do the convolution
+    rccube = cube.convolve_to(goal_beam)
+    
+    
+    ### spatial reprojection
+    #  set up the goal wcs -- new cdelt
+    chansize = (chanscale * xstep*u.deg).to(u.Mpc)
+    resampfac = (params.goalres / chansize).value
+    outcdelt2 = xstep * resampfac
+    # set up the goal wcs -- new crpix
+    mapcent = params.goalxsize // 2
+    fmapcent = params.freqstackwidth
+#     outwcsdict = {"CTYPE1": 'FREQ', 'CDELT1': mapinst.fstep * 1e9, 'CRPIX1': 40, 
+#                   'CRVAL1': mapinst.freq[outcutout.freqidx[0] + 1]*1e9,
+#                   "CTYPE2": 'RA---CAR', 'CUNIT2': 'deg', 'CDELT2': outcdelt2, 
+#                   'CRPIX2': mapcent, 'CRVAL2': outcutout.x,
+#                   "CTYPE3": 'DEC--CAR', 'CUNIT3': 'deg', 'CDELT3': outcdelt2, 
+#                   'CRPIX3': mapcent, 'CRVAL3': outcutout.y}
+    outwcsdict = {"CTYPE1": 'FREQ', 'CDELT1': mapinst.fstep * 1e9, 'CRPIX1': fmapcent, 
+                  'CRVAL1': (mapinst.freq[outcutout.freqidx[0] + 1]+mapinst.fstep / 2)*1e9,
+                  "CTYPE3": 'RA---CAR', 'CUNIT3': 'deg', 'CDELT3': outcdelt2, 
+                  'CRPIX3': mapcent, 'CRVAL3': outcutout.x,
+                  "CTYPE2": 'DEC--CAR', 'CUNIT2': 'deg', 'CDELT2': outcdelt2, 
+                  'CRPIX2': mapcent, 'CRVAL2': outcutout.y}
+    outwcs = wcs.WCS(outwcsdict)
+    # print(outwcsdict)
+    spacehdr = outwcs.to_header()
+    spacehdr['NAXIS'] = 3
+    spacehdr['NAXIS1'] = rccube.shape[0]
+    spacehdr['NAXIS2'] = params.goalxsize
+    spacehdr['NAXIS3'] = params.goalxsize
+    # actual reprojection
+    xycube = rccube.reproject(spacehdr)
+    # peel the mask off because it'll cause a bug
+    xycube = xycube.unmasked_copy()
+    
+    ### spectral reprojection
+    # put the cube in radio velocity units centered around the object
+    vxycube = xycube.with_spectral_unit(u.km/u.s, velocity_convention='radio', 
+                                        rest_value=115.27*u.GHz/(1+outcutout.z))
+    # lay out the output spectral axis *** pass this in?
+    goalspecax = (np.arange(params.goalfsize) - params.goalfsize//2) * params.goaldv 
+    # add a nothing mask back into the cube
+    blankmask = ~np.isnan(vxycube)
+    vxycube = vxycube.with_mask(blankmask)
+    # do the spectral reprojection
+    xyzcube = vxycube.spectral_interpolate(goalspecax, fill_value = np.nan)
+    
+    # *** put this back into a cubelet object?
+    outcutout.cubestack = xyzcube._data
+    #*** what else do i want to save here?
+    # coordinate extents
+    outcutout.raext = xyzcube.latitude_extrema
+    outcutout.decext = xyzcube.longitude_extrema
+    outcutout.velext = xyzcube.spectral_extrema # *** probably want this one back in frequency units
+    outcutout.xstep = xyzcube.wcs.wcs.cdelt[0]
+    outcutout.ystep = xyzcube.wcs.wcs.cdelt[1]
+    outcutout.vstep = xyzcube.wcs.wcs.cdelt[2]
+
+    # placeholder 
+    outcutout.cubestackrms = np.ones(outcutout.cubestack.shape)
+    return outcutout
 
 """ CUTOUT-SPECIFIC FUNCTIONS """
 def single_cutout(idx, galcat, comap, params):
@@ -580,6 +785,15 @@ def single_cutout(idx, galcat, comap, params):
 
     if params.obsunits:
         observer_units_weightedsum(pixval, rmsval, cutout, params)
+
+    if params.physicalspace:
+        cutout = physical_spacing(cutout, comap, params, oversamp_factor=params.pspacefac)
+    # try:
+    #     if params.physicalspace:
+    #         cutout = physical_spacing(cutout, comap, params, oversamp_factor=params.pspacefac)
+    # except AttributeError:
+    #     print('params.physicalspace not set: defaulting to false')
+    #     params.physicalspace = False
 
     return cutout
 
