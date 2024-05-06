@@ -1132,8 +1132,9 @@ class maps():
         # rebin by weighted meaning
         rebinmap, rebinrms = weightmean(inmap, inrms, axis=0)
 
+        fstep = self.freq[1] - self.freq[0]
         # housekeeping channel width in params
-        params.chanwidth = np.abs(self.fstep)
+        params.chanwidth = np.abs(fstep)
 
         if in_place:
             self.map = rebinmap
@@ -1142,7 +1143,7 @@ class maps():
             # housekeeping frequency axes
             self.freq = self.freq[::factor]
             self.freqbe = self.freqbe[::factor]
-            self.fstep = self.freq[1] - self.freq[0]
+            self.fstep = fstep
 
         else:
             binnedmap = self.copy()
@@ -1153,9 +1154,15 @@ class maps():
             # housekeeping frequency axes
             binnedmap.freq = self.freq[::factor]
             binnedmap.freqbe = self.freqbe[::factor]
-            binnedmap.fstep = self.freq[1] - self.freq[0]
+            binnedmap.fstep = fstep
 
             return binnedmap
+        
+    def rebin_space_byfactor(self, factor, params, in_place=False):
+        """
+        rebin in the spatial directions by a given factor ********
+        """
+        pass
         
 
     def upgrade(self, factor, params, in_place=False):

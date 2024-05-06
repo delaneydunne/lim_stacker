@@ -534,7 +534,7 @@ def cubelet_plotter(cubelet, rmslet, params):
 """ STACK OUTPUT PLOTS """
 def spatial_plotter(stackim, params, cmap='PiYG_r'):
 
-    plt.style.use('seaborn-poster')
+    # plt.style.use('seaborn-poster')
 
     # corners for the beam rectangle
     if params.xwidth % 2 == 0:
@@ -565,16 +565,16 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
     ax.set_aspect(aspect=1)
 
     # turn off ticks
-    ax.tick_params(axis='y',
-                            labelleft=False,
-                            labelright=False,
-                            left=False,
-                            right=False)
-    ax.tick_params(axis='x',
-                         labeltop=False,
-                         labelbottom=False,
-                         top=False,
-                         bottom=False)
+    # ax.tick_params(axis='y',
+    #                         labelleft=False,
+    #                         labelright=False,
+    #                         left=False,
+    #                         right=False)
+    # ax.tick_params(axis='x',
+    #                      labeltop=False,
+    #                      labelbottom=False,
+    #                      top=False,
+    #                      bottom=False)
 
     # colorbar
     divider = make_axes_locatable(ax)
@@ -696,6 +696,8 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
 
     xcorners = (rectmin, rectmin, rectmax, rectmax, rectmin)
     ycorners = (rectmin, rectmax, rectmax, rectmin, rectmin)
+    print(xcorners)
+    print(ycorners)
 
     # if lmfiltering, corners for the recangle included in that
     if params.lowmodefilter or params.chanmeanfilter:

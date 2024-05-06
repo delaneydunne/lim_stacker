@@ -46,7 +46,7 @@ class cubelet():
 
     def from_cutout(self, cutout, params):
         # housekeeping info
-        self.unit = params.plotunits
+        self.unit = 'K' #params.plotunits ***** this is terrible
         self.ncutouts = 1
         self.catidx = [cutout.catidx]
         self.nuobs_mean = [cutout.freq]
@@ -213,11 +213,11 @@ class cubelet():
         self.rhoh2, self.drhoh2 = weightmean(np.array((self.rhoh2, cubelet.rhoh2)),
                                              np.array((self.drhoh2, cubelet.drhoh2)))
         
-        # housekeeping
+        # housekeeping **** check averaging (also why is cubelet nuobs_mean a list?)
         self.catidx = np.concatenate((self.catidx, cubelet.catidx))
-        nuobs_mean = (self.nuobs_mean*self.ncutouts + cubelet.nuobs_mean*cubelet.ncutouts) / (self.ncutouts + cubelet.ncutouts)
+        nuobs_mean = (self.nuobs_mean*self.ncutouts + cubelet.nuobs_mean[0]*cubelet.ncutouts) / (self.ncutouts + cubelet.ncutouts)
         self.nuobs_mean = nuobs_mean 
-        z_mean = (self.z_mean*self.ncutouts + cubelet.z_mean*cubelet.ncutouts) / (self.ncutouts + cubelet.ncutouts)
+        z_mean = (self.z_mean*self.ncutouts + cubelet.z_mean[0]*cubelet.ncutouts) / (self.ncutouts + cubelet.ncutouts)
         self.z_mean = z_mean
         self.ncutouts = self.ncutouts + cubelet.ncutouts
 
@@ -240,6 +240,87 @@ class cubelet():
         self.upgradefactor = factor
         
         return    
+    
+    def to_flux(self):
+        """ converts from temperature units to flux units. won't do anything if the unit
+            isn't already in K"""
+        
+        if self.unit != 'K':
+            print('need units to be K, and current units are '+self.unit)
+            return
+        
+        # correct for primary beam response
+        self.cube /= 0.72
+        self.cuberms /= 0.72
+
+        # actual COMAP beam
+        beam_fwhm = 4.5*u.arcmin
+        sigma_x = beam_fwhm / (2 * np.sqrt(2 * np.log(2)))
+        sigma_y = sigma_x
+        omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
+
+        # voxel solid angle
+        # l_vox = 2*u.arcmin
+        # omega_B = (l_vox**2).to(u.sr)
+
+        # central frequency of each individual spectral channel
+        freqbc = self.nuobs_mean[0] + self.freqarr
+        fstep = freqbc[1] - freqbc[0]
+        freqvals = np.tile(freqbc, (self.cube.shape[2], self.cube.shape[1], 1)).T * u.GHz
+
+        # calculate fluxes in Jy
+        Svals = rayleigh_jeans(self.cube*u.K, freqvals, omega_B)
+        Srmss = rayleigh_jeans(self.cuberms*u.K, freqvals, omega_B)
+
+        # multiply by the channel width in km/s
+        delnus = (fstep* u.GHz / freqvals * const.c).to(u.km/u.s)
+
+        Snu_Delnu = Svals * delnus
+        dSnu_Delnu = Srmss * delnus
+
+        self.cube = Snu_Delnu.value
+        self.cuberms = dSnu_Delnu.value
+        self.unit = 'flux'
+
+        return
+    
+    def to_linelum(self, params):
+
+        if self.unit == 'K':
+            self.to_flux()
+
+        elif self.unit != 'flux':
+            print('need flux or temperature units')
+            return 
+        
+        # put into the appropriate astropy units
+        self.cube = self.cube * u.Jy * u.km/u.s
+        self.cuberms = self.cuberms * u.Jy * u.km/u.s
+
+        freqbc = self.nuobs_mean[0] + self.freqarr
+
+        nuobs = np.tile(freqbc, (self.cube.shape[2], self.cube.shape[1], 1)).T * u.GHz
+
+        # find redshift from nuobs:
+        zval = freq_to_z(params.centfreq*u.GHz, nuobs) #*****************
+
+        # luminosity distance in Mpc
+        DLs = params.cosmo.luminosity_distance(zval)
+
+        # line luminosity
+        linelum = const.c**2 / (2*const.k_B) * self.cube * DLs**2 / (nuobs**2 * (1+zval)**3)
+        dlinelum = const.c**2 / (2*const.k_B) * self.cuberms * DLs**2 / (nuobs**2 * (1+zval)**3)
+
+        # fix units
+        linelum = linelum.to(u.K*u.km/u.s*u.pc**2)
+        dlinelum = dlinelum.to(u.K*u.km/u.s*u.pc**2)
+
+        # store in object
+        self.cube = linelum.value
+        self.cuberms = dlinelum.value
+        self.unit = 'linelum'
+
+        return
 
 
     def get_spectrum(self, in_place=False):
@@ -467,6 +548,7 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     - what to save in cutout output
     - catch the other warning
     - how should the aperture size change
+    - ***proper vs comoving sizes (flag to change)
     """
 
     # warn about units based on if you're conserving flux
@@ -480,6 +562,7 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
             print('Map is in flux units -- unit conversion will be done improperly')
 
     # test to make sure the prep function has been run
+    # ** maybe force this to run anyways in field stack? in case map parameters change in a jupyter notebook session or smth
     try:
         _ = params.goalbeamscale
     except AttributeError:
@@ -494,7 +577,7 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     # WCS object w the oversampling taken into account
     xstep = mapinst.xstep / oversamp_factor
     xpixcent = params.spacestackwidth * oversamp_factor
-    fpixval = (mapinst.freq[outcutout.freqidx[0]+params.freqwidth//2]+mapinst.fstep / 2)*1e9 #****
+    fpixval = (mapinst.freq[outcutout.freqidx[0]+params.freqwidth//2]+mapinst.fstep / 2)*1e9
     xpixval = mapinst.ra[outcutout.xidx[0]+params.xwidth//2] + mapinst.xstep / 2
     ypixval = mapinst.dec[outcutout.yidx[0]+params.ywidth//2] + mapinst.ystep / 2
     
@@ -534,7 +617,7 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     mapcent = params.goalxsize // 2
     fmapcent = params.freqstackwidth
     outwcsdict = {"CTYPE1": 'FREQ', 'CDELT1': mapinst.fstep * 1e9, 'CRPIX1': fmapcent, 
-                  'CRVAL1': (mapinst.freq[outcutout.freqidx[0] + 1]+mapinst.fstep / 2)*1e9,
+                  'CRVAL1': (outcutout.freq-mapinst.fstep)*1e9,
                   "CTYPE3": 'RA---CAR', 'CUNIT3': 'deg', 'CDELT3': outcdelt2, 
                   'CRPIX3': mapcent, 'CRVAL3': outcutout.x,
                   "CTYPE2": 'DEC--CAR', 'CUNIT2': 'deg', 'CDELT2': outcdelt2, 
@@ -809,12 +892,24 @@ def single_cutout(idx, galcat, comap, params):
     # check if the cutout failed the tests in these functions
     if not cutout:
         return None
+    
+    # put the cutout into line luminosity units
+    # if comap.unit != 'linelum':
+    #     print('putting cutout into line lum')
+    #     nuobsarr = np.tile(nuobs,[31,31,1]).T
+    #     cutmap, cutmaprms = line_luminosity(cutout.cubestack, cutout.cubestackrms, nuobsarr, params, summed=True)
+    #     cutout.cubestack = cutmap
+    #     cutout.cubestackrms = cutmaprms
 
+    # physical space the cutout
+    if params.physicalspace:
+        cutout = physical_spacing(cutout, comap, params, oversamp_factor=params.pspacefac)
+
+    # *** is this still doing anything?
     if params.obsunits:
         observer_units_weightedsum(pixval, rmsval, cutout, params)
 
-    if params.physicalspace:
-        cutout = physical_spacing(cutout, comap, params, oversamp_factor=params.pspacefac)
+    
     # try:
     #     if params.physicalspace:
     #         cutout = physical_spacing(cutout, comap, params, oversamp_factor=params.pspacefac)
@@ -853,9 +948,18 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
             # stack as you go
             if ti == 0:
                 stackinst = cubelet(cutout, params)
+                print(stackinst.unit)
+                print(comap.unit)
+                if stackinst.unit != 'linelum':
+                    stackinst.to_linelum(params)
+                    print('converting linelum for 1st cubelet')
                 ti = 1
             else:
-                stackinst.stackin(cutout)
+                stackinst_new = cubelet(cutout, params)
+                if stackinst_new.unit != 'linelum':
+                    stackinst_new.to_linelum(params)
+                    print('converting linelum for stackin cubelet')
+                stackinst.stackin_cubelet(stackinst_new)
 
             if goalnobj:
                 field_nobj += 1
@@ -909,12 +1013,13 @@ def stacker(maplist, catlist, params):
         numcutoutlist = [None, None, None]
 
     # change units of the map
-    if maplist[0].unit != 'linelum':
-        if params.verbose:
-            print('Units are '+maplist[0].unit+'. Changing to linelum')
-        for map in maplist:
-            map.to_flux()
-            map.to_linelum(params)
+    # if maplist[0].unit != 'linelum':
+    #     if params.verbose:
+    #         print('Units are '+maplist[0].unit+'. Changing to linelum')
+    #     for map in maplist:
+    #         map.to_flux()
+    #         map.to_linelum(params)
+    
 
     cubelist = []
     for i in range(len(maplist)):
@@ -1256,6 +1361,7 @@ def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
     """
     calculate the more physical quantities associated with a single cutout. Uses
     a WEIGHTED SUM to get the per-channel flux, and thus ignores NaNs.
+    assumes cubelet is already in line luminosity units
     """
 
     # per-channel fluxes
