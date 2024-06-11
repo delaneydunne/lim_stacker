@@ -1118,7 +1118,8 @@ def stacker(maplist, catlist, params):
 
 
     # make plots, save stuff
-    stackedcube.make_plots(maplist, catlist, params)
+    if params.plotspace:
+        stackedcube.make_plots(maplist, catlist, params)
     stackedcube.save_cubelet(params)
 
     return stackedcube
