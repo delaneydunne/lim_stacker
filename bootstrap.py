@@ -23,22 +23,28 @@ warnings.filterwarnings("ignore", message="invalid value encountered in true_div
 warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
-def field_offset_and_stack(mapinst, catinst, params, offrng):
+def field_offset_and_stack(mapinst, catinst, params, offrng, freqonly=False):
 
     # randomly offset the catalogue
-    offcat = cat_rand_offset(mapinst, catinst, params, offrng)
+    if freqonly:
+        offcat = cat_rand_offset_freq(mapinst, catinst, params, offrng)
+    else:
+        offcat = cat_rand_offset(mapinst, catinst, params, offrng)
 
-    outdict,_,_,_,_,_ = field_stacker(mapinst, offcat, params)
+    outcube = field_stacker(mapinst, offcat, params)
 
-    return np.array([outdict['T'], outdict['rms']])
+    return np.array([outcube.linelum, outcube.dlinelum])
 
 
-def offset_and_stack(maplist, catlist, params, offrng):
+def offset_and_stack(maplist, catlist, params, offrng, freqonly=False):
 
     offcatlist = []
     for j in range(len(catlist)):
         # randomly offset each field's catalogue
-        offcat = cat_rand_offset(maplist[j], catlist[j], params, offrng)
+        if freqonly:
+            offcat = cat_rand_offset(maplist[j], catlist[j], params, offrng)
+        else:
+            offcat = cat_rand_offset(maplist[j], catlist[j], params, offrng)
         offcatlist.append(offcat)
 
     # run the actual stack
@@ -46,7 +52,7 @@ def offset_and_stack(maplist, catlist, params, offrng):
 
     return np.array([outcube.linelum, outcube.dlinelum])
 
-def cat_rand_offset(mapinst, catinst, params, offrng=None):
+def cat_rand_offset(mapinst, catinst, params, offrng=None, freqonly=False):
 
     # set up the rng (use the one passed, or failing that the one in params, or
     # failing that define a new one)

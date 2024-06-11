@@ -193,7 +193,7 @@ def rebin_cubelet_freq(cubelet, rmslet, params):
 def changrid(cubelet, rmslet, params, smooth=None, rad=None, ext=None, offset=0,
              cmap=None, symm=True, clims=None):
 
-    plt.style.use('seaborn-talk')
+    # plt.style.use('seaborn-talk')
 
     fig = plt.figure(figsize=(9,7))#, constrained_layout=True)
     supgs = gridspec.GridSpec(1,1,figure=fig)
@@ -324,7 +324,7 @@ def radprofoverplot(cubelet, rmslet, params, nextra=5, offset=0, profsum=False):
 
     #**** THE ONE IN COMBINED PLOTTER ACTUALLY WORKS
 
-    plt.style.use('seaborn-talk')
+    # plt.style.use('seaborn-talk')
 
     # indexing
     freqcent = int(cubelet.shape[0] / 2) + offset
@@ -636,7 +636,7 @@ def spatial_plotter(stackim, params, cmap='PiYG_r'):
 
 def spectral_plotter(stackspec, params):
 
-    plt.style.use('seaborn-poster')
+    # plt.style.use('seaborn-poster')
 
     fig, ax = plt.subplots(1, figsize=(9,4), constrained_layout=True)
     if params.freqwidth % 2 == 0:
@@ -1077,7 +1077,8 @@ def catalogue_overplotter(catlist, maplist, catinds, params, printnobjs=True, tr
     if printnobjs:
         plt.style.use('default')
     else:
-        plt.style.use('seaborn-ticks')
+        plt.style.use('default')
+        # plt.style.use('seaborn-ticks')
 
     fields = ['Field 1', 'Field 2', 'Field 3']
 
@@ -1197,7 +1198,7 @@ def field_catalogue_overplotter(cat, comap, goodcatidx, params, fieldstr=None):
 
 def papercombplotter(stackim, stackspec, params, cmap='PiYG_r', zmean=None, logcmap=False):
 
-    plt.style.use('seaborn-talk')
+    # plt.style.use('seaborn-talk')
 
     gs_kw = dict(width_ratios=[1, 1], height_ratios=[3,2], hspace=0.2, wspace=0.3)
     fig,axs = plt.subplots(2,2, figsize=(11,7), gridspec_kw=gs_kw, tight_layout=True)

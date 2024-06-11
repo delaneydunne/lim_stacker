@@ -9,8 +9,8 @@ freqwidth 3
 """ properties of the map """
 # CO(1-0) emitted frequency (GHz)
 centfreq 115.27
-# std of a gaussian 2D beam in pixels
-beamwidth 1
+# std of a gaussian 2D beam in arcmin
+beamwidth 4.5
 # cosmology to use (default 'comap' is the one from the ES papers)
 cosmo comap
 

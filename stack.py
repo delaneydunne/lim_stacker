@@ -70,16 +70,25 @@ class cubelet():
         self.apminpix = (params.freqstackwidth-foff, params.spacestackwidth-xoff, params.spacestackwidth-xoff)
         self.apmaxpix = (params.freqstackwidth+foff+1, params.spacestackwidth+xoff+1, params.spacestackwidth+xoff+1)
 
+        # find the width of the channel in GHz (different if physical spacing)
+        # also the width of each pixel
+        try:
+            chanwidth = cutout.fstep 
+            xwidtharcmin = cutout.xstep * 60
+        except AttributeError:
+            chanwidth = params.chanwidth
+            xwidtharcmin = 2
+
         # set up frequency/angular arrays
         if params.freqwidth % 2 == 0:
-            self.freqarr = np.arange(params.freqstackwidth * 2)*params.chanwidth - (params.freqstackwidth-0.5)*params.chanwidth
+            self.freqarr = np.arange(params.freqstackwidth * 2)*chanwidth - (params.freqstackwidth-0.5)*chanwidth
         else:
-            self.freqarr = np.arange(params.freqstackwidth * 2 + 1)*params.chanwidth - (params.freqstackwidth)*params.chanwidth
+            self.freqarr = np.arange(params.freqstackwidth * 2 + 1)*chanwidth - (params.freqstackwidth)*chanwidth
 
         if params.xwidth % 2 == 0:
-            self.xarr = np.arange(params.spacestackwidth * 2)*2 - (params.spacestackwidth-0.5)*2
+            self.xarr = np.arange(params.spacestackwidth * 2)*xwidtharcmin - (params.spacestackwidth-0.5)*xwidtharcmin
         else:
-            self.xarr = np.arange(params.spacestackwidth * 2 + 1)*2 - (params.spacestackwidth)*2
+            self.xarr = np.arange(params.spacestackwidth * 2 + 1)*xwidtharcmin - (params.spacestackwidth)*xwidtharcmin
 
         # read in the cutout values
         self.cube = cutout.cubestack
@@ -241,7 +250,7 @@ class cubelet():
         
         return    
     
-    def to_flux(self):
+    def to_flux(self, params, velocity_integrate=True):
         """ converts from temperature units to flux units. won't do anything if the unit
             isn't already in K"""
         
@@ -254,14 +263,22 @@ class cubelet():
         self.cuberms /= 0.72
 
         # actual COMAP beam
-        beam_fwhm = 4.5*u.arcmin
+        try:
+            beam_fwhm = (params.goalbeamscale / cosmo.kpc_proper_per_arcmin(self.z_mean)).to(u.arcmin)
+            self.beamscale = beam_fwhm
+        except AttributeError:
+            beam_fwhm = params.beamwidth * u.arcmin
         sigma_x = beam_fwhm / (2 * np.sqrt(2 * np.log(2)))
         sigma_y = sigma_x
         omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
 
         # voxel solid angle
-        # l_vox = 2*u.arcmin
-        # omega_B = (l_vox**2).to(u.sr)
+        try:
+            pixsize = params.xstep*u.deg
+
+        except AttributeError:
+            pixsize = 2*u.arcmin
+        omega_B = (pixsize**2).to(u.sr)
 
         # central frequency of each individual spectral channel
         freqbc = self.nuobs_mean[0] + self.freqarr
@@ -272,22 +289,27 @@ class cubelet():
         Svals = rayleigh_jeans(self.cube*u.K, freqvals, omega_B)
         Srmss = rayleigh_jeans(self.cuberms*u.K, freqvals, omega_B)
 
-        # multiply by the channel width in km/s
-        delnus = (fstep* u.GHz / freqvals * const.c).to(u.km/u.s)
+        if velocity_integrate:
+            # multiply by the channel width in km/s
+            delnus = (fstep* u.GHz / freqvals * const.c).to(u.km/u.s)
 
-        Snu_Delnu = Svals * delnus
-        dSnu_Delnu = Srmss * delnus
+            Snu_Delnu = Svals * delnus
+            dSnu_Delnu = Srmss * delnus
 
-        self.cube = Snu_Delnu.value
-        self.cuberms = dSnu_Delnu.value
-        self.unit = 'flux'
+            self.cube = Snu_Delnu.value
+            self.cuberms = dSnu_Delnu.value
+            self.unit = 'flux'
+        else:
+            self.cube = Svals.value
+            self.cuberms = Srmss.value
+            self.unit = 'Jy'
 
         return
     
     def to_linelum(self, params):
 
         if self.unit == 'K':
-            self.to_flux()
+            self.to_flux(params)
 
         elif self.unit != 'flux':
             print('need flux or temperature units')
@@ -311,6 +333,22 @@ class cubelet():
         linelum = const.c**2 / (2*const.k_B) * self.cube * DLs**2 / (nuobs**2 * (1+zval)**3)
         dlinelum = const.c**2 / (2*const.k_B) * self.cuberms * DLs**2 / (nuobs**2 * (1+zval)**3)
 
+        # put this in per-pixel units for map purposes
+        try:
+            beam_fwhm = self.beamscale[0] 
+        except AttributeError:
+            beam_fwhm = 4.5 * u.arcmin
+            
+        sigma_x = beam_fwhm / (2 * np.sqrt(2 * np.log(2)))
+        sigma_y = sigma_x
+        omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
+        
+        xstep = self.xarr[1] - self.xarr[0]
+        omega_pix = ((xstep*u.arcmin)**2).to(u.sr)
+
+        linelum = linelum 
+        dlinelum = dlinelum
+
         # fix units
         linelum = linelum.to(u.K*u.km/u.s*u.pc**2)
         dlinelum = dlinelum.to(u.K*u.km/u.s*u.pc**2)
@@ -323,16 +361,18 @@ class cubelet():
         return
 
 
-    def get_spectrum(self, in_place=False):
+    def get_spectrum(self, in_place=False, summed=False):
 
         apspec = self.cube[:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
         dapspec = self.cuberms[:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
 
-        spec, dspec = weightmean(apspec, dapspec, axis=(1,2))
-
-        # correct for adjusted solid angle
-        # spec = spec * self.xwidth * self.ywidth
-        # dspec = dspec * self.xwidth * self.ywidth
+        if summed:
+            spec = np.nansum(apspec, axis=(1,2))
+            dspec = np.sqrt(np.nansum(dapspec**2, axis=(1,2)))
+        else:
+            spec, dspec = weightmean(apspec, dapspec, axis=(1,2))
+            spec = spec * self.xwidth * self.ywidth 
+            dspec = dspec * self.xwidth * self.ywidth 
 
         if in_place:
             self.spectrum = spec
@@ -354,16 +394,19 @@ class cubelet():
 
         return im, dim
 
-    def get_aperture(self, in_place=False):
+    def get_aperture(self, in_place=False, summed=False):
 
         ap = self.cube[self.apminpix[0]:self.apmaxpix[0]:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
         dap = self.cuberms[self.apminpix[0]:self.apmaxpix[0],self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
 
-        spec, dspec = weightmean(ap, dap, axis=(1,2))
-
-        # correct for adjusted solid angle
-        # spec = spec * self.xwidth * self.ywidth
-        # dspec = dspec * self.xwidth * self.ywidth
+        if summed:
+            spec = np.nansum(ap, axis=(1,2))
+            dspec = np.sqrt(np.nansum(dap**2, axis=(1,2)))
+        else:
+            spec, dspec = weightmean(ap, dap, axis=(1,2))
+            # correct for adjusted solid angle
+            spec = spec * self.xwidth * self.ywidth 
+            dspec = dspec * self.xwidth * self.ywidth
 
         val = np.nansum(spec)
         dval = np.sqrt(np.nansum(dspec**2))
@@ -375,6 +418,10 @@ class cubelet():
         return val, dval
 
     def get_output_dict(self, in_place=False):
+
+        llum, dllum = self.get_aperture()
+        self.linelum = llum 
+        self.dlinelum = dllum
 
         outdict = {'linelum':self.linelum,
                    'dlinelum':self.dlinelum,
@@ -518,6 +565,8 @@ def physical_spacing_setup(mapinst, params):
     worstchansize = (worstchanscale * mapinst.xstep*u.deg).to(u.Mpc)
     resampfac = (params.goalres / worstchansize).value
     worstoutcdelt2 = mapinst.xstep * resampfac
+    params.xstep = worstoutcdelt2 
+    mapinst.psxstep = worstoutcdelt2
     
     worstsize = oldnaxis2 * mapinst.xstep / worstoutcdelt2
     worstsize = int(np.round(worstsize))
@@ -590,12 +639,15 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     
     # input cube
     cube = SpectralCube(data=outcutout.cubestack.T, wcs=inwcs)
+    cuberms = SpectralCube(data=outcutout.cubestackrms.T, wcs=inwcs)
     # beam for the input cube
     cube_beam = Beam(params.beamwidth * u.arcmin)
     cube = cube.with_beam(cube_beam)
+    cuberms = cuberms.with_beam(cube_beam)
     # give the cube an empty mask so an annoying error doesn't pop up
     blankmask = ~np.isnan(cube)
     cube = cube.with_mask(blankmask)
+    cuberms = cuberms.with_mask(blankmask)
     
     ### reconvolve to the uniform beam scale
     # physical scale conversion in this channel
@@ -606,6 +658,7 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     goal_beam = Beam(goalchanbeam)
     # do the convolution
     rccube = cube.convolve_to(goal_beam)
+    rcrms = cuberms.convolve_to(goal_beam)
     
     
     ### spatial reprojection
@@ -632,34 +685,56 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     shape_out = tuple([spacehdr['NAXIS{0}'.format(i + 1)] for i in range(spacehdr['NAXIS'])])#[::-1])
     
     rpmaplist = []
+    rprmslist = []
     for chan in range(shape_out[0]):
-        rpchan,_ = reproject_adaptive((rccube._data[chan].T, wcs.WCS(rccube.header).celestial),
+        # apply the mask by hand before doing the by-hand reprojection (spectral cube casts nans to zero,
+        # which are then filled in by reproject_adaptive instead of being treated properly as nans)
+        chandata = rccube._data[chan]
+        chanrms = rcrms._data[chan]
+        chanmask = np.where(~blankmask[chan])
+        chandata[chanmask] = np.nan
+        chanrms[chanmask] = np.nan
+        rpchan,_ = reproject_adaptive((chandata.T, wcs.WCS(rccube.header).celestial),
                                     wcs.WCS(spacehdr).celestial,
                                     shape_out=(shape_out[1],shape_out[2]),
                                     kernel='gaussian', boundary_mode='strict',
                                     conserve_flux=conserve_flux)
         rpmaplist.append(rpchan)
+        rprmschan,_ = reproject_adaptive((chanrms.T, wcs.WCS(rcrms.header).celestial),
+                                         wcs.WCS(spacehdr).celestial,
+                                         shape_out=(shape_out[1],shape_out[2]),
+                                         kernel='gaussian', boundary_mode='strict',
+                                         conserve_flux=conserve_flux)
+        rprmslist.append(rprmschan)
     newcube = np.array(rpmaplist)
+    newrms = np.array(rprmslist)
     
     xycube = rccube._new_cube_with(data=newcube.T, wcs=wcs.WCS(spacehdr), meta=rccube.meta)
+    xyrms = rcrms._new_cube_with(data=newrms.T, wcs=wcs.WCS(spacehdr), meta=rcrms.meta)
 
     # peel the mask off because it'll cause a bug
     xycube = xycube.unmasked_copy()
+    xyrms = xyrms.unmasked_copy()
     
     ### spectral reprojection
     if do_spectral:
         # put the cube in radio velocity units centered around the object
         vxycube = xycube.with_spectral_unit(u.km/u.s, velocity_convention='radio', 
                                             rest_value=115.27*u.GHz/(1+outcutout.z))
+        vxyrms = xyrms.with_spectral_unit(u.km/u.s, velocity_convention='radio',
+                                          rest_value=115.27*u.GHz/(1+outcutout.z))
         # lay out the output spectral axis *** pass this in?
         goalspecax = (np.arange(params.goalfsize) - params.goalfsize//2) * params.goaldv 
         # add a nothing mask back into the cube
         blankmask = ~np.isnan(vxycube)
         vxycube = vxycube.with_mask(blankmask)
+        vxyrms = vxyrms.with_mask(blankmask)
         # do the spectral reprojection
         xyzcube = vxycube.spectral_interpolate(goalspecax, fill_value = np.nan)
+        xyzrms = vxyrms.spectral_interpolate(goalspecax, fill_value = np.nan)
     else:
         xyzcube = xycube
+        xyzrms = xyrms
     
     # *** put this back into a cubelet object?
     outcutout.cubestack = xyzcube._data
@@ -674,8 +749,10 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     txyzcube = xyzcube.with_spectral_unit(u.GHz, velocity_convention='radio', rest_value=115.27*u.GHz/(1+outcutout.z))
     outcutout.fstep = -np.diff(txyzcube.spectral_axis)[0].value
 
-    # placeholder 
-    outcutout.cubestackrms = np.ones(outcutout.cubestack.shape)
+    # *** just transforming the RMS the same way as the regular cube for now
+    # ** does spectral_cube have a way to do this nicely?
+    outcutout.cubestackrms = xyzrms._data
+    # outcutout.cubestackrms = np.ones(outcutout.cubestack.shape)
     return outcutout
 
 """ CUTOUT-SPECIFIC FUNCTIONS """
@@ -948,17 +1025,13 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
             # stack as you go
             if ti == 0:
                 stackinst = cubelet(cutout, params)
-                print(stackinst.unit)
-                print(comap.unit)
                 if stackinst.unit != 'linelum':
                     stackinst.to_linelum(params)
-                    print('converting linelum for 1st cubelet')
                 ti = 1
             else:
                 stackinst_new = cubelet(cutout, params)
                 if stackinst_new.unit != 'linelum':
                     stackinst_new.to_linelum(params)
-                    print('converting linelum for stackin cubelet')
                 stackinst.stackin_cubelet(stackinst_new)
 
             if goalnobj:
@@ -984,10 +1057,10 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
     else:
         fieldstr = ''
 
-    if params.savedata:
-        stackinst.save_cubelet(params, fieldstr)
-
     try:
+        if stackinst:
+            stackinst.save_cubelet(params, fieldstr)
+
         return stackinst
     except UnboundLocalError: 
         return None
@@ -1040,6 +1113,9 @@ def stacker(maplist, catlist, params):
     stackedcube = cubelist[0]
     stackedcube.stackin_cubelet(cubelist[1])
     stackedcube.stackin_cubelet(cubelist[2])
+
+    llum, dllum = stackedcube.get_aperture()
+
 
     # make plots, save stuff
     stackedcube.make_plots(maplist, catlist, params)
@@ -1178,7 +1254,13 @@ def perchannel_flux_sum(tbvals, rmsvals, nuobs, params):
 
     # not the COMAP beam but the angular size of the region over which the brightness
     # temperature is the given value (ie one spaxel)
-    omega_B = ((2*u.arcmin)**2).to(u.sr)
+    # if physical spacing can't use the hardcoded value
+    try:
+        redshift = params.centfreq / nuobs - 1
+        res = (params.goalres / cosmo.kpc_proper_per_arcmin(redshift)).to(u.arcmin)
+        omega_B (res**2).to(u.sr)
+    except AttributeError:
+        omega_B = ((2*u.arcmin)**2).to(u.sr)
 
     # central frequency of each individual spectral channel
     nuobsvals = (np.arange(params.freqwidth) - params.freqwidth//2) * params.chanwidth * u.GHz
@@ -1428,7 +1510,13 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     # the 'beam' here is actually the stack aperture size
     # beamsigma = params.xwidth / 2 * 2*u.arcmin
     # omega_B = (2 / np.sqrt(2*np.log(2)))*np.pi*beamsigma**2
-    omega_B = (2*u.arcmin)**2
+    # if physical spacing can't use the hardcoded value
+    try:
+        redshift = params.centfreq / nuobs - 1
+        res = (params.goalres / cosmo.kpc_proper_per_arcmin(redshift)).to(u.arcmin)
+        omega_B (res**2).to(u.sr)
+    except AttributeError:
+        omega_B = ((2*u.arcmin)**2).to(u.sr)
 
     nuobsvals = nuobsvals*u.GHz
     meannuobs = np.nanmean(nuobsvals)
@@ -1473,7 +1561,13 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     distdiff = cosmo.luminosity_distance(z1) - cosmo.luminosity_distance(z2)
 
     # proper volume of the cube
-    volus = ((cosmo.kpc_proper_per_arcmin(z1) * params.xwidth * 2*u.arcmin).to(u.Mpc))**2 * distdiff
+    # if physical spacing can't use the hardcoded value
+    try:
+        redshift = params.centfreq / nuobs - 1
+        res = (params.goalres / cosmo.kpc_proper_per_arcmin(redshift)).to(u.arcmin)
+    except AttributeError:
+        res = 2*u.arcmin
+    volus = ((cosmo.kpc_proper_per_arcmin(z1) * params.xwidth * res).to(u.Mpc))**2 * distdiff
 
     rhous = mh2us / volus
     rhousobs = mh2obs / volus

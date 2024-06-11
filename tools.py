@@ -1132,7 +1132,7 @@ class maps():
         # rebin by weighted meaning
         rebinmap, rebinrms = weightmean(inmap, inrms, axis=0)
 
-        fstep = self.freq[1] - self.freq[0]
+        fstep = (self.freq[1] - self.freq[0])*factor
         # housekeeping channel width in params
         params.chanwidth = np.abs(fstep)
 
@@ -1578,6 +1578,9 @@ def rootmeansquare(vals):
 def gauss(x, a, b, c):
     """
     1-dimensional Gaussian probability distribution with scaleable amplitude
+    a: amplitude
+    b: mean
+    c: standard deviation
     """
     return a*np.exp(-(x-b)**2/2/c**2)
 
@@ -1749,6 +1752,9 @@ def setup(mapfiles, cataloguefile, params):
         maplist.append(mapinst)
         catlist.append(catinst)
 
+    params.beamwidth = params.beamwidth / (maplist[0].xstep*u.deg).to(u.arcmin).value
+    params.gauss_kernel = Gaussian2DKernel(params.beamwidth / (2*np.sqrt(2*np.log(2))))
+
     return maplist, catlist
 
 
@@ -1829,6 +1835,8 @@ def cubelet_collapse_pointed(cubelet, rmslet, newcentpix, params, collapse=True)
 
     if collapse:
         apval, aprms = weightmean(apcutout, apcutrms, axis=(1,2))
+        apval = apval * 3 * 3
+        aprms = aprms * 3 * 3
         apval = np.nansum(apval)
         aprms = np.sqrt(np.nansum(aprms**2))
     else:
