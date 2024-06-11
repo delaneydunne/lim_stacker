@@ -42,7 +42,7 @@ def offset_and_stack(maplist, catlist, params, offrng, freqonly=False):
     for j in range(len(catlist)):
         # randomly offset each field's catalogue
         if freqonly:
-            offcat = cat_rand_offset(maplist[j], catlist[j], params, offrng)
+            offcat = cat_rand_offset_freq(maplist[j], catlist[j], params, offrng)
         else:
             offcat = cat_rand_offset(maplist[j], catlist[j], params, offrng)
         offcatlist.append(offcat)
@@ -67,7 +67,7 @@ def cat_rand_offset(mapinst, catinst, params, offrng=None, freqonly=False):
     # make a catalogue of random offsets that shouldn't overlap with flux from the actual object
     # 2* as big to make sure there are enough objects included to hit goalnumcutouts
     randcatsize = (3,2*catinst.nobj)
-    randoffs = offrng.uniform(2,10,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
+    randoffs = offrng.uniform(1,10,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
 
     offcat = catinst.copy()
 
