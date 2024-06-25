@@ -335,6 +335,46 @@ class parameters():
             print("\t\t Numbers of beams: ({}, {})".format(self.fitmasknbeams, self.fitnbeams))
         print("-------------")
 
+    def create_sensmap_bootstrap(self, sensfilepath):
+        """
+        reads in the hetdex sensitivity map and sets it up for bootstrapping (so it only has to
+        be done once)
+        **note these are pretty tight cuts -- if you're relaxing the rms/hit constraints might 
+        need to relax these as well
+        """
+
+        # field 1
+        with np.load(sensfilepath+'sensitivity_field_1_processed.npz') as f:
+            hexsens = f['sens']
+            ras = f['ra']
+            decs = f['dec']
+            
+        self.field_1_sensmap = (ras, decs, hexsens)
+
+        # field 2
+        with np.load(sensfilepath+'sensitivity_field_2_processed.npz') as f:
+            hexsens = f['sens']
+            ras = f['ra']
+            decs = f['dec']
+            
+        self.field_2_sensmap = (ras, decs, hexsens)
+
+        # field 3
+        with np.load(sensfilepath+'sensitivity_field_3_processed.npz') as f:
+            hexsens = f['sens']
+            ras = f['ra']
+            decs = f['dec']
+            
+        self.field_3_sensmap = (ras, decs, hexsens)
+
+        # redshift
+        with np.load(sensfilepath+'sensitivity_redshift_average.npz') as f:
+            zbins = f['bins']
+            zprobs = f['prob']
+        self.redshift_sensmap = (zbins, zprobs)
+
+
+
 
 class catalogue():
     """

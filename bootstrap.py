@@ -23,28 +23,40 @@ warnings.filterwarnings("ignore", message="invalid value encountered in true_div
 warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
 
-def field_offset_and_stack(mapinst, catinst, params, offrng, freqonly=False):
+def field_offset_and_stack(mapinst, catinst, params, offrng, method=None):
+
+    # pick the function to create a random catalog
+    if not method or method == 'offset':
+        randomize = cat_rand_offset
+    elif method == 'offset_freq':
+        randomize = cat_rand_offset_freq 
+    elif method == 'shuffle':
+        randomize = cat_rand_offset_shuffle
 
     # randomly offset the catalogue
-    if freqonly:
-        offcat = cat_rand_offset_freq(mapinst, catinst, params, offrng)
-    else:
-        offcat = cat_rand_offset(mapinst, catinst, params, offrng)
+    offcat = randomize(mapinst, catinst, params, offrng)
 
     outcube = field_stacker(mapinst, offcat, params)
 
     return np.array([outcube.linelum, outcube.dlinelum])
 
 
-def offset_and_stack(maplist, catlist, params, offrng, freqonly=False):
+def offset_and_stack(maplist, catlist, params, offrng, method=None):
+
+    # pick the function to create a random catalog
+    if not method or method == 'offset':
+        randomize = cat_rand_offset
+    elif method == 'offset_freq':
+        randomize = cat_rand_offset_freq 
+    elif method == 'shuffle':
+        randomize = cat_rand_offset_shuffle
+    elif method == 'sensitivity':
+        randomize = cat_rand_offset_sensmap
 
     offcatlist = []
     for j in range(len(catlist)):
         # randomly offset each field's catalogue
-        if freqonly:
-            offcat = cat_rand_offset_freq(maplist[j], catlist[j], params, offrng)
-        else:
-            offcat = cat_rand_offset(maplist[j], catlist[j], params, offrng)
+        offcat = randomize(maplist[j], catlist[j], params, offrng)
         offcatlist.append(offcat)
 
     # run the actual stack
@@ -67,7 +79,7 @@ def cat_rand_offset(mapinst, catinst, params, offrng=None, freqonly=False):
     # make a catalogue of random offsets that shouldn't overlap with flux from the actual object
     # 2* as big to make sure there are enough objects included to hit goalnumcutouts
     randcatsize = (3,2*catinst.nobj)
-    randoffs = offrng.uniform(1,10,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
+    randoffs = offrng.uniform(1,5,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
 
     offcat = catinst.copy()
 
@@ -81,6 +93,7 @@ def cat_rand_offset(mapinst, catinst, params, offrng=None, freqonly=False):
     offcat.z = zoff
     offcat.nobj = 2*catinst.nobj
     offcat.catfileidx = np.arange(len(zoff))
+    offcat.idx = offcat.catfileidx
 
     return offcat
 
@@ -92,13 +105,13 @@ def cat_rand_offset_freq(mapinst, catinst, params, offrng=None):
             offrng = params.bootstraprng
         except AttributeError:
             offrng = np.random.default_rng(params.bootstrapseed)
-            paramsbootstraprng = offrng
+            params.bootstraprng = offrng
             print('Defining new bootstrap rng using passed seed '+str(params.bootstrapseed))
 
     # make a catalogue of random offsets that shouldn't overlap with flux from the actual object
     # 2* as big to make sure there are enough objects included to hit goalnumcutouts
     randcatsize = (2*catinst.nobj)
-    randoffs = offrng.uniform(2,10,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
+    randoffs = offrng.uniform(1,5,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
 
     offcat = catinst.copy()
 
@@ -112,8 +125,119 @@ def cat_rand_offset_freq(mapinst, catinst, params, offrng=None):
     offcat.z = zoff
     offcat.nobj = 2*catinst.nobj
     offcat.catfileidx = np.arange(len(freqoff))
+    offcat.idx = offcat.catfileidx
 
     return offcat
+
+
+def cat_rand_offset_shuffle(mapinst, catinst, params, offrng=None):
+    """
+    generates a random catalog with the same spatial and spectral distribution as the input one
+    by reassigning each spectral coordinate to a new spatial pair
+    """
+    if not offrng:
+        try:
+            offrng = params.bootstraprng 
+        except AttributeError:
+            offrng = np.random.default_rng(params.bootstrapseed)
+            params.bootstraprng = offrng 
+            print("Defining new bootstrap rng using passed seed "+str(params.bootstrapseed))
+
+    randcatsize = (2*catinst.nobj)
+    randcatidx = offrng.permutation(randcatsize)
+
+    offcat = catinst.copy()
+    raoff = np.concatenate((catinst.ra(), catinst.ra()))
+    decoff = np.concatenate((catinst.dec(), catinst.dec()))
+    zoff = np.concatenate((catinst.z, catinst.z))
+
+    zshuff = zoff[randcatidx]
+    offcat.z = zshuff 
+    offcat.freq = nuem_to_nuobs(115.27, zshuff)
+    offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
+    offcat.nobj = 2*catinst.nobj
+    offcat.catfileidx = np.arange(len(zshuff))
+    offcat.idx = offcat.catfileidx
+
+    return offcat
+
+
+def cat_rand_offset_sensmap(mapinst, catinst, params, offrng=None, senspath=None):
+    """
+    generates a random catalog following the same spatial and spectral distribution as the actual
+    hetdex map. requires a passed sensitivity map, but pulls redshift distribution from the input catalog
+    """
+    # generate an rng if needed
+    if not offrng:
+        try:
+            offrng = params.bootstraprng
+        except AttributeError:
+            offrng = np.random.default_rng(params.bootstrapseed)
+            params.bootstraprng = offrng 
+            print("Defining new bootstrap rng using passed seed "+str(params.bootstrapseed))
+
+    # load in the sensitivity map if it hasn't already done
+    try:
+        _,_,_ = params.field_1_sensmap
+    except AttributeError:
+        if senspath:
+            params.create_sensmap_bootstrap(senspath)
+        else:
+            print("Don't have generated sensitivity arrays, need to pass senspath")
+            return
+
+    # figure out which field you're in
+    fieldra = int(np.round(mapinst.fieldcent.ra.deg))
+    if fieldra == 25:
+        fieldra, fielddec, fieldsens = params.field_1_sensmap
+    elif fieldra == 170:
+        fieldra, fielddec, fieldsens = params.field_2_sensmap
+    elif fieldra == 226:
+        fieldra, fielddec, fieldsens = params.field_3_sensmap
+        
+    # redshift axis
+    zbins, zprobs = params.redshift_sensmap 
+    zstep = zbins[1] - zbins[0]
+
+    randcatsize = (2*catinst.nobj)
+
+    # steps in RA and Dec
+    dra = fieldra[1] - fieldra[0]
+    ddec = fielddec[1] - fielddec[0]
+
+    # pull a random location in the hetdex sensitivity map, weighted by the sensitivity
+    hxsensflat = fieldsens.flatten() / np.nansum(fieldsens)
+    # cast nans to zero
+    hxsensflat[np.where(np.isnan(hxsensflat))] = 0.
+    # choose a random index and index the 2d array
+    sampidx = offrng.choice(a=hxsensflat.size, p=hxsensflat, size=randcatsize)
+    adjidx = np.unravel_index(sampidx, fieldsens.shape)
+
+    dx = offrng.uniform(-dra/2, dra/2, size=randcatsize)
+    dy = offrng.uniform(-ddec/2, ddec/2, size=randcatsize)
+
+    ra = fieldra[adjidx[1]] + dx
+    dec = fielddec[adjidx[0]] + dy
+
+    # redshifts
+    zidx = offrng.choice(a=zbins.size, p=zprobs, size=randcatsize)
+    zvals = zbins[zidx] + offrng.uniform(-zstep/2, zstep/2, size=randcatsize)
+
+    # read into new catalog object
+    offcat = catinst.copy()
+    offcat.coords = SkyCoord(ra*u.deg, dec*u.deg)
+    offcat.z = zvals
+    offcat.nobj = 2*catinst.nobj 
+    offcat.catfileidx = np.arange(randcatsize)
+    offcat.idx = offcat.catfileidx
+
+    return offcat
+
+
+
+
+
+
 
 
 def offset_bootstrap(niter, maplist, catlist, params):
@@ -127,7 +251,7 @@ def offset_bootstrap(niter, maplist, catlist, params):
         w.writerow(['T', 'rms'])
 
     # run the actual stack purely to see how many cutouts you're going to need for each bootstrap
-    actcutlist, actim, actspec, actcatidx, actcube, actcuberms = st.stacker(maplist, catlist, params)
+    actcutlist, actim, actspec, actcatidx, actcube, actcuberms = stacker(maplist, catlist, params)
 
     # set the goal numbers of cutouts
     params.goalnumcutouts = ([len(catidx) for catidx in actcatidx])
