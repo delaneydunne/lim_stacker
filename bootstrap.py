@@ -92,7 +92,8 @@ def cat_rand_offset(mapinst, catinst, params, offrng=None, freqonly=False):
     offcat.freq = freqoff
     offcat.z = zoff
     offcat.nobj = 2*catinst.nobj
-    offcat.catfileidx = np.arange(len(zoff))
+    # for indexing -- use ra to add to the artificial index so fields are distinct
+    offcat.catfileidx = np.arange(len(zoff)) + int(raoff[0]*1e6)
     offcat.idx = offcat.catfileidx
 
     return offcat
@@ -124,7 +125,8 @@ def cat_rand_offset_freq(mapinst, catinst, params, offrng=None):
     offcat.freq = freqoff
     offcat.z = zoff
     offcat.nobj = 2*catinst.nobj
-    offcat.catfileidx = np.arange(len(freqoff))
+    # for indexing -- use ra to add to the artificial index so fields are distinct
+    offcat.catfileidx = np.arange(len(freqoff)) + int(raoff[0]*1e6)
     offcat.idx = offcat.catfileidx
 
     return offcat
@@ -156,7 +158,8 @@ def cat_rand_offset_shuffle(mapinst, catinst, params, offrng=None):
     offcat.freq = nuem_to_nuobs(115.27, zshuff)
     offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
     offcat.nobj = 2*catinst.nobj
-    offcat.catfileidx = np.arange(len(zshuff))
+    # for indexing -- use ra to add to the artificial index so the fields are distinct
+    offcat.catfileidx = np.arange(len(zshuff)) + int(raoff[0]*1e6)
     offcat.idx = offcat.catfileidx
 
     return offcat
@@ -228,7 +231,8 @@ def cat_rand_offset_sensmap(mapinst, catinst, params, offrng=None, senspath=None
     offcat.coords = SkyCoord(ra*u.deg, dec*u.deg)
     offcat.z = zvals
     offcat.nobj = 2*catinst.nobj 
-    offcat.catfileidx = np.arange(randcatsize)
+    # for indexing -- use ra to add to the artificial index so fields are distinct
+    offcat.catfileidx = np.arange(randcatsize) + int(ra[0]*1e6)
     offcat.idx = offcat.catfileidx
 
     return offcat

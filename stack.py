@@ -435,7 +435,24 @@ class cubelet():
             self.outdict = outdict
 
         return outdict
+    
+    def index_by_field(self, catlist):
+        """
+        wrangle the index list into three ones (one per field) so you can work with the catalog objects that
+        actually made it into the stack
+        """
 
+        # store field-separated index list
+        fieldidxlist = []
+        for cat in catlist:
+            fieldidxlist.append(np.where(np.in1d(cat.idx, self.catidx))[0]) # ** do np.isin at some point
+
+        self.fieldcatidx = fieldidxlist 
+        
+        # find the number of objects in each field
+        self.fieldncutouts = [len(idx) for idx in fieldidxlist]
+
+        return
 
 
     def copy(self):
@@ -1065,13 +1082,31 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
     except UnboundLocalError: 
         return None
 
-def stacker(maplist, catlist, params):
+def stacker(maplist, catlist, params, trim_cat=True):
     """
     wrapper to perform a full stack on all available values in the catalogue.
     """
 
     # set up: all the housekeeping stuff
     fields = [1,2,3]
+
+    if trim_cat:
+        print('trimming catalog')
+        # trim the catalogs down to match the actual signal in the maps
+        for i in range(3):
+            goodidx = np.where(~np.isnan(np.nanmean(maplist[i].map, axis=0)))
+            raminidx, ramaxidx = np.min(goodidx[1]), np.max(goodidx[1])+1
+            decminidx, decmaxidx = np.min(goodidx[0]), np.max(goodidx[0])+1
+
+            ramin, ramax = maplist[i].ra[[raminidx, ramaxidx]]
+            decmin, decmax = maplist[i].dec[[decminidx, decmaxidx]]
+
+            catidxra = np.logical_and(catlist[i].ra() > ramin, catlist[i].ra() < ramax)
+            catidxdec = np.logical_and(catlist[i].dec() > decmin, catlist[i].dec() < decmax)
+            catidx = np.where(np.logical_and(catidxra, catidxdec))[0]
+            
+            catlist[i].subset(catidx)
+
 
     # for simulations -- if the stacker should stop after a certain number
     # of cutouts. set this up to be robust against per-field or total vals
@@ -1121,6 +1156,9 @@ def stacker(maplist, catlist, params):
     if params.plotspace:
         stackedcube.make_plots(maplist, catlist, params)
     stackedcube.save_cubelet(params)
+
+    # rearrange the index list by field
+    stackedcube.index_by_field(catlist)
 
     return stackedcube
 

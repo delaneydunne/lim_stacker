@@ -1084,7 +1084,7 @@ def catalogue_overplotter(catlist, maplist, catinds, params, printnobjs=True, tr
     # wrangle the index list into three ones for plotting
     goodcatidx = []
     for cat in catlist:
-        goodcatidx.append(np.where(np.in1d(cat.idx, catinds))[0])
+        goodcatidx.append(np.where(np.in1d(cat.idx, catinds))[0]) # ** do np.isin at some point
 
     
     fig,axs = plt.subplots(1,4, figsize=(8.5,3.3), constrained_layout=True)
