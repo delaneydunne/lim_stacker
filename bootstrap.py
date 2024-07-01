@@ -60,11 +60,11 @@ def offset_and_stack(maplist, catlist, params, offrng, method=None):
         offcatlist.append(offcat)
 
     # run the actual stack
-    outcube = stacker(maplist, offcatlist, params)
+    outcube = stacker(maplist, offcatlist, params, trim_cat=True)
 
     return np.array([outcube.linelum, outcube.dlinelum])
 
-def cat_rand_offset(mapinst, catinst, params, offrng=None, freqonly=False):
+def cat_rand_offset(mapinst, catinst, params, offrng=None):
 
     # set up the rng (use the one passed, or failing that the one in params, or
     # failing that define a new one)
@@ -207,6 +207,9 @@ def cat_rand_offset_sensmap(mapinst, catinst, params, offrng=None, senspath=None
     # steps in RA and Dec
     dra = fieldra[1] - fieldra[0]
     ddec = fielddec[1] - fielddec[0]
+
+    # array contains rms noise so probabilities should be inverted
+    fieldsens = 1/fieldsens
 
     # pull a random location in the hetdex sensitivity map, weighted by the sensitivity
     hxsensflat = fieldsens.flatten() / np.nansum(fieldsens)

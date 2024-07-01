@@ -1082,7 +1082,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
     except UnboundLocalError: 
         return None
 
-def stacker(maplist, catlist, params, trim_cat=True):
+def stacker(maplist, catlist, params, trim_cat=False):
     """
     wrapper to perform a full stack on all available values in the catalogue.
     """
