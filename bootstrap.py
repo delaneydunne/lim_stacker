@@ -196,7 +196,7 @@ def cat_rand_offset_sensmap(mapinst, catinst, params, offrng=None, senspath=None
     elif fieldra == 170:
         fieldra, fielddec, fieldsens = params.field_2_sensmap
     elif fieldra == 226:
-        fieldra, fielddec, fieldsens = params.field_3_sensmap
+        fieldra, fielddec, fieldsens = params.field_2_sensmap
         
     # redshift axis
     zbins, zprobs = params.redshift_sensmap 
