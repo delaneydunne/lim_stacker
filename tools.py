@@ -451,7 +451,6 @@ class catalogue():
                 except (TypeError, IndexError):
                     pass
             self.nobj = len(subidx)
-            self.coords = SkyCoord(self.ra()[subidx]*u.deg, self.dec()[subidx]*u.deg)
 
         else:
             subset = self.copy()
@@ -463,7 +462,6 @@ class catalogue():
                 except (TypeError, IndexError):
                     pass
             subset.nobj = len(subidx)
-            subset.coords = SkyCoord(self.ra()[subidx]*u.deg, self.dec()[subidx]*u.deg)
             return subset
 
     def sort(self, attr):
