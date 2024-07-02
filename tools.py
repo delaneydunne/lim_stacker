@@ -1761,7 +1761,7 @@ def nuobs_to_nuem(nuobs, z):
 
 
 """ SETUP FUNCTIONS """
-def field_setup(mapfile, catfile, params):
+def field_setup(mapfile, catfile, params, trim_cat=True):
     """
     wrapper function to set up for a single-field stack run
     """
@@ -1774,9 +1774,26 @@ def field_setup(mapfile, catfile, params):
     # clip the catalogue to the field
     catinst.cull_to_map(mapinst, params, maxsep=2*u.deg)
 
+    # additional trimming
+    if trim_cat:
+        print('trimming catalog')
+        # trim the catalogs down to match the actual signal in the maps
+        goodidx = np.where(~np.isnan(np.nanmean(mapinst.map, axis=0)))
+        raminidx, ramaxidx = np.min(goodidx[1]), np.max(goodidx[1])+1
+        decminidx, decmaxidx = np.min(goodidx[0]), np.max(goodidx[0])+1
+
+        ramin, ramax = mapinst.ra[[raminidx, ramaxidx]]
+        decmin, decmax = mapinst.dec[[decminidx, decmaxidx]]
+
+        catidxra = np.logical_and(catinst.ra() > ramin, catinst.ra() < ramax)
+        catidxdec = np.logical_and(catinst.dec() > decmin, catinst.dec() < decmax)
+        catidx = np.where(np.logical_and(catidxra, catidxdec))[0]
+        
+        catinst.subset(catidx)
+
     return mapinst, catinst
 
-def setup(mapfiles, cataloguefile, params):
+def setup(mapfiles, cataloguefile, params, trim_cat=True):
     """
     wrapper function to load in data and set up objects for a stack run
     accepts either a list of per-field catalogue files or one big one
@@ -1786,9 +1803,9 @@ def setup(mapfiles, cataloguefile, params):
     catlist = []
     for i in range(len(mapfiles)):
         if isinstance(cataloguefile, (list, tuple, np.ndarray)):
-            mapinst, catinst = field_setup(mapfiles[i], cataloguefile[i], params)
+            mapinst, catinst = field_setup(mapfiles[i], cataloguefile[i], params, trim_cat=trim_cat)
         else:
-            mapinst, catinst = field_setup(mapfiles[i], cataloguefile, params)
+            mapinst, catinst = field_setup(mapfiles[i], cataloguefile, params, trim_cat=trim_cat)
         maplist.append(mapinst)
         catlist.append(catinst)
 

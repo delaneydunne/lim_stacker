@@ -1082,31 +1082,13 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
     except UnboundLocalError: 
         return None
 
-def stacker(maplist, catlist, params, trim_cat=False):
+def stacker(maplist, catlist, params):
     """
     wrapper to perform a full stack on all available values in the catalogue.
     """
 
     # set up: all the housekeeping stuff
     fields = [1,2,3]
-
-    if trim_cat:
-        print('trimming catalog')
-        # trim the catalogs down to match the actual signal in the maps
-        for i in range(3):
-            goodidx = np.where(~np.isnan(np.nanmean(maplist[i].map, axis=0)))
-            raminidx, ramaxidx = np.min(goodidx[1]), np.max(goodidx[1])+1
-            decminidx, decmaxidx = np.min(goodidx[0]), np.max(goodidx[0])+1
-
-            ramin, ramax = maplist[i].ra[[raminidx, ramaxidx]]
-            decmin, decmax = maplist[i].dec[[decminidx, decmaxidx]]
-
-            catidxra = np.logical_and(catlist[i].ra() > ramin, catlist[i].ra() < ramax)
-            catidxdec = np.logical_and(catlist[i].dec() > decmin, catlist[i].dec() < decmax)
-            catidx = np.where(np.logical_and(catidxra, catidxdec))[0]
-            
-            catlist[i].subset(catidx)
-
 
     # for simulations -- if the stacker should stop after a certain number
     # of cutouts. set this up to be robust against per-field or total vals
