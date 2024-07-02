@@ -55,6 +55,8 @@ def offset_and_stack(maplist, catlist, params, offrng, method=None):
 
     offcatlist = []
     for j in range(len(catlist)):
+        if params.goalnumcutouts[j] == 0:
+            offcatlist.append(catlist[j])
         # randomly offset each field's catalogue
         offcat = randomize(maplist[j], catlist[j], params, offrng)
         offcatlist.append(offcat)
