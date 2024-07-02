@@ -63,7 +63,7 @@ def offset_and_stack(maplist, catlist, params, offrng, method=None):
         offcatlist.append(offcat)
 
     # run the actual stack
-    outcube = stacker(maplist, offcatlist, params, trim_cat=True)
+    outcube = stacker(maplist, offcatlist, params)
 
     return np.array([outcube.linelum, outcube.dlinelum])
 
