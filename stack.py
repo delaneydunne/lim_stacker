@@ -273,11 +273,13 @@ class cubelet():
         omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
 
         # voxel solid angle
-        try:
-            pixsize = params.xstep*u.deg
+        # try:
+        #     pixsize = params.xstep*u.deg
+        #     print('xstep')
 
-        except AttributeError:
-            pixsize = 2*u.arcmin
+        # except AttributeError:
+        #     pixsize = 2*u.arcmin
+        pixsize = (self.xarr[1] - self.xarr[0]) * u.arcmin
         omega_B = (pixsize**2).to(u.sr)
 
         # central frequency of each individual spectral channel
