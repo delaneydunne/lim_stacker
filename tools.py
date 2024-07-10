@@ -1782,6 +1782,12 @@ def field_setup(mapfile, catfile, params, trim_cat=True):
         raminidx, ramaxidx = np.min(goodidx[1]), np.max(goodidx[1])+1
         decminidx, decmaxidx = np.min(goodidx[0]), np.max(goodidx[0])+1
 
+        if ramaxidx >= 120:
+            ramaxidx = -1
+        
+        if decmaxidx >= 120:
+            decmaxidx = -1
+
         ramin, ramax = mapinst.ra[[raminidx, ramaxidx]]
         decmin, decmax = mapinst.dec[[decminidx, decmaxidx]]
 

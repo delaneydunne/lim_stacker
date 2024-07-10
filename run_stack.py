@@ -1,49 +1,41 @@
+# load some base packages
 import os
-import glob
-import pickle
+import sys
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-import h5py
-from astropy.io import fits
-import csv
 
-from astropy.cosmology import FlatLambdaCDM
-import astropy.units as u
-import astropy.constants as const
-from astropy.coordinates import SkyCoord
-
-# standard COMAP cosmology
-cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
-
-# funky plot packages
-from astropy.convolution import convolve, Gaussian2DKernel, Tophat2DKernel
-from matplotlib.patches import Rectangle
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib.colors import SymLogNorm
-
+# load in the stacking package
+sys.path.insert(0, '/home/deedunne/Documents/COMAP/stacking')
 import lim_stacker as st
 
-""" INPUT FILES """
-# path to COMAP map files
-mapfiles = glob.glob('yr1data/*_summer.h5')
-mapfiles = [mapfiles[0], mapfiles[2], mapfiles[1]]
 
- # path to the galaxy catalogue (I made preliminary cuts before running it through)
-galcatfile = 'BOSS_quasars/cutquasarcat.npz'
+""" INPUT FILES """
+# list of the paths to each map file
+# (note they're in a weird order due to a defunct naming convention -- Field 1
+#  is co2, Field 2 is co7, and Field 3 is co6)
+mapfiles = ['/home/deedunne/Documents/COMAP/data/yr1data/co2_map_summer.h5',
+            '/home/deedunne/Documents/COMAP/data/yr1data/co7_map_summer.h5',
+            '/home/deedunne/Documents/COMAP/data/yr1data/co6_map_summer.h5']
+
+# path to the catalog file
+# needs to be a zipped numpy file with keys 'ra', 'dec', and 'z'
+catfiles = '/home/deedunne/Documents/COMAP/HETDEX/4.0.0/cuthetdex_sn4.7.npz'
 
 """ PARAMETERS """
-# set up a params class that you can just pass around
-# if you'd like to use non-default values, pass a file to st.parameters()
+# load the parameters into a custom python object. this empty function
+# call will load the default parameters, which should all be good. To explore what
+# the defaults are, check out 'param_defaults.py'
 params = st.parameters()
+# set up where you'd like the stack results to be output to
+params.savepath = 'hx_s1_240608'
+params.make_output_pathnames()
+
 
 """ SETUP """
-comaplist, qsolist = st.setup(mapfiles, galcatfile, params)
+# load in and set up the maps and catalog
+maplist, catlist = st.setup(mapfiles, catfiles, params)
 
 """ RUN """
-returns = st.stacker(comaplist, qsolist, params)
-# for a list of returns, see help(st.stacker)
-
-# dict of output statistics
-stackvals = returns[0]
-
-print("stack line luminosity is {:.3e} +/- {:.3e} K km/s pc^2".format(stackvals['linelum'], stackvals['dlinelum']))
+# run the stack
+stackcube = st.stacker(maplist, catlist, params)
