@@ -107,7 +107,7 @@ class parameters():
         # boolean parameters
         for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'chanmeanfilter',
                      'specmeanfilter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
-                     'savefields', 'plotspace', 'plotfreq', 'plotcubelet']:
+                     'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace']:
             try:
                 val = default_dir[attr] == 'True'
                 setattr(self, attr, val)

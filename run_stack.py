@@ -28,7 +28,7 @@ catfiles = '/home/deedunne/Documents/COMAP/HETDEX/4.0.0/cuthetdex_sn4.7.npz'
 # the defaults are, check out 'param_defaults.py'
 params = st.parameters()
 # set up where you'd like the stack results to be output to
-params.savepath = 'hx_s1_240608'
+params.savepath = 'testing'
 params.make_output_pathnames()
 
 

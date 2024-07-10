@@ -83,3 +83,6 @@ freqstackwidth 40
 plotcubelet True
 # units to make the plots ITO ('linelum' for line luminosity or 'flux')
 plotunits linelum
+
+""" physical spacing"""
+physicalspace False
