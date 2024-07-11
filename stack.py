@@ -30,6 +30,9 @@ warnings.filterwarnings("ignore", category=SpectralCubeWarning, append=True)
 # standard COMAP cosmology
 cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
 
+# ignore divide by zero warnings
+np.seterr(divide='ignore', invalid='ignore')
+
 """ CUBELET OBJECT TO HOLD STACK RESULTS """
 class cubelet():
 
@@ -84,11 +87,13 @@ class cubelet():
             self.freqarr = np.arange(params.freqstackwidth * 2)*chanwidth - (params.freqstackwidth-0.5)*chanwidth
         else:
             self.freqarr = np.arange(params.freqstackwidth * 2 + 1)*chanwidth - (params.freqstackwidth)*chanwidth
+        self.fstep = chanwidth
 
         if params.xwidth % 2 == 0:
             self.xarr = np.arange(params.spacestackwidth * 2)*xwidtharcmin - (params.spacestackwidth-0.5)*xwidtharcmin
         else:
             self.xarr = np.arange(params.spacestackwidth * 2 + 1)*xwidtharcmin - (params.spacestackwidth)*xwidtharcmin
+        self.xstep = xwidtharcmin
 
         # read in the cutout values
         self.cube = cutout.cubestack
@@ -1033,6 +1038,12 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
     if goalnobj:
         field_nobj = 0
 
+    # if physical spacing, increment print statements more often
+    if params.physicalspace:
+        printi = 10
+    else:
+        printi = 100
+
     for i in range(galcat.nobj):
         cutout = single_cutout(i, galcat, comap, params)
 
@@ -1062,7 +1073,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
                         break
 
         if params.verbose:
-            if i % 100 == 0:
+            if i % printi == 0:
                 print('   done {} of {} cutouts in this field'.format(i, galcat.nobj))
 
     try:

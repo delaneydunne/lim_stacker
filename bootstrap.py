@@ -18,10 +18,8 @@ from astropy.coordinates import SkyCoord
 from scipy.optimize import curve_fit
 from scipy.stats import norm
 
-import warnings
-warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
-warnings.filterwarnings("ignore", message="invalid value encountered in power")
-warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
+# ignore divide by zero warnings
+np.seterr(divide='ignore', invalid='ignore')
 
 def field_offset_and_stack(mapinst, catinst, params, offrng, method=None):
 
@@ -243,6 +241,39 @@ def cat_rand_offset_sensmap(mapinst, catinst, params, offrng=None, senspath=None
 
     return offcat
 
+def cat_rand_offset_random(mapinst, catinst, params, offrng=None):
+    """
+    generates a completely uniform random catalog (ie no correlation with the input catalog
+    other than the size)
+    """
+    if not offrng:
+        try:
+            offrng = params.bootstraprng 
+        except AttributeError:
+            offrng = np.random.default_rng(params.bootstrapseed)
+            params.bootstraprng = offrng 
+            print("Defining new bootstrap rng using passed seed "+str(params.bootstrapseed))
+
+    randcatsize = (2*catinst.nobj)
+    randcatidx = offrng.permutation(randcatsize)
+
+    ralims = minmax(mapinst.ra)
+    declims = minmax(mapinst.dec)
+    zlims = minmax(freq_to_z(115.27, mapinst.freq))
+
+    offcat = catinst.copy()
+    zshuff = offrng.uniform(zlims[0], zlims[1], randcatsize)
+    raoff = offrng.uniform(ralims[0], ralims[1], randcatsize)
+    decoff = offrng.uniform(declims[0], declims[1], randcatsize)
+    offcat.z = zshuff 
+    offcat.freq = nuem_to_nuobs(115.27, zshuff)
+    offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
+    offcat.nobj = 2*catinst.nobj
+    # for indexing -- use ra to add to the artificial index so the fields are distinct
+    offcat.catfileidx = np.arange(len(zshuff)) + int(raoff[0]*1e6)
+    offcat.idx = offcat.catfileidx
+
+    return offcat
 
 
 

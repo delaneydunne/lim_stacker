@@ -1582,6 +1582,13 @@ def dict_saver(indict, outfile, strip_units=True):
 
 
 """ MATH """
+def minmax(vals):
+    """
+    returns (np.nanmin(vals), np.nanmax(vals)) to get extrema in a single function call
+    """
+
+    return np.array([np.nanmin(vals), np.nanmax(vals)])
+
 def weightmean(vals, rmss, axis=None):
     """
     average of vals, weighted by rmss, over the passed axes
