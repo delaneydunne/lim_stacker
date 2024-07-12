@@ -21,9 +21,12 @@ from spectral_cube.utils import SpectralCubeWarning
 from radio_beam import Beam
 from reproject import reproject_adaptive
 
-warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
-warnings.filterwarnings("ignore", message="invalid value encountered in power")
-warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
+# for photometric aperture extraction
+from photutils.psf import IntegratedGaussianPRF, PSFPhotometry
+from astropy.table import QTable
+
+# ignore divide by zero warnings
+np.seterr(divide='ignore', invalid='ignore')
 warnings.filterwarnings("ignore", category=SpectralCubeWarning, append=True)
 
 
@@ -366,20 +369,69 @@ class cubelet():
         self.unit = 'linelum'
 
         return
+    
+    def beam_model(self, params):
+        """
+        set up a (Gaussian) model of the beam to do PSF photometry with
+        """
+
+        if not params:
+            print('Need parameters object to set up beam model')
+
+        # size of the beam as a standard deviation
+        beamsigma = params.beamwidth / (2*np.sqrt(2*np.log(2)))
+        beamsigmapix = beamsigma / self.xstep
+
+        # beam model object
+        beammodel = IntegratedGaussianPRF(flux=1, sigma=beamsigmapix)
+
+        # always will be doing forced photometry, so fix x and y centroid
+        beammodel.x_0.fixed = True 
+        beammodel.y_0.fixed = True 
+
+        params.beammodel = beammodel 
+        self.beammodel = beammodel
+
+        return beammodel
 
 
-    def get_spectrum(self, in_place=False, summed=False):
+    def get_spectrum(self, in_place=False, method='weightmean', params=None):
 
-        apspec = self.cube[:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
-        dapspec = self.cuberms[:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+        if method == 'weightmean' or method == 'summed':
+            apspec = self.cube[:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+            dapspec = self.cuberms[:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
 
-        if summed:
-            spec = np.nansum(apspec, axis=(1,2))
-            dspec = np.sqrt(np.nansum(dapspec**2, axis=(1,2)))
-        else:
-            spec, dspec = weightmean(apspec, dapspec, axis=(1,2))
-            spec = spec * self.xwidth * self.ywidth 
-            dspec = dspec * self.xwidth * self.ywidth 
+            if method == 'summed':
+                spec = np.nansum(apspec, axis=(1,2))
+                dspec = np.sqrt(np.nansum(dapspec**2, axis=(1,2)))
+            else:
+                spec, dspec = weightmean(apspec, dapspec, axis=(1,2))
+                spec = spec * self.xwidth * self.ywidth 
+                dspec = dspec * self.xwidth * self.ywidth 
+
+        elif method == 'photometry':
+
+            # set up beam model if it hasn't been done already
+            try:
+                beammodel = self.beammodel 
+            except AttributeError:
+                beammodel = self.beam_model(params)
+
+            # initiate photometry objects
+            psfphot = PSFPhotometry(beammodel, (9,9), aperture_radius=9)
+            initparams = QTable()
+            initparams['x'] = [self.centpix[1]]
+            initparams['y'] = [self.centpix[1]]
+
+            photflux = []
+            photrms = []
+            for i in range(self.cube.shape[0]):
+                output = psfphot(self.cube[i,:,:], error=self.cuberms[i,:,:], init_params=initparams)
+                photflux.append(output['flux_fit'].value[0])
+                photrms.append(output['flux_err'].value[0])
+            
+            spec = np.array(photflux)
+            dspec = np.array(photrms)
 
         if in_place:
             self.spectrum = spec
@@ -401,20 +453,49 @@ class cubelet():
 
         return im, dim
 
-    def get_aperture(self, in_place=False, summed=False):
+    def get_aperture(self, in_place=False, method='weightmean', params=None):
 
-        ap = self.cube[self.apminpix[0]:self.apmaxpix[0]:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
-        dap = self.cuberms[self.apminpix[0]:self.apmaxpix[0],self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+        if method == 'weightmean' or method == 'summed':
 
-        if summed:
-            spec = np.nansum(ap, axis=(1,2))
-            dspec = np.sqrt(np.nansum(dap**2, axis=(1,2)))
+            ap = self.cube[self.apminpix[0]:self.apmaxpix[0]:,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+            dap = self.cuberms[self.apminpix[0]:self.apmaxpix[0],self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+
+            if method == 'summed':
+                spec = np.nansum(ap, axis=(1,2))
+                dspec = np.sqrt(np.nansum(dap**2, axis=(1,2)))
+            else:
+                spec, dspec = weightmean(ap, dap, axis=(1,2))
+                # correct for adjusted solid angle
+                spec = spec * self.xwidth * self.ywidth 
+                dspec = dspec * self.xwidth * self.ywidth
+
+        elif method == 'photometry':
+
+            # set up beam model if it hasn't been done already
+            try:
+                beammodel = self.beammodel 
+            except AttributeError:
+                beammodel = self.beam_model(params)
+
+            # initiate photometry objects
+            psfphot = PSFPhotometry(beammodel, (9,9), aperture_radius=9)
+            initparams = QTable()
+            initparams['x'] = [self.centpix[1]]
+            initparams['y'] = [self.centpix[1]]
+
+            photflux = []
+            photrms = []
+            for i in np.arange(self.apminpix[0], self.apmaxpix[0]):
+                output = psfphot(self.cube[i,:,:], error=self.cuberms[i,:,:], init_params=initparams)
+                photflux.append(output['flux_fit'].value[0])
+                photrms.append(output['flux_err'].value[0])
+            
+            spec = np.array(photflux)
+            dspec = np.array(photrms)
+
         else:
-            spec, dspec = weightmean(ap, dap, axis=(1,2))
-            # correct for adjusted solid angle
-            spec = spec * self.xwidth * self.ywidth 
-            dspec = dspec * self.xwidth * self.ywidth
-
+            print("Don't know that aperture extraction method")
+            
         val = np.nansum(spec)
         dval = np.sqrt(np.nansum(dspec**2))
 
