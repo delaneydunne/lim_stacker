@@ -1006,6 +1006,17 @@ def single_cutout(idx, galcat, comap, params):
     if params.physicalspace:
         cutout = physical_spacing(cutout, comap, params, oversamp_factor=params.pspacefac)
 
+        # this process may have introduced nans back to the central aperture -- remove any
+        # cutouts that have this going on
+        xmin, xmax = params.spacestackwidth-params.xwidth//2, params.spacestackwidth+params.xwidth//2+1
+        fmin, fmax = params.freqstackwidth-params.freqwidth//2, params.freqstackwidth+params.freqwidth//2+1
+        aperture = cutout.cubestack[fmin:fmax,xmin:xmax,xmin:xmax]
+        if np.isnan(aperture[params.freqwidth//2,params.xwidth//2,params.xwidth//2]):
+            return None 
+        for i in range(aperture.shape[0]):
+            if np.sum(np.isnan(aperture[i,:,:]).flatten()) > params.xwidth**2 / 2:
+                return None
+
     # *** is this still doing anything?
     if params.obsunits:
         observer_units_weightedsum(pixval, rmsval, cutout, params)
