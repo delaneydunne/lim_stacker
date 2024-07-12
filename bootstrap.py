@@ -160,8 +160,8 @@ def cat_rand_offset_space(mapinst, catinst, params, offrng=None):
 
     offcat = catinst.copy()
 
-    raoff = np.concatenate((catinst.ra(), catinst.ra())) + mapinst.xstep*randoffs
-    decoff = np.concatenate((catinst.dec(), catinst.dec())) + mapinst.ystep*randoffs
+    raoff = np.concatenate((catinst.ra(), catinst.ra())) + mapinst.xstep*raoffs
+    decoff = np.concatenate((catinst.dec(), catinst.dec())) + mapinst.ystep*decoffs
     freqoff = np.concatenate((catinst.freq, catinst.freq))
     zoff = freq_to_z(params.centfreq, freqoff)
 
