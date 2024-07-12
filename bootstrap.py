@@ -28,6 +28,8 @@ def field_offset_and_stack(mapinst, catinst, params, offrng, method=None):
         randomize = cat_rand_offset
     elif method == 'offset_freq':
         randomize = cat_rand_offset_freq 
+    elif method == 'offset_space':
+        randomize = cat_rand_offset_space
     elif method == 'shuffle':
         randomize = cat_rand_offset_shuffle
     elif method == 'uniform':
@@ -48,6 +50,8 @@ def offset_and_stack(maplist, catlist, params, offrng, method=None):
         randomize = cat_rand_offset
     elif method == 'offset_freq':
         randomize = cat_rand_offset_freq 
+    elif method == 'offset_space':
+        randomize = cat_rand_offset_space
     elif method == 'shuffle':
         randomize = cat_rand_offset_shuffle
     elif method == 'sensitivity':
@@ -124,6 +128,41 @@ def cat_rand_offset_freq(mapinst, catinst, params, offrng=None):
     raoff = np.concatenate((catinst.ra(), catinst.ra()))
     decoff = np.concatenate((catinst.dec(), catinst.dec()))
     freqoff = np.concatenate((catinst.freq, catinst.freq)) + mapinst.fstep*randoffs
+    zoff = freq_to_z(params.centfreq, freqoff)
+
+    offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
+    offcat.freq = freqoff
+    offcat.z = zoff
+    offcat.nobj = 2*catinst.nobj
+    # for indexing -- use ra to add to the artificial index so fields are distinct
+    offcat.catfileidx = np.arange(len(freqoff)) + int(raoff[0]*1e6)
+    offcat.idx = offcat.catfileidx
+
+    return offcat
+
+
+def cat_rand_offset_space(mapinst, catinst, params, offrng=None):
+    # set up the rng (use the one passed, or failing that the one in params, or
+    # failing that define a new one)
+    if not offrng:
+        try:
+            offrng = params.bootstraprng
+        except AttributeError:
+            offrng = np.random.default_rng(params.bootstrapseed)
+            params.bootstraprng = offrng
+            print('Defining new bootstrap rng using passed seed '+str(params.bootstrapseed))
+
+    # make a catalogue of random offsets that shouldn't overlap with flux from the actual object
+    # 2* as big to make sure there are enough objects included to hit goalnumcutouts
+    randcatsize = (2*catinst.nobj)
+    raoffs = offrng.uniform(1,5,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
+    decoffs = offrng.uniform(1,5,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
+
+    offcat = catinst.copy()
+
+    raoff = np.concatenate((catinst.ra(), catinst.ra())) + mapinst.xstep*randoffs
+    decoff = np.concatenate((catinst.dec(), catinst.dec())) + mapinst.ystep*randoffs
+    freqoff = np.concatenate((catinst.freq, catinst.freq))
     zoff = freq_to_z(params.centfreq, freqoff)
 
     offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
