@@ -76,11 +76,14 @@ class cubelet():
         self.apminpix = (params.freqstackwidth-foff, params.spacestackwidth-xoff, params.spacestackwidth-xoff)
         self.apmaxpix = (params.freqstackwidth+foff+1, params.spacestackwidth+xoff+1, params.spacestackwidth+xoff+1)
 
+        self.xpixcent = cutout.xpixcent 
+        self.ypixcent = cutout.ypixcent
+
         # find the width of the channel in GHz (different if physical spacing)
         # also the width of each pixel
         try:
             chanwidth = cutout.fstep 
-            xwidtharcmin = cutout.xstep * 60
+            xwidtharcmin = cutout.xstep
         except AttributeError:
             chanwidth = params.chanwidth
             xwidtharcmin = 2
@@ -382,6 +385,8 @@ class cubelet():
         beamsigma = params.beamwidth / (2*np.sqrt(2*np.log(2)))
         beamsigmapix = beamsigma / self.xstep
 
+        print(beamsigmapix)
+
         # beam model object
         beammodel = IntegratedGaussianPRF(flux=1, sigma=beamsigmapix)
 
@@ -409,7 +414,7 @@ class cubelet():
                 spec = spec * self.xwidth * self.ywidth 
                 dspec = dspec * self.xwidth * self.ywidth 
 
-        elif method == 'photometry':
+        elif method == 'photometry' or method == 'adaptive_photometry':
 
             # set up beam model if it hasn't been done already
             try:
@@ -418,14 +423,29 @@ class cubelet():
                 beammodel = self.beam_model(params)
 
             # initiate photometry objects
-            psfphot = PSFPhotometry(beammodel, (9,9), aperture_radius=9)
-            initparams = QTable()
-            initparams['x'] = [self.centpix[1]]
-            initparams['y'] = [self.centpix[1]]
+            if method == 'photometry':
+                print('7****')
+                initparams = QTable()
+                initparams['x'] = [self.centpix[1]]
+                initparams['y'] = [self.centpix[1]]
+                psfphot = PSFPhotometry(beammodel, (7,7), aperture_radius=7)
+            elif method == 'adaptive_photometry':
+                initparams = QTable()
+                initparams['x'] = [self.centpix[1] - 0.5 + self.xpixcent]
+                initparams['y'] = [self.centpix[2] - 0.5 + self.ypixcent]
+                psfphot = PSFPhotometry(beammodel, (7,7), aperture_radius=7)
 
             photflux = []
             photrms = []
             for i in range(self.cube.shape[0]):
+
+                # check channel, if it's fully nan'd out then return a nan for this channel
+                apspec = self.cube[i,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+                if len(np.where(np.isnan(apspec.flatten()))[0]) == len(apspec.flatten()):
+                    photflux.append(np.nan)
+                    photrms.append(np.nan)
+                    continue
+
                 output = psfphot(self.cube[i,:,:], error=self.cuberms[i,:,:], init_params=initparams)
                 photflux.append(output['flux_fit'].value[0])
                 photrms.append(output['flux_err'].value[0])
@@ -469,7 +489,7 @@ class cubelet():
                 spec = spec * self.xwidth * self.ywidth 
                 dspec = dspec * self.xwidth * self.ywidth
 
-        elif method == 'photometry':
+        elif method == 'photometry' or method == 'adaptive_photometry':
 
             # set up beam model if it hasn't been done already
             try:
@@ -477,11 +497,18 @@ class cubelet():
             except AttributeError:
                 beammodel = self.beam_model(params)
 
-            # initiate photometry objects
-            psfphot = PSFPhotometry(beammodel, (9,9), aperture_radius=9)
-            initparams = QTable()
-            initparams['x'] = [self.centpix[1]]
-            initparams['y'] = [self.centpix[1]]
+            if method == 'photometry':
+                # initiate photometry objects
+                psfphot = PSFPhotometry(beammodel, (9,9), aperture_radius=9)
+                initparams = QTable()
+                initparams['x'] = [self.centpix[1]]
+                initparams['y'] = [self.centpix[1]]
+            else:
+                # initiate photometry objects with adaptive centering 
+                psfphot = PSFPhotometry(beammodel, (7,7), aperture_radius=7)
+                initparams = QTable()
+                initparams['x'] = [self.centpix[1] - 0.5 + self.xpixcent]
+                initparams['y'] = [self.centpix[1] - 0.5 + self.ypixcent]
 
             photflux = []
             photrms = []
@@ -907,6 +934,7 @@ def single_cutout(idx, galcat, comap, params):
             xdiff = -1
         else:
             xdiff = 1
+        xpixcent = (x - comap.rabe[xidx])/comap.xstep
 
         y = galcat.coords[idx].dec.deg
         if y < np.min(comap.dec) or y > np.max(comap.dec + comap.ystep):
@@ -916,6 +944,7 @@ def single_cutout(idx, galcat, comap, params):
             ydiff = -1
         else:
             ydiff = 1
+        ypixcent = (y - comap.decbe[yidx])/comap.ystep
 
     # start setting up cutout object if it passes all these tests
     cutout = empty_table()
@@ -928,6 +957,11 @@ def single_cutout(idx, galcat, comap, params):
     cutout.freq = nuobs
     cutout.x = x
     cutout.y = y
+    cutout.xstep = comap.xstep * 60
+    cutout.ystep = comap.ystep * 60
+    cutout.fstep = comap.fstep
+    cutout.xpixcent = xpixcent 
+    cutout.ypixcent = ypixcent
 
     """ set up indices """
     # index the actual aperture to be stacked from the cutout
