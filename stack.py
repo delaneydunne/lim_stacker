@@ -25,9 +25,14 @@ from reproject import reproject_adaptive
 from photutils.psf import IntegratedGaussianPRF, PSFPhotometry
 from astropy.table import QTable
 
-# ignore divide by zero warnings
+# ignore warnings:
+# divide by zero
 np.seterr(divide='ignore', invalid='ignore')
 warnings.filterwarnings("ignore", category=SpectralCubeWarning, append=True)
+
+# photutils fitting warnings
+import warnings 
+# warnings.filterwarnings('default', module=ph.psf.photometry)
 
 
 # standard COMAP cosmology
@@ -447,8 +452,10 @@ class cubelet():
                     continue
 
                 output = psfphot(self.cube[i,:,:], error=self.cuberms[i,:,:], init_params=initparams)
-                photflux.append(output['flux_fit'].value[0])
-                photrms.append(output['flux_err'].value[0])
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore')
+                    photflux.append(output['flux_fit'].value[0])
+                    photrms.append(output['flux_err'].value[0])
             
             spec = np.array(photflux)
             dspec = np.array(photrms)
@@ -514,8 +521,10 @@ class cubelet():
             photrms = []
             for i in np.arange(self.apminpix[0], self.apmaxpix[0]):
                 output = psfphot(self.cube[i,:,:], error=self.cuberms[i,:,:], init_params=initparams)
-                photflux.append(output['flux_fit'].value[0])
-                photrms.append(output['flux_err'].value[0])
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore')
+                    photflux.append(output['flux_fit'].value[0])
+                    photrms.append(output['flux_err'].value[0])
             
             spec = np.array(photflux)
             dspec = np.array(photrms)
