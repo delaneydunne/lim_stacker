@@ -86,3 +86,6 @@ plotunits linelum
 
 """ physical spacing"""
 physicalspace False
+
+""" adaptive photometry """
+adaptivephotometry False

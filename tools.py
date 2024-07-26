@@ -107,7 +107,8 @@ class parameters():
         # boolean parameters
         for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'chanmeanfilter',
                      'specmeanfilter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
-                     'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace']:
+                     'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace',
+                     'adaptivephotometry']:
             try:
                 val = default_dir[attr] == 'True'
                 setattr(self, attr, val)
@@ -1589,13 +1590,26 @@ def minmax(vals):
 
     return np.array([np.nanmin(vals), np.nanmax(vals)])
 
-def weightmean(vals, rmss, axis=None):
+def weightmean(vals, rmss, axis=None, weights=None):
     """
     average of vals, weighted by rmss, over the passed axes
     default is over a a fully flattened array if no axes are passed
+    will be default weight by inverse variance only, but if 'weights' are passed then 
+    will also weight by whatever that is
     """
-    meanval = np.nansum(vals/rmss**2, axis=axis) / np.nansum(1/rmss**2, axis=axis)
-    meanrms = np.sqrt(1/np.nansum(1/rmss**2, axis=axis))
+    if np.any(weights):
+        weights = weights / rmss**2 # *** probably going to have to worry about the shape of the weights array
+    else:
+        weights = 1/rmss**2
+
+    meanval = np.nansum(vals*weights, axis=axis) / np.nansum(1*weights, axis=axis)
+    meanrms = np.sqrt(1/np.nansum(1*weights, axis=axis))
+
+    # meanrms = (np.nansum(vals**2*weights, axis=axis)/np.nansum(weights, axis=axis) - meanval**2)
+    # meanrms *= (np.nansum(weights, axis=axis)**2) / ((np.nansum(weights, axis=axis)**2) - np.nansum(weights**2, axis=axis))
+
+    # meanrms = np.sqrt(meanrms)
+
     return meanval, meanrms
 
 def globalweightmean(vals, rmss, axis=None):

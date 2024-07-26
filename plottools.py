@@ -859,18 +859,21 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
     bincents = (bins[:-1]-bins[1:])/2+bins[:-1]
     arrext = np.max(np.abs((np.min(bincents), np.max(bincents))))
     xarr = np.linspace(-arrext, arrext, 200)
-    fitopt, fitcov = curve_fit(gauss, bincents, counts, p0=[2000,0,2])
 
     counts, _, _ = sbax.hist(apvid/1e10, color='indigo', bins=100)
 
-    sbax.plot(xarr, gauss(xarr, *fitopt), color='orange', lw=2)
-    yext = sbax.get_ylim()
+    try:
+        fitopt, fitcov = curve_fit(gauss, bincents, counts, p0=[2000,0,2])
+        sbax.plot(xarr, gauss(xarr, *fitopt), color='orange', lw=2)
+        yext = sbax.get_ylim()
 
-    sbax.axvline(fitopt[1], color='orange', ls='--', lw=2)
-    uncert = Rectangle((fitopt[1]-fitopt[2], -1), 2*fitopt[2], yext[1], color='orange', alpha=0.5)
-    sbax.add_patch(uncert)
+        sbax.axvline(fitopt[1], color='orange', ls='--', lw=2)
+        uncert = Rectangle((fitopt[1]-fitopt[2], -1), 2*fitopt[2], yext[1], color='orange', alpha=0.5)
+        sbax.add_patch(uncert)
 
-    sbax.annotate("{:.3e}".format(np.abs(fitopt[2])*1e10), (np.min(xarr)*0.9,2200), fontsize=10)
+        sbax.annotate("{:.3e}".format(np.abs(fitopt[2])*1e10), (np.min(xarr)*0.9,2200), fontsize=10)
+    except (ValueError, RuntimeError):
+        print("Couldn't fit the aperture intensity distribution -- RMS probably too high")
 
 
     if stackresult:

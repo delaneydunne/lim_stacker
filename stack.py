@@ -58,6 +58,7 @@ class cubelet():
     def from_cutout(self, cutout, params):
         # housekeeping info
         self.unit = 'K' #params.plotunits ***** this is terrible
+        self.adaptivephotometry = params.adaptivephotometry
         self.ncutouts = 1
         self.catidx = [cutout.catidx]
         self.nuobs_mean = [cutout.freq]
@@ -124,6 +125,7 @@ class cubelet():
 
         # params info
         self.unit = params.plotunits
+        self.adaptivephotometry = params.adaptivephotometry
 
         # read in aperture/cubelet sizes
         self.xwidth = params.xwidth
@@ -207,6 +209,22 @@ class cubelet():
                                                  np.array((self.dlinelum, cutout.dlinelum)))
         self.rhoh2, self.drhoh2 = weightmean(np.array((self.rhoh2, cutout.rhoh2)),
                                              np.array((self.drhoh2, cutout.drhoh2)))
+        
+        # if doing adaptive photometry, pull a centered spectrum from the new cubelet and average it in to the saved spectrum
+        # *** currently this does not work but it also isn't called anywhere
+        if self.adaptivephotometry:
+            # calculate the spectrum of the original cubelet object if it hasn't been done yet
+            try:
+                oldspec = self.spectrum
+                olddspec = self.spectrumrms 
+            except AttributeError:
+                oldspec, olddspec = self.get_spectrum(method='adaptive_photometry', params=params)
+
+            # get the new adaptive spectrum
+            newspec, newdspec = cubelet.get_spectrum(method='adaptive_photometry', params=params)
+
+            spec, dspec = weightmean(np.stack((oldspec, newspec)), np.stack((olddspec, newdspec)), axis=0)
+            self.spectrum = [spec,dspec]
 
         # housekeeping
         self.catidx.append(cutout.catidx)
@@ -220,7 +238,7 @@ class cubelet():
         del(cutout)
 
 
-    def stackin_cubelet(self, cubelet):
+    def stackin_cubelet(self, cubelet, params=None, weights=None):
         # merge two stacked cubelets
         if not cubelet:
             del(cubelet)
@@ -230,13 +248,34 @@ class cubelet():
         cubevals = np.stack((self.cube, cubelet.cube))
         rmsvals = np.stack((self.cuberms, cubelet.cuberms))
 
-        self.cube, self.cuberms = weightmean(cubevals, rmsvals, axis=0)
+        # if this is the first stack, need to weight both self and the input cube
+        # otherwise self has an implied weight folded into its RMS
+        if np.any(weights):
+            try:
+                selfweight = weights[0]
+                newweight = weights[1]
+            except IndexError:
+                selfweight = 1
+                newweight = weights
+                weights = [1, newweight]
+        
+        # pad out the weights array to make the big cubelet stack work
+        if np.any(weights):
+            rsarr = np.ones(self.cube.shape)
+            if len(weights) == 2:
+                bigweights = np.stack((rsarr*selfweight, rsarr*newweight))
+            elif len(weights) == 1:
+                bigweights = np.stack((rsarr, rsarr*newweight))
+        else:
+            bigweights = None
+
+        self.cube, self.cuberms = weightmean(cubevals, rmsvals, axis=0, weights=bigweights)
 
         # stack together the single values
         self.linelum, self.dlinelum = weightmean(np.array((self.linelum, cubelet.linelum)),
-                                                 np.array((self.dlinelum, cubelet.dlinelum)))
+                                                 np.array((self.dlinelum, cubelet.dlinelum)), weights=weights)
         self.rhoh2, self.drhoh2 = weightmean(np.array((self.rhoh2, cubelet.rhoh2)),
-                                             np.array((self.drhoh2, cubelet.drhoh2)))
+                                             np.array((self.drhoh2, cubelet.drhoh2)), weights=weights)
         
         # housekeeping **** check averaging (also why is cubelet nuobs_mean a list?)
         self.catidx = np.concatenate((self.catidx, cubelet.catidx))
@@ -245,6 +284,23 @@ class cubelet():
         z_mean = (self.z_mean*self.ncutouts + cubelet.z_mean[0]*cubelet.ncutouts) / (self.ncutouts + cubelet.ncutouts)
         self.z_mean = z_mean
         self.ncutouts = self.ncutouts + cubelet.ncutouts
+
+        # if doing adaptive photometry, pull a centered spectrum from the new cubelet and average it in to the saved spectrum
+        # *** weights not acocunted for in here
+        if self.adaptivephotometry:
+            # calculate the spectrum of the original cubelet object if it hasn't been done yet
+            try:
+                oldspec, olddspec = self.spectrum
+            except AttributeError:
+                oldspec, olddspec = self.get_spectrum(method='adaptive_photometry', params=params)
+                self.spectrum = [oldspec,olddspec]
+
+            # get the new adaptive spectrum
+            newspec, newdspec = cubelet.get_spectrum(method='adaptive_photometry', params=params)
+
+            spec, dspec = weightmean(np.stack((oldspec, newspec)), np.stack((olddspec, newdspec)), axis=0)
+            self.spectrum = [spec,dspec]
+
 
         del(cubelet)
         return
@@ -265,6 +321,10 @@ class cubelet():
         self.upgradefactor = factor
         
         return    
+    
+    def weight_rms(self, weight):
+        self.cuberms = self.cuberms / weight**2
+        return
     
     def to_flux(self, params, velocity_integrate=True):
         """ converts from temperature units to flux units. won't do anything if the unit
@@ -390,8 +450,6 @@ class cubelet():
         beamsigma = params.beamwidth / (2*np.sqrt(2*np.log(2)))
         beamsigmapix = beamsigma / self.xstep
 
-        print(beamsigmapix)
-
         # beam model object
         beammodel = IntegratedGaussianPRF(flux=1, sigma=beamsigmapix)
 
@@ -451,9 +509,9 @@ class cubelet():
                     photrms.append(np.nan)
                     continue
 
-                output = psfphot(self.cube[i,:,:], error=self.cuberms[i,:,:], init_params=initparams)
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore')
+                    output = psfphot(self.cube[i,:,:], error=self.cuberms[i,:,:], init_params=initparams)
                     photflux.append(output['flux_fit'].value[0])
                     photrms.append(output['flux_err'].value[0])
             
@@ -520,9 +578,9 @@ class cubelet():
             photflux = []
             photrms = []
             for i in np.arange(self.apminpix[0], self.apmaxpix[0]):
-                output = psfphot(self.cube[i,:,:], error=self.cuberms[i,:,:], init_params=initparams)
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore')
+                    output = psfphot(self.cube[i,:,:], error=self.cuberms[i,:,:], init_params=initparams)
                     photflux.append(output['flux_fit'].value[0])
                     photrms.append(output['flux_err'].value[0])
             
@@ -780,7 +838,7 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     
     # input cube
     cube = SpectralCube(data=outcutout.cubestack.T, wcs=inwcs)
-    cuberms = SpectralCube(data=outcutout.cubestackrms.T, wcs=inwcs)
+    cuberms = SpectralCube(data=1/outcutout.cubestackrms.T**2, wcs=inwcs)
     # beam for the input cube
     cube_beam = Beam(params.beamwidth * u.arcmin)
     cube = cube.with_beam(cube_beam)
@@ -884,15 +942,15 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     outcutout.raext = xyzcube.latitude_extrema
     outcutout.decext = xyzcube.longitude_extrema
     outcutout.velext = xyzcube.spectral_extrema # *** probably want this one back in frequency units
-    outcutout.xstep = xyzcube.wcs.wcs.cdelt[0]
-    outcutout.ystep = xyzcube.wcs.wcs.cdelt[1]
+    outcutout.xstep = xyzcube.wcs.wcs.cdelt[0] * 60
+    outcutout.ystep = xyzcube.wcs.wcs.cdelt[1] * 60
     outcutout.vstep = xyzcube.wcs.wcs.cdelt[2]/1e3
     txyzcube = xyzcube.with_spectral_unit(u.GHz, velocity_convention='radio', rest_value=115.27*u.GHz/(1+outcutout.z))
     outcutout.fstep = -np.diff(txyzcube.spectral_axis)[0].value
 
     # *** just transforming the RMS the same way as the regular cube for now
     # ** does spectral_cube have a way to do this nicely?
-    outcutout.cubestackrms = xyzrms._data
+    outcutout.cubestackrms = 1/np.sqrt(xyzrms._data)
     # outcutout.cubestackrms = np.ones(outcutout.cubestack.shape)
     return outcutout
 
@@ -1158,7 +1216,7 @@ def single_cutout(idx, galcat, comap, params):
 
 """ ACTUAL STACKING """
 
-def field_stack(comap, galcat, params, field=None, goalnobj=None):
+def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None):
     """
     wrapper to stack up a single field, using the cubelet object
     assumes comap is already in the desired units
@@ -1187,17 +1245,24 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None):
             if field:
                 cutout.field = field
 
+            if np.any(weights):
+                weight = weights[i]
+            else:
+                weight = None
+
             # stack as you go
             if ti == 0:
                 stackinst = cubelet(cutout, params)
                 if stackinst.unit != 'linelum':
                     stackinst.to_linelum(params)
+                if weight:
+                    stackinst.weight_rms(weight)
                 ti = 1
             else:
                 stackinst_new = cubelet(cutout, params)
                 if stackinst_new.unit != 'linelum':
                     stackinst_new.to_linelum(params)
-                stackinst.stackin_cubelet(stackinst_new)
+                stackinst.stackin_cubelet(stackinst_new, weights=weight)
 
             if goalnobj:
                 field_nobj += 1
