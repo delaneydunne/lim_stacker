@@ -1,0 +1,11 @@
+astropy==6.1.0
+numpy==1.26.4
+matplotlib==3.8.4
+pandas==2.2.2
+spectral_cube==0.6.5
+radio_beam==0.3.7
+reproject==0.9
+photutils==1.13.0
+pixell==0.21.1
+h5py==3.9.0
+scipy==1.12.0

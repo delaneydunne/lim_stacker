@@ -202,7 +202,7 @@ class parameters():
                 self.goalnumcutouts = None
 
         # kernel object for the beam
-        self.gauss_kernel = Gaussian2DKernel(self.beamwidth)
+        self.gauss_kernel = Gaussian2DKernel(self.beamwidth / (2*np.sqrt(2*np.log(2))))
 
     def make_output_pathnames(self, append=True):
         """
@@ -1058,6 +1058,12 @@ class maps():
             self.freq = simfile['map_frequencies']
             self.ra = simfile['map_pixel_ra']
             self.dec = simfile['map_pixel_dec']
+            try:
+                # if an RMS value is saved, use that
+                self.rms = np.ones(self.map.shape) * simfile['sigma']
+            except KeyError:
+                # if not, dummy RMS array
+                self.rms = np.ones(self.map.shape)
 
         # if the simulaton is centered around zero, add 2deg to the ra axis so it doesn't 
         # wrap weird in skycoord
@@ -1069,9 +1075,6 @@ class maps():
         # self.map = np.swapaxes(self.map, 1, 2) #*******
         self.freq = np.flip(self.freq)
         self.map = np.flip(self.map, axis=0)
-
-        # dummy rms array
-        self.rms = np.ones(self.map.shape)
 
         # build the other convenience coordinate arrays, make sure the coordinates map to
         # the correct part of the voxel
@@ -1795,6 +1798,10 @@ def field_setup(mapfile, catfile, params, trim_cat=True):
     # clip the catalogue to the field
     catinst.cull_to_map(mapinst, params, maxsep=2*u.deg)
 
+    # adjust the beam to match the actual size of the spaxels
+    params.beamwidth = params.beamwidth / (mapinst.xstep*u.deg).to(u.arcmin).value
+    params.gauss_kernel = Gaussian2DKernel(params.beamwidth / (2*np.sqrt(2*np.log(2))))
+
     # additional trimming
     if trim_cat:
         print('trimming catalog')
@@ -1836,6 +1843,7 @@ def setup(mapfiles, cataloguefile, params, trim_cat=True):
         maplist.append(mapinst)
         catlist.append(catinst)
 
+    # adjust the stored beam model to be in pixels
     params.beamwidth = params.beamwidth / (maplist[0].xstep*u.deg).to(u.arcmin).value
     params.gauss_kernel = Gaussian2DKernel(params.beamwidth / (2*np.sqrt(2*np.log(2))))
 
