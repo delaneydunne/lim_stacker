@@ -437,30 +437,6 @@ class cubelet():
         self.unit = 'linelum'
 
         return
-    
-    def beam_model(self, params):
-        """
-        set up a (Gaussian) model of the beam to do PSF photometry with
-        """
-
-        if not params:
-            print('Need parameters object to set up beam model')
-
-        # size of the beam as a standard deviation
-        beamsigma = params.beamwidth / (2*np.sqrt(2*np.log(2)))
-        beamsigmapix = beamsigma / self.xstep
-
-        # beam model object
-        beammodel = IntegratedGaussianPRF(flux=1, sigma=beamsigmapix)
-
-        # always will be doing forced photometry, so fix x and y centroid
-        beammodel.x_0.fixed = True 
-        beammodel.y_0.fixed = True 
-
-        params.beammodel = beammodel 
-        self.beammodel = beammodel
-
-        return beammodel
 
 
     def get_spectrum(self, in_place=False, method='weightmean', params=None):
@@ -478,45 +454,10 @@ class cubelet():
                 dspec = dspec * self.xwidth * self.ywidth 
 
         elif method == 'photometry' or method == 'adaptive_photometry':
-
-            # set up beam model if it hasn't been done already
-            try:
-                beammodel = self.beammodel 
-            except AttributeError:
-                beammodel = self.beam_model(params)
-
-            # initiate photometry objects
-            if method == 'photometry':
-                print('7****')
-                initparams = QTable()
-                initparams['x'] = [self.centpix[1]]
-                initparams['y'] = [self.centpix[1]]
-                psfphot = PSFPhotometry(beammodel, (7,7), aperture_radius=7)
-            elif method == 'adaptive_photometry':
-                initparams = QTable()
-                initparams['x'] = [self.centpix[1] - 0.5 + self.xpixcent]
-                initparams['y'] = [self.centpix[2] - 0.5 + self.ypixcent]
-                psfphot = PSFPhotometry(beammodel, (7,7), aperture_radius=7)
-
-            photflux = []
-            photrms = []
-            for i in range(self.cube.shape[0]):
-
-                # check channel, if it's fully nan'd out then return a nan for this channel
-                apspec = self.cube[i,self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
-                if len(np.where(np.isnan(apspec.flatten()))[0]) == len(apspec.flatten()):
-                    photflux.append(np.nan)
-                    photrms.append(np.nan)
-                    continue
-
-                with warnings.catch_warnings():
-                    warnings.simplefilter('ignore')
-                    output = psfphot(self.cube[i,:,:], error=self.cuberms[i,:,:], init_params=initparams)
-                    photflux.append(output['flux_fit'].value[0])
-                    photrms.append(output['flux_err'].value[0])
-            
-            spec = np.array(photflux)
-            dspec = np.array(photrms)
+            # ********************************
+            spec = np.ones(self.cube.shape[0])
+            dspec = np.ones(self.cube.shape[0])
+            # ********************************
 
         if in_place:
             self.spectrum = spec

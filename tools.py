@@ -1060,10 +1060,10 @@ class maps():
             self.dec = simfile['map_pixel_dec']
             try:
                 # if an RMS value is saved, use that
-                self.rms = np.ones(self.map.shape) * simfile['sigma']
+                self.rms = np.ones(self.map.T.shape) * simfile['sigma']
             except KeyError:
                 # if not, dummy RMS array
-                self.rms = np.ones(self.map.shape)
+                self.rms = np.ones(self.map.T.shape)
 
         # if the simulaton is centered around zero, add 2deg to the ra axis so it doesn't 
         # wrap weird in skycoord
