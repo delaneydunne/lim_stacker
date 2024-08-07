@@ -1060,7 +1060,7 @@ class maps():
             self.dec = simfile['map_pixel_dec']
             try:
                 # if an RMS value is saved, use that
-                self.rms = np.ones(self.map.T.shape) * simfile['sigma']
+                self.rms = np.ones(self.map.T.shape) * simfile['sigma'] / 1e6
             except KeyError:
                 # if not, dummy RMS array
                 self.rms = np.ones(self.map.T.shape)
@@ -1810,10 +1810,10 @@ def field_setup(mapfile, catfile, params, trim_cat=True):
         raminidx, ramaxidx = np.min(goodidx[1]), np.max(goodidx[1])+1
         decminidx, decmaxidx = np.min(goodidx[0]), np.max(goodidx[0])+1
 
-        if ramaxidx >= 120:
+        if ramaxidx >= mapinst.x[-1]:
             ramaxidx = -1
         
-        if decmaxidx >= 120:
+        if decmaxidx >= mapinst.y[-1]:
             decmaxidx = -1
 
         ramin, ramax = mapinst.ra[[raminidx, ramaxidx]]
