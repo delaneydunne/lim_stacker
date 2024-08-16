@@ -679,6 +679,30 @@ class catalogue():
         self.subset(fieldidx, in_place=True)
         self.idx = fieldidx
 
+    def observation_cull(self, params, lcat_cutoff, goal_nobj, rngseed=None):
+        """
+        cut a simulated catalog based on its observational parameters: cut to objects only above a certain luminosity
+        (sensitivity limit of the catalog) and then randomly select N objects from that cut list
+        uses:
+            lcat_cutoff: the lower limit on catalog luminosity to include (in Lsun)
+            goal_nobj: number of catalog objects to include once the cut is made
+        """
+
+        # cut by luminosity
+        goodidx = np.where(self.Lcat > lcat_cutoff)
+        self.subset(goodidx)
+
+        # select nobj random objects from the leftover catalog, shuffling their indices randomly
+        if goal_nobj > 0:
+            if not rngseed:
+                rngseed = params.rotseed
+            rng = np.random.default_rng(rngseed)
+            keepidx = rng.choice(self.nobj, goal_nobj, replace=False)
+            self.subset(keepidx)
+            
+        if params.verbose: print('\n\t%d halos remain after observability cuts' % self.nhalo)
+
+
     """ RA/DEC CONVENIENCE FUNCTIONS """
     def ra(self):
         return self.coords.ra.deg
@@ -1785,18 +1809,22 @@ def nuobs_to_nuem(nuobs, z):
 
 
 """ SETUP FUNCTIONS """
-def field_setup(mapfile, catfile, params, trim_cat=True):
+def field_setup(mapfile, catfile, params, trim_cat=True, sim_cat=False, lcat_cutoff=None, goal_nobj=None):
     """
     wrapper function to set up for a single-field stack run
+    *** tidy this up again -- put simulation parameters into params**
     """
     # load in the map
     mapinst = maps(params, inputfile=mapfile)
 
     # load in the catalogue
-    catinst = catalogue(catfile)
-
-    # clip the catalogue to the field
-    catinst.cull_to_map(mapinst, params, maxsep=2*u.deg)
+    if not sim_cat:
+        catinst = catalogue(catfile)
+        # clip the catalogue to the field
+        catinst.cull_to_map(mapinst, params, maxsep=2*u.deg)
+    else:
+        catinst = catalogue(catfile, load_all=True)
+        catinst.observation_cull(params, lcat_cutoff, goal_nobj)
 
     # adjust the beam to match the actual size of the spaxels
     params.beamwidth = params.beamwidth / (mapinst.xstep*u.deg).to(u.arcmin).value

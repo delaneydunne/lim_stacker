@@ -44,7 +44,7 @@ np.seterr(divide='ignore', invalid='ignore')
 """ CUBELET OBJECT TO HOLD STACK RESULTS """
 class cubelet():
 
-    def __init__(self, input, params):
+    def __init__(self, input, params, xstep=None):
         """
         can pass either a path to load data from or a cutout object
         """
@@ -52,7 +52,7 @@ class cubelet():
         if type(input) == str:
             self.from_files(input, params)
         else:
-            self.from_cutout(input, params)
+            self.from_cutout(input, params, xstep=xstep)
 
 
     def from_cutout(self, cutout, params):
@@ -116,7 +116,7 @@ class cubelet():
         self.drhoh2 = cutout.drhoh2
 
     
-    def from_files(self, path, params):
+    def from_files(self, path, params, xstep=None):
 
         # paths to specific data files
         cubefile = path + '/stacked_3d_cubelet.npz'
@@ -157,10 +157,13 @@ class cubelet():
         else:
             self.freqarr = np.arange(params.freqstackwidth * 2 + 1)*params.chanwidth - (params.freqstackwidth)*params.chanwidth
 
+        if not xstep:
+            xstep = 2
+
         if params.xwidth % 2 == 0:
-            self.xarr = np.arange(params.spacestackwidth * 2)*2 - (params.spacestackwidth-0.5)*2
+            self.xarr = np.arange(params.spacestackwidth * 2)*xstep - (params.spacestackwidth-0.5)*xstep
         else:
-            self.xarr = np.arange(params.spacestackwidth * 2 + 1)*2 - (params.spacestackwidth)*2
+            self.xarr = np.arange(params.spacestackwidth * 2 + 1)*xstep - (params.spacestackwidth)*xstep
 
 
         # load in output values
