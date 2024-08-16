@@ -700,7 +700,7 @@ class catalogue():
             keepidx = rng.choice(self.nobj, goal_nobj, replace=False)
             self.subset(keepidx)
             
-        if params.verbose: print('\n\t%d halos remain after observability cuts' % self.nhalo)
+        if params.verbose: print('\n\t%d halos remain after observability cuts' % self.nobj)
 
 
     """ RA/DEC CONVENIENCE FUNCTIONS """
