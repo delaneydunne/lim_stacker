@@ -55,7 +55,8 @@ class cubelet():
             self.from_cutout(input, params, xstep=xstep)
 
 
-    def from_cutout(self, cutout, params):
+    def from_cutout(self, cutout, params, xstep=None):
+        # *** have not dealt with xstep yet
         # housekeeping info
         self.unit = 'K' #params.plotunits ***** this is terrible
         self.adaptivephotometry = params.adaptivephotometry
