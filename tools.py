@@ -689,7 +689,7 @@ class catalogue():
         """
 
         # cut by luminosity
-        goodidx = np.where(self.Lcat > lcat_cutoff)
+        goodidx = np.where(self.Lcat > lcat_cutoff)[0]
         self.subset(goodidx)
 
         # select nobj random objects from the leftover catalog, shuffling their indices randomly
