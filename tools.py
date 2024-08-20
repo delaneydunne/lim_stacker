@@ -679,7 +679,7 @@ class catalogue():
         self.subset(fieldidx, in_place=True)
         self.idx = fieldidx
 
-    def observation_cull(self, params, lcat_cutoff, goal_nobj, rngseed=None):
+    def observation_cull(self, params, lcat_cutoff, goal_nobj, rngseed=None, weight='linear'):
         """
         cut a simulated catalog based on its observational parameters: cut to objects only above a certain luminosity
         (sensitivity limit of the catalog) and then randomly select N objects from that cut list
@@ -697,7 +697,11 @@ class catalogue():
             if not rngseed:
                 rngseed = params.rotseed
             rng = np.random.default_rng(rngseed)
-            keepidx = rng.choice(self.nobj, goal_nobj, replace=False, p=np.log10(self.Lcat)/np.sum(np.log10(self.Lcat)))
+            if weight == 'linear':
+                weights = self.Lcat / np.sum(self.Lcat)
+            elif weight == 'log':
+                weights = np.log10(self.Lcat) / np.sum(np.log10(self.Lcat))
+            keepidx = rng.choice(self.nobj, goal_nobj, replace=False, p=weights)
             self.subset(keepidx)
             
         if params.verbose: print('\n\t%d halos remain after observability cuts' % self.nobj)
