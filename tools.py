@@ -1813,7 +1813,7 @@ def nuobs_to_nuem(nuobs, z):
 
 
 """ SETUP FUNCTIONS """
-def field_setup(mapfile, catfile, params, trim_cat=True, sim_cat=False, lcat_cutoff=None, goal_nobj=None):
+def field_setup(mapfile, catfile, params, trim_cat=True, sim_cat=False, lcat_cutoff=None, goal_nobj=None, weight='linear'):
     """
     wrapper function to set up for a single-field stack run
     *** tidy this up again -- put simulation parameters into params**
@@ -1828,7 +1828,7 @@ def field_setup(mapfile, catfile, params, trim_cat=True, sim_cat=False, lcat_cut
         catinst.cull_to_map(mapinst, params, maxsep=2*u.deg)
     else:
         catinst = catalogue(catfile, load_all=True)
-        catinst.observation_cull(params, lcat_cutoff, goal_nobj)
+        catinst.observation_cull(params, lcat_cutoff, goal_nobj, weight=weight)
 
     # adjust the beam to match the actual size of the spaxels
     params.beamwidth = params.beamwidth / (mapinst.xstep*u.deg).to(u.arcmin).value
