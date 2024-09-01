@@ -1034,7 +1034,9 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
 
     if stackresult:
         if params.plotunits == 'linelum':
-            lumstr = "L'co = {:.2e} +/- {:.2e} K km/s pc2".format(stackresult['linelum'], stackresult['dlinelum'])
+            lumstr = "L'co = {:.2e} +/- {:.2e} K km/s pc2, S/N {}".format(stackresult['linelum'], 
+                                                                          stackresult['dlinelum'], 
+                                                                          stackresult['linelum']/stackresult['dlinelum'])
 
         elif params.plotunits == 'flux':
             lumstr = "flux = {:.3f} +/- {:.3f} Jy km/s".format(stackresult['sdelnu'], stackresult['dsdelnu'])
