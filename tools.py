@@ -1473,7 +1473,7 @@ class maps():
 
         # save to hdf5 file (slightly more barebones than the actual output)
         with h5py.File(outfile, 'w') as f:
-            dset = f.create_dataset('map_coadd', data = self.sim, dtype='float64')
+            dset = f.create_dataset('map_coadd', data = self.map, dtype='float64')
             dset = f.create_dataset('rms_coadd', data = self.rms, dtype='float64')
             dset = f.create_dataset('freq', data = outfreq, dtype='float64')
             dset = f.create_dataset('x', data = outra, dtype='float64')
