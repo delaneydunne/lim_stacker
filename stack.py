@@ -1,7 +1,7 @@
 from __future__ import absolute_import, print_function
-from lim_stacker.tools import *
-from lim_stacker.plottools import *
-from lim_stacker.cubefilters import *
+from .tools import *
+from .plottools import *
+from .cubefilters import *
 import os
 import copy
 import numpy as np
@@ -32,12 +32,11 @@ warnings.filterwarnings("ignore", category=SpectralCubeWarning, append=True)
 
 # photutils fitting warnings
 import warnings
-
 # warnings.filterwarnings('default', module=ph.psf.photometry)
 
 
 # standard COMAP cosmology
-cosmo = FlatLambdaCDM(H0=70 * u.km / (u.Mpc * u.s), Om0=0.286, Ob0=0.047)
+cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
 
 # ignore divide by zero warnings
 np.seterr(divide='ignore', invalid='ignore')
