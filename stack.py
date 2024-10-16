@@ -80,8 +80,7 @@ class cubelet():
         foff = params.freqwidth // 2
         self.centpix = (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth)
         self.apminpix = (params.freqstackwidth - foff, params.spacestackwidth - xoff, params.spacestackwidth - xoff)
-        self.apmaxpix = (
-        params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
+        self.apmaxpix = (params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
 
         self.xpixcent = cutout.xpixcent
         self.ypixcent = cutout.ypixcent
@@ -151,8 +150,7 @@ class cubelet():
         foff = params.freqwidth // 2
         self.centpix = (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth)
         self.apminpix = (params.freqstackwidth - foff, params.spacestackwidth - xoff, params.spacestackwidth - xoff)
-        self.apmaxpix = (
-        params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
+        self.apmaxpix = (params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
 
         # set up frequency/angular arrays
         if params.freqwidth % 2 == 0:
