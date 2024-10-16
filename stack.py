@@ -42,8 +42,6 @@ cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
 np.seterr(divide='ignore', invalid='ignore')
 
 """ CUBELET OBJECT TO HOLD STACK RESULTS """
-
-
 class cubelet():
 
     def __init__(self, input, params, xstep=None):
