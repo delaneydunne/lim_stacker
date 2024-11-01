@@ -651,7 +651,6 @@ class cubelet():
         return copy.deepcopy(self)
 
     def make_plots(self, comap, galcat, params, field=None):
-        print('PARAMS ADAPTIVE PHOTOMETRY: ', params.adaptivephotometry)
         if field:
             fieldstr = '/field' + str(field)
         else:
