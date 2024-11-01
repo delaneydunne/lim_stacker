@@ -80,7 +80,8 @@ class cubelet():
         foff = params.freqwidth // 2
         self.centpix = (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth)
         self.apminpix = (params.freqstackwidth - foff, params.spacestackwidth - xoff, params.spacestackwidth - xoff)
-        self.apmaxpix = (params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
+        self.apmaxpix = (
+        params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
 
         self.xpixcent = cutout.xpixcent
         self.ypixcent = cutout.ypixcent
@@ -150,7 +151,8 @@ class cubelet():
         foff = params.freqwidth // 2
         self.centpix = (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth)
         self.apminpix = (params.freqstackwidth - foff, params.spacestackwidth - xoff, params.spacestackwidth - xoff)
-        self.apmaxpix = (params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
+        self.apmaxpix = (
+        params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
 
         # set up frequency/angular arrays
         if params.freqwidth % 2 == 0:
@@ -479,8 +481,6 @@ class cubelet():
                 spec = spec * self.xwidth * self.ywidth
                 dspec = dspec * self.xwidth * self.ywidth
 
-
-
         elif method == 'photometry' or method == 'adaptive_photometry':
 
             try:
@@ -603,12 +603,13 @@ class cubelet():
         if in_place:
             self.aperture_value = val
             self.aperture_rms = dval
-
         return val, dval
 
     def get_output_dict(self, in_place=False):
-
-        llum, dllum = self.get_aperture()
+        if self.adaptivephotometry:
+            llum, dllum = self.get_aperture(method='adaptive_photometry')  # made changes here
+        else:
+            llum, dllum = self.get_aperture()  # defaults to weightmean
         self.linelum = llum
         self.dlinelum = dllum
 
@@ -650,7 +651,7 @@ class cubelet():
         return copy.deepcopy(self)
 
     def make_plots(self, comap, galcat, params, field=None):
-
+        print('PARAMS ADAPTIVE PHOTOMETRY: ', params.adaptivephotometry)
         if field:
             fieldstr = '/field' + str(field)
         else:
@@ -663,9 +664,12 @@ class cubelet():
                 field_catalogue_overplotter(galcat, comap, self.catidx, params, fieldstr=fieldstr)
 
             if params.plotspace and params.plotfreq:
-
-                im, dim = self.get_image()
-                spec, dspec = self.get_spectrum()
+                if params.adaptivephotometry:
+                    im, dim = self.get_image()
+                    spec, dspec = self.get_spectrum(method='adaptive_photometry', params=params)
+                else:
+                    im, dim = self.get_image()
+                    spec, dspec = self.get_spectrum()
 
                 try:
                     comment = params.plotcomment
@@ -681,8 +685,12 @@ class cubelet():
                 catalogue_overplotter(galcat, comap, self.catidx, params)
 
             if params.plotspace and params.plotfreq:
-                im, dim = self.get_image()
-                spec, dspec = self.get_spectrum()
+                if params.adaptivephotometry:
+                    im, dim = self.get_image()
+                    spec, dspec = self.get_spectrum(method='adaptive_photometry', params=params)
+                else:
+                    im, dim = self.get_image()
+                    spec, dspec = self.get_spectrum()
 
                 try:
                     comment = params.plotcomment
