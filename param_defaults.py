@@ -86,6 +86,7 @@ plotunits linelum
 
 """ physical spacing"""
 physicalspace False
+cosmogrid False
 
 """ adaptive photometry """
 adaptivephotometry False

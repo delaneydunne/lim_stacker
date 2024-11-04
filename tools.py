@@ -108,7 +108,7 @@ class parameters():
         for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'chanmeanfilter',
                      'specmeanfilter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
                      'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace',
-                     'adaptivephotometry']:
+                     'adaptivephotometry', 'cosmogrid']:
             try:
                 val = default_dir[attr] == 'True'
                 setattr(self, attr, val)
@@ -868,10 +868,13 @@ class maps():
     class containing a custom object used to hold a 3-D LIM map and its associated metadata
     """
 
-    def __init__(self, params, inputfile=None, reshape=True):
+    def __init__(self, params, inputfile=None, reshape=True, cosmogrid=False):
         if inputfile:
             if inputfile[-2:] == 'h5':
-                self.load(inputfile, params, reshape=reshape)
+                if cosmogrid:
+                    self.load_cosmogrid(inputfile, params, reshape=reshape)
+                else:
+                    self.load(inputfile, params, reshape=reshape)
             elif inputfile[-3:] == 'npz':
                 self.load_sim(inputfile, params)
             else:
@@ -988,6 +991,62 @@ class maps():
         # move some things to params to keep the info handy
         params.nchans = self.map.shape[0]
         params.chanwidth = np.abs(self.freq[1] - self.freq[0])
+
+    def load_cosmogrid(self, inputfile, params, reshape=True):
+
+        """
+        load in COMAP data that's been regridded to have pixels equispaced in cosmological coordinates 
+        (ie Mpc)
+        map shape is [4, 64(256), 120, 120]: sidebands, freq, dec, ra
+        will produce a *2D* grid of RA and Dec coordinates because they're now changing per spectral channel
+        also doesn't have hits included because that's not really meaningful after interpolation
+        """
+
+        # this is the COMAP pipeline format currently -- would have to change this if
+        # using some other file format
+        self.type = 'regridded data'
+
+        # load in from file
+        with h5py.File(inputfile, 'r') as file:
+
+            # coordinate info (not feed-dependent)
+            self.freq = np.array(file.get('freq_edges'))
+            self.ra = np.array(file.get('ra_per_z'))
+            self.dec = np.array(file.get('dec_per_z'))
+            self.physx = np.array(file.get('physical_edges_x'))
+            self.physy = np.array(file.get('physical_edges_y'))
+            self.physz = np.array(file.get('physical_edges_z'))
+
+            if isinstance(params.usefeed, bool):
+                # if this is a boolean it's going to be false, so don't load individual feeds
+                # currently individual feeds aren't produced by regridding code anyways
+                maptemparr = np.array(file.get('map_coadd'))
+                rmstemparr = np.array(file.get('sigma_wn_coadd'))
+
+        # mark pixels with zero rms and mask them in the rms/map arrays (how the pipeline stores infs)
+        mapbadpix = np.logical_or(rmstemparr < 1e-13, rmstemparr > params.voxelrmslimit)
+        self.badpix = np.logical_or(mapbadpix, ~np.isfinite(rmstemparr))
+        # also mark anything with less than 10 000 hits (another way to clean off map edges)
+        maptemparr[self.badpix] = np.nan
+        rmstemparr[self.badpix] = np.nan
+
+        self.map = maptemparr
+        self.rms = rmstemparr
+        self.unit = 'K'
+
+        if reshape:
+            chanpersb = maptemparr.shape[1]
+            self.map = np.reshape(self.map, (4*chanpersb, len(self.physy[:-1]), len(self.physz[:-1])))
+            self.rms = np.reshape(self.rms, (4*chanpersb, len(self.physy[:-1]), len(self.physz[:-1])))
+            self.ra = np.reshape(self.ra, (4*chanpersb, len(self.physy)))
+            self.dec = np.reshape(self.dec, (4*chanpersb, len(self.physz)))
+
+        # get the field center by just taking an average of the pixel edges
+        self.fieldcent = SkyCoord(np.nanmean(self.ra)*u.deg, np.nanmean(self.dec)*u.deg)
+
+        self.setup_coordinates(cosmogrid=True)
+
+
 
     """UNIT CONVERSIONS"""
     def to_flux(self):
@@ -1119,36 +1178,66 @@ class maps():
         self.unit = 'K'
 
 
-    def setup_coordinates(self):
+    def setup_coordinates(self, cosmogrid=False):
         """
         takes an input map (in the correct orientation) and adds the binedge, bin center, etc
         coordinate arrays
         """
 
-        # 1-pixel width for each of the axes
-        self.fstep = self.freq[1] - self.freq[0]
-        self.xstep = self.ra[1] - self.ra[0]
-        self.ystep = self.dec[1] - self.dec[0]
+        if not cosmogrid:
+            # 1-pixel width for each of the axes
+            self.fstep = self.freq[1] - self.freq[0]
+            self.xstep = self.ra[1] - self.ra[0]
+            self.ystep = self.dec[1] - self.dec[0]
 
-        # housekeeping for the arrays - give each axis an index array as well
-        self.x = np.arange(len(self.ra))
-        self.y = np.arange(len(self.dec))
+            # housekeeping for the arrays - give each axis an index array as well
+            self.x = np.arange(len(self.ra))
+            self.y = np.arange(len(self.dec))
 
-        # rearrange so that the stored coordinate coordinate arrays correspond to the
-        # bottom right (etc.) of the voxel (currently they're the center)
-        self.freq = self.freq - self.fstep / 2
-        self.ra = self.ra - self.xstep / 2
-        self.dec = self.dec - self.ystep / 2
+            # rearrange so that the stored coordinate coordinate arrays correspond to the
+            # bottom right (etc.) of the voxel (currently they're the center)
+            self.freq = self.freq - self.fstep / 2
+            self.ra = self.ra - self.xstep / 2
+            self.dec = self.dec - self.ystep / 2
 
-        # bin edges for each axis for convenience
-        self.freqbe = np.append(self.freq, self.freq[-1] + self.fstep)
-        self.rabe = np.append(self.ra, self.ra[-1] + self.xstep)
-        self.decbe = np.append(self.dec, self.dec[-1] + self.ystep)
+            # bin edges for each axis for convenience
+            self.freqbe = np.append(self.freq, self.freq[-1] + self.fstep)
+            self.rabe = np.append(self.ra, self.ra[-1] + self.xstep)
+            self.decbe = np.append(self.dec, self.dec[-1] + self.ystep)
 
-        # limits on each axis for easy testing
-        self.flims = (np.min(self.freq), np.max(self.freq))
-        self.xlims = (np.min(self.ra), np.max(self.ra))
-        self.ylims = (np.min(self.dec), np.max(self.dec))
+            # limits on each axis for easy testing
+            self.flims = (np.min(self.freq), np.max(self.freq))
+            self.xlims = (np.min(self.ra), np.max(self.ra))
+            self.ylims = (np.min(self.dec), np.max(self.dec))
+
+        else:
+            # 1-pixel width for each of the axes
+            self.fstep = self.freq[1] - self.freq[0]
+            # these will now be 2D
+            self.xstep = self.ra[:,1] - self.ra[:,0]
+            self.ystep = self.dec[:,1] - self.dec[:,0]
+
+            # give each axis an index array (distinguish it from the physical steps)
+            self.x = np.arange(len(self.ra[0,:-1]))
+            self.y = np.arange(len(self.dec[0,:-1]))
+
+            # regridding stores the coordinate arrays with both upper and lower bounds (called that
+            # *be in the non-regridded version. harmonize that with the current terminology)
+            freqbe = self.freq 
+            rabe = self.ra 
+            decbe = self.dec 
+            self.freq = self.freq[:-1]
+            self.ra = self.ra[:,:-1]
+            self.dec = self.dec[:,:-1]
+
+            self.freqbe = freqbe
+            self.rabe = rabe 
+            self.decbe = decbe 
+
+            # limits on each axis for easy testing (freq 1d, ra/dec 2d)
+            self.flims = minmax(self.freq)
+            self.xlims = minmax(self.ra, axis=1)
+            self.ylims = minmax(self.dec, axis=1)
 
 
 
@@ -1614,12 +1703,21 @@ def dict_saver(indict, outfile, strip_units=True):
 
 
 """ MATH """
-def minmax(vals):
+def minmax(vals, axis=None):
     """
     returns (np.nanmin(vals), np.nanmax(vals)) to get extrema in a single function call
     """
 
-    return np.array([np.nanmin(vals), np.nanmax(vals)])
+    return np.array([np.nanmin(vals, axis=axis), np.nanmax(vals, axis=axis)])
+
+def edgetocent(arr):
+    """
+    takes an array defining pixel or bin edges and returns an array defining the center of those bins
+    assumes a 1d array, returns an array that's one element smaller than the one passed
+    """
+    
+    step = arr[1] - arr[0]
+    return arr[:-1] + step/2
 
 def weightmean(vals, rmss, axis=None, weights=None):
     """
@@ -1819,7 +1917,7 @@ def field_setup(mapfile, catfile, params, trim_cat=True, sim_cat=False, lcat_cut
     *** tidy this up again -- put simulation parameters into params**
     """
     # load in the map
-    mapinst = maps(params, inputfile=mapfile)
+    mapinst = maps(params, inputfile=mapfile, cosmogrid=params.cosmogrid)
 
     # load in the catalogue
     if not sim_cat:
@@ -1831,10 +1929,10 @@ def field_setup(mapfile, catfile, params, trim_cat=True, sim_cat=False, lcat_cut
         catinst.observation_cull(params, lcat_cutoff, goal_nobj, weight=weight)
 
     # adjust the beam to match the actual size of the spaxels
-    params.beamwidth = params.beamwidth / (mapinst.xstep*u.deg).to(u.arcmin).value
+    params.beamwidth = params.beamwidth / (np.nanmean(mapinst.xstep)*u.deg).to(u.arcmin).value # *** cosmogrid fixing
     params.gauss_kernel = Gaussian2DKernel(params.beamwidth / (2*np.sqrt(2*np.log(2))))
 
-    # additional trimming
+    # additional trimming ***DOES NOT WORK IF COSMOGRID TRUE YET
     if trim_cat:
         print('trimming catalog')
         # trim the catalogs down to match the actual signal in the maps
