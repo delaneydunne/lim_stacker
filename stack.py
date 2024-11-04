@@ -926,6 +926,7 @@ def single_cutout(idx, galcat, comap, params):
             xdiff = -1
         else:
             xdiff = 1
+        xpixcent = (x - comap.rabe[freqidx, xidx])/comap.xstep[freqidx]
 
         y = galcat.coords[idx].dec.deg
         if y < np.min(comap.dec) or y > np.max(comap.dec) + np.max(comap.ystep):
@@ -935,6 +936,7 @@ def single_cutout(idx, galcat, comap, params):
             ydiff = -1
         else:
             ydiff = 1
+        ypixcent = (y - comap.decbe[freqidx, yidx])/comap.ystep[freqidx]
             
     else:
         
@@ -969,11 +971,17 @@ def single_cutout(idx, galcat, comap, params):
     cutout.freq = nuobs
     cutout.x = x
     cutout.y = y
-    cutout.xstep = comap.xstep * 60
-    cutout.ystep = comap.ystep * 60
-    cutout.fstep = comap.fstep
     cutout.xpixcent = xpixcent 
     cutout.ypixcent = ypixcent
+    cutout.fstep = comap.fstep
+
+    # these things depend on cosmogrid 
+    if params.cosmogrid:
+        cutout.xstep = comap.xstep[freqidx] * 60
+        cutout.ystep = comap.ystep[freqidx] * 60
+    else:
+        cutout.xstep = comap.xstep * 60
+        cutout.ystep = comap.ystep * 60
 
     """ set up indices """
     # index the actual aperture to be stacked from the cutout
