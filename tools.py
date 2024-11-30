@@ -1929,8 +1929,8 @@ def field_setup(mapfile, catfile, params, trim_cat=True, sim_cat=False, lcat_cut
         catinst.observation_cull(params, lcat_cutoff, goal_nobj, weight=weight)
 
     # adjust the beam to match the actual size of the spaxels
-    params.beamwidth = params.beamwidth / (np.nanmean(mapinst.xstep)*u.deg).to(u.arcmin).value # *** cosmogrid fixing
-    params.gauss_kernel = Gaussian2DKernel(params.beamwidth / (2*np.sqrt(2*np.log(2))))
+    params.pixbeamwidth = params.beamwidth / (np.nanmean(mapinst.ystep)*u.deg).to(u.arcmin).value # *** cosmogrid fixing
+    params.gauss_kernel = Gaussian2DKernel(params.pixbeamwidth / (2*np.sqrt(2*np.log(2))))
 
     # additional trimming ***DOES NOT WORK IF COSMOGRID TRUE YET
     if trim_cat:

@@ -1008,7 +1008,8 @@ def single_cutout(idx, galcat, comap, params):
             ydiff = -1
         else:
             ydiff = 1
-         ypixcent = (y - comap.decbe[freqidx, yidx])/comap.ystep[freqidx]
+        ypixcent = (y - comap.decbe[freqidx, yidx])/comap.ystep[freqidx]
+        
     else:
 
         x = galcat.coords[idx].ra.deg
