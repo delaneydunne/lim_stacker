@@ -297,15 +297,15 @@ class cubelet():
         if self.adaptivephotometry:
             # calculate the spectrum of the original cubelet object if it hasn't been done yet
             try:
-                oldspec, olddspec = self.spectrum
+                oldspec, olddspec = self.spectrum, self.spectrumrms
             except AttributeError:
                 oldspec, olddspec = self.get_spectrum(method='adaptive_photometry', params=params)
-                self.spectrum = [oldspec, olddspec]
+                self.spectrum, self.spectrumrms = oldspec, olddspec
             # get the new adaptive spectrum
             newspec, newdspec = cubelet.get_spectrum(method='adaptive_photometry', params=params)
 
             spec, dspec = weightmean(np.stack((oldspec, newspec)), np.stack((olddspec, newdspec)), axis=0)
-            self.spectrum = [spec, dspec]
+            self.spectrum, self.spectrumrms = spec, dspec
 
         del (cubelet)
         return
@@ -469,61 +469,66 @@ class cubelet():
 
     def get_spectrum(self, in_place=False, method='weightmean', params=None):
 
-        if method == 'weightmean' or method == 'summed':
-            apspec = self.cube[:, self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
-            dapspec = self.cuberms[:, self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+        # check if an adaptive spectrum already exists (then just return that)
+        try:
+            spec = self.spectrum 
+            dspec = self.spectrumrms 
+        except AttributeError:
 
-            if method == 'summed':
-                spec = np.nansum(apspec, axis=(1, 2))
-                dspec = np.sqrt(np.nansum(dapspec ** 2, axis=(1, 2)))
-            else:
-                spec, dspec = weightmean(apspec, dapspec, axis=(1, 2))
-                spec = spec * self.xwidth * self.ywidth
-                dspec = dspec * self.xwidth * self.ywidth
+            if method == 'weightmean' or method == 'summed':
+                apspec = self.cube[:, self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+                dapspec = self.cuberms[:, self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
 
-        elif method == 'photometry' or method == 'adaptive_photometry':
+                if method == 'summed':
+                    spec = np.nansum(apspec, axis=(1, 2))
+                    dspec = np.sqrt(np.nansum(dapspec ** 2, axis=(1, 2)))
+                else:
+                    spec, dspec = weightmean(apspec, dapspec, axis=(1, 2))
+                    spec = spec * self.xwidth * self.ywidth
+                    dspec = dspec * self.xwidth * self.ywidth
 
-            try:
-                beammodel = self.beammodel
-            except AttributeError:
-                beammodel = self.beam_model(params)
+            elif method == 'photometry' or method == 'adaptive_photometry':
 
-            if method == 'photometry':
-                # this one isn't centered on the exact catalog object, just on the center of the voxel
-                print('7****')
-                initparams = QTable()
-                initparams['x'] = [self.centpix[1]]
-                initparams['y'] = [self.centpix[1]]
-                psfphot = PSFPhotometry(beammodel, (7, 7), aperture_radius=7)  # beammodel param not established
-            elif method == 'adaptive_photometry':
-                # this one is centered on the actual catalog object
-                initparams = QTable()
-                initparams['x'] = [self.centpix[1] - 0.5 + self.xpixcent]
-                initparams['y'] = [self.centpix[2] - 0.5 + self.ypixcent]
-                psfphot = PSFPhotometry(beammodel, (7, 7), aperture_radius=7)
+                try:
+                    beammodel = self.beammodel
+                except AttributeError:
+                    beammodel = self.beam_model(params)
 
-            photflux = []
-            photrms = []
-            for i in range(self.cube.shape[0]):
+                if method == 'photometry':
+                    # this one isn't centered on the exact catalog object, just on the center of the voxel
+                    print('7****')
+                    initparams = QTable()
+                    initparams['x'] = [self.centpix[1]]
+                    initparams['y'] = [self.centpix[1]]
+                    psfphot = PSFPhotometry(beammodel, (7, 7), aperture_radius=7)  # beammodel param not established
+                elif method == 'adaptive_photometry':
+                    # this one is centered on the actual catalog object
+                    initparams = QTable()
+                    initparams['x'] = [self.centpix[1] - 0.5 + self.xpixcent]
+                    initparams['y'] = [self.centpix[2] - 0.5 + self.ypixcent]
+                    psfphot = PSFPhotometry(beammodel, (7, 7), aperture_radius=7)
 
-                # check channel, if it's fully nan'd out then return a nan for this channel
-                apspec = self.cube[i, self.apminpix[1]:self.apmaxpix[1],
-                         self.apminpix[2]:self.apmaxpix[2]]
-                if len(np.where(np.isnan(apspec.flatten()))[0]) == len(apspec.flatten()):
-                    photflux.append(np.nan)
-                    photrms.append(np.nan)
-                    continue
+                photflux = []
+                photrms = []
+                for i in range(self.cube.shape[0]):
 
-                with warnings.catch_warnings():
-                    warnings.simplefilter('ignore')
-                    output = psfphot(self.cube[i, :, :], error=self.cuberms[i, :, :], init_params=initparams)
-                    photflux.append(output['flux_fit'].value[0])
-                    photrms.append(output['flux_err'].value[0])
+                    # check channel, if it's fully nan'd out then return a nan for this channel
+                    apspec = self.cube[i, self.apminpix[1]:self.apmaxpix[1],
+                            self.apminpix[2]:self.apmaxpix[2]]
+                    if len(np.where(np.isnan(apspec.flatten()))[0]) == len(apspec.flatten()):
+                        photflux.append(np.nan)
+                        photrms.append(np.nan)
+                        continue
 
-            spec = np.array(photflux)
-            dspec = np.array(photrms)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore')
+                        output = psfphot(self.cube[i, :, :], error=self.cuberms[i, :, :], init_params=initparams)
+                        photflux.append(output['flux_fit'].value[0])
+                        photrms.append(output['flux_err'].value[0])
 
-        if in_place:
+                spec = np.array(photflux)
+                dspec = np.array(photrms)
+
             self.spectrum = spec
             self.spectrumrms = dspec
 
