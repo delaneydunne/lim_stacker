@@ -110,8 +110,8 @@ def plot_chan(comap, channel, params, cat=None, ext=0.95, smooth=False, lognorm=
 """ SINGLE-CUTOUT PLOTS """
 def display_cutout(cutout, comap, params, save=None, ext=1.0):
 
-    cutoutra = comap.rabebe[cutout.spacexidx[0]:cutout.spacexidx[1]+1]
-    cutoutdec = comap.decbebe[cutout.spaceyidx[0]:cutout.spaceyidx[1]+1]
+    cutoutra = comap.rabe[cutout.spacexidx[0]:cutout.spacexidx[1]+1]
+    cutoutdec = comap.decbe[cutout.spaceyidx[0]:cutout.spaceyidx[1]+1]
 
     beamra = comap.ra[cutout.xidx[0]:cutout.xidx[1]+1]
     beamdec = comap.dec[cutout.yidx[0]:cutout.yidx[1]+1]
