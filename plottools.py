@@ -979,43 +979,29 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
     freqax.set_ylim(yext)
 
     """ radial profile plots """
-    # indexing
-    nextra = 9
-    freqcent = int(cubelet.shape[0] / 2)
-    chans = np.arange(freqcent - nextra, freqcent + nextra + 1)
+    # profiles
+    if params.plotunits == 'linelum':
+        prof1 = stackim[params.spacestackwidth,:]/1e10
+        prof2 = stackim[:,params.spacestackwidth]/1e10
+    elif params.plotunits == 'flux':
+        prof1 = stackim[params.spacestackwidth,:]
+        prof2 = stackim[:,params.spacestackwidth]
+    meanprof = np.nanmean((prof1, prof2), axis=0)
 
-    carr = np.abs(chans - freqcent) / (chans[-1] - freqcent)
+    # x-axis
+    xarr = (np.arange(stackim.shape[0]) - params.spacestackwidth)*2
 
-    chanprofs = []
-    for i, chan in enumerate(chans):
-        chanprof, rmsprof, xaxis = radprof(cubelet, rmslet, params, chan=chan)
+    radax.step(xarr, prof1, color='0.5', where='mid', alpha=0.5)
+    radax.step(xarr, prof2, color='0.5', where='mid', alpha=0.5)
 
-        if params.plotunits == 'linelum':
-            chanprof, rmsprof = chanprof/1e10, rmsprof/1e10
-
-        chanprof = np.concatenate([[chanprof[0]], chanprof])
-        rmsprof = np.concatenate([[rmsprof[0]], rmsprof])
-
-        chanprofs.append(chanprof)
-
-        xaxis = xaxis * 2
-        xaxis = np.concatenate([[0], xaxis])
-
-        if chan == freqcent:
-            radax.step(xaxis, chanprof, where='pre', zorder=100,
-                       color=str(carr[i]), lw=3, label='Channel {}'.format(str(i-nextra)))
-
-            radax.fill_between(xaxis, (chanprof-rmsprof), (chanprof+rmsprof),
-                               color='0.9', zorder=0)
-        else:
-
-            radax.step(xaxis, chanprof, zorder=(1-carr[i])*10, where='pre',
-                       color=str(carr[i]), label='Channel {}'.format(str(i-nextra)))
+    radax.step(xarr, meanprof, lw=2, where='mid', zorder=5, color='indigo')
 
     radax.axhline(0, color='k', ls='--')
     radax.axvline(0, color='k', ls='--')
-
-    radax.axvline(3, color='0.3', ls=':', zorder=5)
+    yext = radax.get_ylim()
+    apmin, apmax = 0 - params.xwidth / 2 * 2, 0 + params.xwidth / 2 * 2
+    radax.fill_betweenx(np.array(yext)*2, np.ones(2)*apmin, np.ones(2)*apmax, color='0.5', zorder=1, alpha=0.5)
+    radax.set_ylim(yext)
 
     if params.plotunits == 'linelum':
         radax.secondary_yaxis(location='right').set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
@@ -1023,14 +1009,65 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
         radax.secondary_yaxis(location='right').set_ylabel(r"$S\Delta v$ (Jy km/s)")
 
     radax.tick_params(axis='y',
-                            labelleft=False,
-                            labelright=True,
-                            left=False,
-                            right=True)
+                        labelleft=False,
+                        labelright=True,
+                        left=False,
+                        right=True)
 
     radax.set_xlabel('Radius (arcmin)')
-    radax.set_xlim((-2, 20))
-    radax.set_ylim((np.nanmin(chanprofs)*1.1, np.nanmax(chanprofs)*1.1))
+
+    # # indexing
+    # nextra = 9
+    # freqcent = int(cubelet.shape[0] / 2)
+    # chans = np.arange(freqcent - nextra, freqcent + nextra + 1)
+
+    # carr = np.abs(chans - freqcent) / (chans[-1] - freqcent)
+
+    # chanprofs = []
+    # for i, chan in enumerate(chans):
+    #     chanprof, rmsprof, xaxis = radprof(cubelet, rmslet, params, chan=chan)
+
+    #     if params.plotunits == 'linelum':
+    #         chanprof, rmsprof = chanprof/1e10, rmsprof/1e10
+
+    #     chanprof = np.concatenate([[chanprof[0]], chanprof])
+    #     rmsprof = np.concatenate([[rmsprof[0]], rmsprof])
+
+    #     chanprofs.append(chanprof)
+
+    #     xaxis = xaxis * 2
+    #     xaxis = np.concatenate([[0], xaxis])
+
+    #     if chan == freqcent:
+    #         radax.step(xaxis, chanprof, where='pre', zorder=100,
+    #                    color=str(carr[i]), lw=3, label='Channel {}'.format(str(i-nextra)))
+
+    #         radax.fill_between(xaxis, (chanprof-rmsprof), (chanprof+rmsprof),
+    #                            color='0.9', zorder=0)
+    #     else:
+
+    #         radax.step(xaxis, chanprof, zorder=(1-carr[i])*10, where='pre',
+    #                    color=str(carr[i]), label='Channel {}'.format(str(i-nextra)))
+
+    # radax.axhline(0, color='k', ls='--')
+    # radax.axvline(0, color='k', ls='--')
+
+    # radax.axvline(3, color='0.3', ls=':', zorder=5)
+
+    # if params.plotunits == 'linelum':
+    #     radax.secondary_yaxis(location='right').set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
+    # elif params.plotunits == 'flux':
+    #     radax.secondary_yaxis(location='right').set_ylabel(r"$S\Delta v$ (Jy km/s)")
+
+    # radax.tick_params(axis='y',
+    #                         labelleft=False,
+    #                         labelright=True,
+    #                         left=False,
+    #                         right=True)
+
+    # radax.set_xlabel('Radius (arcmin)')
+    # radax.set_xlim((-2, 20))
+    # radax.set_ylim((np.nanmin(chanprofs)*1.1, np.nanmax(chanprofs)*1.1))
 
     if stackresult:
         if params.plotunits == 'linelum':
