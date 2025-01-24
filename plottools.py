@@ -673,8 +673,10 @@ def spectral_plotter(stackspec, params):
     return 0
 
 """ *** PASS CUBELET DIRECTLY *** """
-def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stackspec=None, cmap='PiYG_r', stackresult=None,
+def combined_plotter(cube, params, stackim=None, stackrms=None, stackspec=None, cmap='PiYG_r', stackresult=None,
                      unsmooth_vext=None, smooth_vext=None, freq_ext=None, comment=None, filename=None, fieldstr=None):
+
+    cubelet, rmslet = cube.cube, cube.cuberms
 
     plt.style.use('default')
 
@@ -848,12 +850,11 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
                                          (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth),
                                          params, collapse=False)
     for val in cubevals.flatten():
-        ubax.axvline(val/1e10, color='0.5', lw=0.5)
+        ubax.axvline(val/1e10, color='0.5', lw=0.5, zorder=0)
 
 
     # aperture intensity distribution
-    padcube, padrms = padder(cubelet, rmslet, params)
-    apvid, dapvid = aperture_vid(cubelet, rmslet, params)
+    apvid, dapvid = cube.aperture_vid()
 
     counts, bins = np.histogram(apvid/1e10, bins=100)
     bincents = (bins[:-1]-bins[1:])/2+bins[:-1]
@@ -866,12 +867,13 @@ def combined_plotter(cubelet, rmslet, params, stackim=None, stackrms=None, stack
         fitopt, fitcov = curve_fit(gauss, bincents, counts, p0=[2000,0,2])
         sbax.plot(xarr, gauss(xarr, *fitopt), color='orange', lw=2)
         yext = sbax.get_ylim()
+        sbax.set_xlim((-4*fitopt[2],4*fitopt[2]))
 
         sbax.axvline(fitopt[1], color='orange', ls='--', lw=2)
         uncert = Rectangle((fitopt[1]-fitopt[2], -1), 2*fitopt[2], yext[1], color='orange', alpha=0.5)
         sbax.add_patch(uncert)
 
-        sbax.annotate("{:.3e}".format(np.abs(fitopt[2])*1e10), (np.min(xarr)*0.9,2200), fontsize=10)
+        sbax.annotate("{:.3e}".format(np.abs(fitopt[2]*1e10)), (-3*fitopt[2],yext[1]*0.9), fontsize=10)
     except (ValueError, RuntimeError):
         print("Couldn't fit the aperture intensity distribution -- RMS probably too high")
 

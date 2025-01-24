@@ -2022,66 +2022,6 @@ def aperture_collapse_cubelet_space(cvals, crmss, params, recentx=0, recenty=0):
     return cutspec, specrms
 
 
-def padder(cubelet, rmslet, params):
-
-    xypad = params.xwidth
-    fpad = params.freqwidth
-
-    padcubelet = np.pad(cubelet, ((fpad,fpad), (xypad,xypad), (xypad,xypad)), mode='constant', constant_values=np.nan)
-    padrmslet = np.pad(rmslet, ((fpad,fpad), (xypad,xypad), (xypad,xypad)), mode='constant', constant_values=np.nan)
-
-    return padcubelet, padrmslet
-
-def cubelet_collapse_pointed(cubelet, rmslet, newcentpix, params, collapse=True):
-
-    if cubelet.shape[0] == params.freqstackwidth*2+1:
-        cubelet, rmslet = padder(cubelet, rmslet, params)
-
-    # goal center voxel of the padded cube
-    newfcent = newcentpix[0] + params.freqwidth
-    newxcent = newcentpix[1] + params.xwidth
-    newycent = newcentpix[2] + params.xwidth
-
-    # number of pixels other than the center to include in each axis
-    foff = (params.freqwidth - 1) // 2
-    xoff = (params.xwidth - 1) // 2
-    yoff = xoff
-
-    # indices to keep
-    cfidx = (newfcent - foff, newfcent + foff + 1)
-    cxidx = (newxcent - xoff, newxcent + xoff + 1)
-    cyidx = (newycent - yoff, newycent + yoff + 1)
-
-    apcutout = cubelet[cfidx[0]:cfidx[1], cxidx[0]:cxidx[1], cyidx[0]:cyidx[1]]
-    apcutrms = rmslet[cfidx[0]:cfidx[1], cxidx[0]:cxidx[1], cyidx[0]:cyidx[1]]
-
-    if collapse:
-        apval, aprms = weightmean(apcutout, apcutrms, axis=(1,2))
-        apval = apval * 3 * 3
-        aprms = aprms * 3 * 3
-        apval = np.nansum(apval)
-        aprms = np.sqrt(np.nansum(aprms**2))
-    else:
-        apval, aprms = apcutout, apcutrms
-
-    return apval, aprms
-
-def aperture_vid(cubelet, rmslet, params):
-
-    pcube, prms = padder(cubelet, rmslet, params)
-
-    outvallist, outdvallist = [], []
-    for i in np.arange(1,cubelet.shape[0]-1):
-        for j in np.arange(1, cubelet.shape[1]-1):
-            for k in np.arange(1, cubelet.shape[2]-1):
-                val, dval = cubelet_collapse_pointed(pcube, prms, (i, j, k), params)
-
-                outvallist.append(val)
-                outdvallist.append(dval)
-
-    return np.array(outvallist).flatten(), np.array(outdvallist).flatten()
-
-
 """ SETUP FOR SIMS/BOOTSTRAPS """
 def field_zbin_stack_output(galidxs, comap, galcat, params):
 

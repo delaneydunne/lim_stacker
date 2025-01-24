@@ -610,6 +610,79 @@ class cubelet():
             self.aperture_rms = dval
         return val, dval
 
+    def pad(self):
+        """ padwidth = (freq, x, y) is the amount added to each axis """
+
+        xypad = self.xwidth
+        fpad = self.freqwidth
+
+        padcubelet = np.pad(self.cube, ((fpad,fpad), (xypad,xypad), (xypad,xypad)), mode='constant', constant_values=np.nan)
+        padrmslet = np.pad(self.cuberms, ((fpad,fpad), (xypad,xypad), (xypad,xypad)), mode='constant', constant_values=np.nan)
+
+        self.padcube = padcubelet
+        self.padcuberms = padrmslet
+
+    
+    
+    def get_offset_aperture(self, offset=(0,0,0), in_place=False, method='weightmean', params=None):
+        """ same as get_aperture, but offset by offset=(z, x, y) pixels """
+
+        if method == 'weightmean' or method == 'summed':
+
+            # ** only pad if you need to?
+            try:
+                pcube, pcuberms = self.padcube, self.padcuberms 
+            except AttributeError:
+                self.pad()
+                pcube, pcuberms = self.padcube, self.padcuberms
+
+            apminpix = np.sum((self.apminpix, offset, (self.freqwidth,self.xwidth,self.xwidth)), axis=0)
+            apmaxpix = np.sum((self.apmaxpix, offset, (self.freqwidth,self.xwidth,self.xwidth)), axis=0)
+
+            ap = pcube[apminpix[0]:apmaxpix[0]:, apminpix[1]:apmaxpix[1],
+                 apminpix[2]:apmaxpix[2]]
+            dap = pcuberms[apminpix[0]:apmaxpix[0], apminpix[1]:apmaxpix[1],
+                  apminpix[2]:apmaxpix[2]]
+
+            if method == 'summed':
+                spec = np.nansum(ap, axis=(1, 2))
+                dspec = np.sqrt(np.nansum(dap ** 2, axis=(1, 2)))
+            else:
+                spec, dspec = weightmean(ap, dap, axis=(1, 2))
+                # correct for adjusted solid angle
+                spec = spec * self.xwidth * self.ywidth
+                dspec = dspec * self.xwidth * self.ywidth
+                
+        else:
+            print("haven't implemented this method yet for offset aperture")
+
+        val = np.nansum(spec)
+        dval = np.sqrt(np.nansum(dspec ** 2))
+
+        if in_place:
+            self.aperture_value = val
+            self.aperture_rms = dval
+        return val, dval
+    
+    def aperture_vid(self):
+        """ get intensity distribution of aperture-sized regions in the cubelet """
+
+        self.pad()
+
+        outvallist, outdvallist = [], []
+        fext = (self.cube.shape[0] - self.freqwidth)//2
+        xext = (self.cube.shape[1] - self.xwidth)//2
+        for i in np.arange(-fext,fext):
+            for j in np.arange(-xext,xext):
+                for k in np.arange(-xext,xext):
+                    val, dval = self.get_offset_aperture(offset=(i,j,k))
+
+                    outvallist.append(val)
+                    outdvallist.append(dval)
+
+        return np.array(outvallist).flatten(), np.array(outdvallist).flatten()
+
+
     def get_output_dict(self, in_place=False):
         if self.adaptivephotometry:
             llum, dllum = self.get_aperture(method='adaptive_photometry')  # made changes here
@@ -704,7 +777,7 @@ class cubelet():
 
         outdict = self.get_output_dict()
 
-        combined_plotter(self.cube, self.cuberms, params, stackim=im, stackrms=dim,
+        combined_plotter(self, params, stackim=im, stackrms=dim,
                          stackspec=spec, cmap='PiYG_r',
                          stackresult=outdict, comment=comment, fieldstr=fieldstr)
 
