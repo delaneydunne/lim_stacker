@@ -84,6 +84,10 @@ plotcubelet True
 # units to make the plots ITO ('linelum' for line luminosity or 'flux')
 plotunits linelum
 
+""" parallelization """
+parallelize False
+nthreads 5
+
 """ physical spacing"""
 physicalspace False
 cosmogrid False

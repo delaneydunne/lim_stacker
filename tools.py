@@ -84,7 +84,7 @@ class parameters():
         self.dir = default_dir
 
         # integer-valued parameters
-        for attr in ['xwidth', 'ywidth', 'freqwidth', 'usefeed', 'voxelhitlimit']:
+        for attr in ['xwidth', 'ywidth', 'freqwidth', 'usefeed', 'voxelhitlimit', 'nthreads']:
             try:
                 val = int(default_dir[attr])
                 setattr(self, attr, val)
@@ -108,7 +108,7 @@ class parameters():
         for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'chanmeanfilter',
                      'specmeanfilter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
                      'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace',
-                     'adaptivephotometry', 'cosmogrid']:
+                     'parallelize', 'adaptivephotometry', 'cosmogrid']:
             try:
                 val = default_dir[attr] == 'True'
                 setattr(self, attr, val)
