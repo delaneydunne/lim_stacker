@@ -15,6 +15,7 @@ from astropy.modeling import models, fitting
 import warnings
 import csv
 import pandas as pd
+from multiprocessing import Queue, Process
 
 from spectral_cube import SpectralCube
 from spectral_cube.utils import SpectralCubeWarning
@@ -211,9 +212,9 @@ class cubelet():
 
         # stack together the single values
         self.linelum, self.dlinelum = weightmean(np.array((self.linelum, cutout.linelum)),
-                                                 np.array((self.dlinelum, cutout.dlinelum)))
+                                                np.array((self.dlinelum, cutout.dlinelum)))
         self.rhoh2, self.drhoh2 = weightmean(np.array((self.rhoh2, cutout.rhoh2)),
-                                             np.array((self.drhoh2, cutout.drhoh2)))
+                                            np.array((self.drhoh2, cutout.drhoh2)))
 
         # if doing adaptive photometry, pull a centered spectrum from the new cubelet and average it in to the saved spectrum
         # *** currently this does not work but it also isn't called anywhere
@@ -278,9 +279,9 @@ class cubelet():
 
         # stack together the single values
         self.linelum, self.dlinelum = weightmean(np.array((self.linelum, cubelet.linelum)),
-                                                 np.array((self.dlinelum, cubelet.dlinelum)), weights=weights)
+                                                np.array((self.dlinelum, cubelet.dlinelum)), weights=weights)
         self.rhoh2, self.drhoh2 = weightmean(np.array((self.rhoh2, cubelet.rhoh2)),
-                                             np.array((self.drhoh2, cubelet.drhoh2)), weights=weights)
+                                            np.array((self.drhoh2, cubelet.drhoh2)), weights=weights)
 
         # housekeeping **** check averaging (also why is cubelet nuobs_mean a list?)
         self.catidx = np.concatenate((self.catidx, cubelet.catidx))
@@ -553,9 +554,9 @@ class cubelet():
         if method == 'weightmean' or method == 'summed' or method == 'none':
 
             ap = self.cube[self.apminpix[0]:self.apmaxpix[0]:, self.apminpix[1]:self.apmaxpix[1],
-                 self.apminpix[2]:self.apmaxpix[2]]
+                self.apminpix[2]:self.apmaxpix[2]]
             dap = self.cuberms[self.apminpix[0]:self.apmaxpix[0], self.apminpix[1]:self.apmaxpix[1],
-                  self.apminpix[2]:self.apmaxpix[2]]
+                self.apminpix[2]:self.apmaxpix[2]]
 
             if method == 'none':
                 return ap, dap
@@ -642,9 +643,9 @@ class cubelet():
             apmaxpix = np.sum((self.apmaxpix, offset, (self.freqwidth,self.xwidth,self.xwidth)), axis=0)
 
             ap = pcube[apminpix[0]:apmaxpix[0]:, apminpix[1]:apmaxpix[1],
-                 apminpix[2]:apmaxpix[2]]
+                apminpix[2]:apmaxpix[2]]
             dap = pcuberms[apminpix[0]:apmaxpix[0], apminpix[1]:apmaxpix[1],
-                  apminpix[2]:apmaxpix[2]]
+                apminpix[2]:apmaxpix[2]]
 
             if method == 'summed':
                 spec = np.nansum(ap, axis=(1, 2))
@@ -694,12 +695,12 @@ class cubelet():
         self.dlinelum = dllum
 
         outdict = {'linelum': self.linelum,
-                   'dlinelum': self.dlinelum,
-                   'rhoh2': self.rhoh2,
-                   'drhoh2': self.drhoh2,
-                   'nuobs_mean': self.nuobs_mean,
-                   'z_mean': self.z_mean,
-                   'nobj': self.ncutouts}
+                'dlinelum': self.dlinelum,
+                'rhoh2': self.rhoh2,
+                'drhoh2': self.drhoh2,
+                'nuobs_mean': self.nuobs_mean,
+                'z_mean': self.z_mean,
+                'nobj': self.ncutouts}
 
         if in_place:
             self.outdict = outdict
@@ -780,8 +781,8 @@ class cubelet():
         outdict = self.get_output_dict()
 
         combined_plotter(self, params, stackim=im, stackrms=dim,
-                         stackspec=spec, cmap='PiYG_r',
-                         stackresult=outdict, comment=comment, fieldstr=fieldstr)
+                        stackspec=spec, cmap='PiYG_r',
+                        stackresult=outdict, comment=comment, fieldstr=fieldstr)
 
         return
 
@@ -925,10 +926,10 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     ypixval = mapinst.dec[outcutout.yidx[0] + params.ywidth // 2] + mapinst.ystep / 2
 
     inwcsdict = {"CTYPE1": 'FREQ', 'CDELT1': mapinst.fstep * 1e9, 'CRPIX1': params.freqstackwidth + 1,
-                 'CRVAL1': fpixval,
-                 "CTYPE3": 'RA---CAR', 'CUNIT3': 'deg', 'CDELT3': xstep, 'CRPIX3': xpixcent, 'CRVAL3': xpixval,
-                 "CTYPE2": 'DEC--CAR', 'CUNIT2': 'deg', 'CDELT2': xstep, 'CRPIX2': xpixcent, 'CRVAL2': ypixval,
-                 "ZSOURCE": outcutout.z}
+                'CRVAL1': fpixval,
+                "CTYPE3": 'RA---CAR', 'CUNIT3': 'deg', 'CDELT3': xstep, 'CRPIX3': xpixcent, 'CRVAL3': xpixval,
+                "CTYPE2": 'DEC--CAR', 'CUNIT2': 'deg', 'CDELT2': xstep, 'CRPIX2': xpixcent, 'CRVAL2': ypixval,
+                "ZSOURCE": outcutout.z}
     inwcs = wcs.WCS(inwcsdict)
 
     # input cube
@@ -963,11 +964,11 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     mapcent = params.goalxsize // 2
     fmapcent = params.freqstackwidth
     outwcsdict = {"CTYPE1": 'FREQ', 'CDELT1': mapinst.fstep * 1e9, 'CRPIX1': fmapcent,
-                  'CRVAL1': (outcutout.freq - mapinst.fstep) * 1e9,
-                  "CTYPE3": 'RA---CAR', 'CUNIT3': 'deg', 'CDELT3': outcdelt2,
-                  'CRPIX3': mapcent, 'CRVAL3': outcutout.x,
-                  "CTYPE2": 'DEC--CAR', 'CUNIT2': 'deg', 'CDELT2': outcdelt2,
-                  'CRPIX2': mapcent, 'CRVAL2': outcutout.y}
+                'CRVAL1': (outcutout.freq - mapinst.fstep) * 1e9,
+                "CTYPE3": 'RA---CAR', 'CUNIT3': 'deg', 'CDELT3': outcdelt2,
+                'CRPIX3': mapcent, 'CRVAL3': outcutout.x,
+                "CTYPE2": 'DEC--CAR', 'CUNIT2': 'deg', 'CDELT2': outcdelt2,
+                'CRPIX2': mapcent, 'CRVAL2': outcutout.y}
     outwcs = wcs.WCS(outwcsdict)
     spacehdr = outwcs.to_header()
     spacehdr['NAXIS'] = 3
@@ -988,16 +989,16 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
         chandata[chanmask] = np.nan
         chanrms[chanmask] = np.nan
         rpchan, _ = reproject_adaptive((chandata.T, wcs.WCS(rccube.header).celestial),
-                                       wcs.WCS(spacehdr).celestial,
-                                       shape_out=(shape_out[1], shape_out[2]),
-                                       kernel='gaussian', boundary_mode='strict',
-                                       conserve_flux=conserve_flux)
+                                    wcs.WCS(spacehdr).celestial,
+                                    shape_out=(shape_out[1], shape_out[2]),
+                                    kernel='gaussian', boundary_mode='strict',
+                                    conserve_flux=conserve_flux)
         rpmaplist.append(rpchan)
         rprmschan, _ = reproject_adaptive((chanrms.T, wcs.WCS(rcrms.header).celestial),
-                                          wcs.WCS(spacehdr).celestial,
-                                          shape_out=(shape_out[1], shape_out[2]),
-                                          kernel='gaussian', boundary_mode='strict',
-                                          conserve_flux=conserve_flux)
+                                        wcs.WCS(spacehdr).celestial,
+                                        shape_out=(shape_out[1], shape_out[2]),
+                                        kernel='gaussian', boundary_mode='strict',
+                                        conserve_flux=conserve_flux)
         rprmslist.append(rprmschan)
     newcube = np.array(rpmaplist)
     newrms = np.array(rprmslist)
@@ -1015,7 +1016,7 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
         vxycube = xycube.with_spectral_unit(u.km / u.s, velocity_convention='radio',
                                             rest_value=115.27 * u.GHz / (1 + outcutout.z))
         vxyrms = xyrms.with_spectral_unit(u.km / u.s, velocity_convention='radio',
-                                          rest_value=115.27 * u.GHz / (1 + outcutout.z))
+                                        rest_value=115.27 * u.GHz / (1 + outcutout.z))
         # lay out the output spectral axis *** pass this in?
         goalspecax = (np.arange(params.goalfsize) - params.goalfsize // 2) * params.goaldv
         # add a nothing mask back into the cube
@@ -1040,7 +1041,7 @@ def physical_spacing(cutout, mapinst, params, oversamp_factor=5, do_spectral=Tru
     outcutout.ystep = xyzcube.wcs.wcs.cdelt[1] * 60
     outcutout.vstep = xyzcube.wcs.wcs.cdelt[2] / 1e3
     txyzcube = xyzcube.with_spectral_unit(u.GHz, velocity_convention='radio',
-                                          rest_value=115.27 * u.GHz / (1 + outcutout.z))
+                                        rest_value=115.27 * u.GHz / (1 + outcutout.z))
     outcutout.fstep = -np.diff(txyzcube.spectral_axis)[0].value
 
     # *** just transforming the RMS the same way as the regular cube for now
@@ -1226,11 +1227,11 @@ def single_cutout(idx, galcat, comap, params):
 
     # pull the actual values to stack
     cpixval = padmap[padfreqidx[0]:padfreqidx[1],
-              padyidx[0]:padyidx[1],
-              padxidx[0]:padxidx[1]]
+            padyidx[0]:padyidx[1],
+            padxidx[0]:padxidx[1]]
     crmsval = padrms[padfreqidx[0]:padfreqidx[1],
-              padyidx[0]:padyidx[1],
-              padxidx[0]:padxidx[1]]
+            padyidx[0]:padyidx[1],
+            padxidx[0]:padxidx[1]]
 
     # rotate randomly
     if params.rotate:
@@ -1243,11 +1244,11 @@ def single_cutout(idx, galcat, comap, params):
 
     # pull the actual values to stack
     pixval = comap.map[cutout.freqidx[0]:cutout.freqidx[1],
-             cutout.yidx[0]:cutout.yidx[1],
-             cutout.xidx[0]:cutout.xidx[1]]
+            cutout.yidx[0]:cutout.yidx[1],
+            cutout.xidx[0]:cutout.xidx[1]]
     rmsval = comap.rms[cutout.freqidx[0]:cutout.freqidx[1],
-             cutout.yidx[0]:cutout.yidx[1],
-             cutout.xidx[0]:cutout.xidx[1]]
+            cutout.yidx[0]:cutout.yidx[1],
+            cutout.xidx[0]:cutout.xidx[1]]
 
     # check how many center aperture pixels are masked
     if np.sum(np.isnan(pixval).flatten()) > (params.freqwidth * params.xwidth ** 2) / 2:
@@ -1401,6 +1402,67 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None):
         return stackinst
     except UnboundLocalError:
         return None
+    
+def field_stack_queued(comap, galcat, params, field, queue):
+    if params.verbose:
+        print('Starting a process with {} catalog objects'.format(galcat.nobj))
+
+    pcube = field_stack(comap, galcat, params, field=field)
+    queue.put(pcube)
+    
+    
+def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None):
+    """
+    same as field_stack, but will parallelize the catalog objects
+    called if params.parallelize is True
+    uses params.nthreads to determine number of processes
+    will be wonky if params.goalnumcutouts is set -- haven't figured that out yet
+    """
+
+    # housekeeping
+
+    # init queue object
+    qout = Queue()
+    
+    # assign catalog objects to processes
+    roundnobj = galcat.nobj // params.nthreads * params.nthreads
+    idxlist = np.arange(roundnobj)
+    remainder = np.arange(roundnobj, roundnobj + galcat.nobj%params.nthreads)
+
+    pidxs = np.reshape(idxlist, (params.nthreads,-1))
+
+    processes = []
+    for j in range(params.nthreads):
+        tidx = pidxs[j]
+        if j == params.nthreads - 1:
+            tidx = np.concatenate((tidx, remainder))
+
+        pcatinst = galcat.subset(tidx, in_place=False)
+
+        processes.append(Process(target=field_stack_queued, args=(comap, pcatinst, params, field, qout)))
+
+    # run processes
+    for p in processes:
+        p.start()
+    cubelist = [qout.get() for p in processes]
+    for p in processes:
+        p.join()
+
+    # join together all the cubes for the field
+    # remove nones
+    finalcubelist = []
+    for cube in cubelist:
+        if cube:
+            finalcubelist.append(cube)
+    if len(finalcubelist) > 0:
+        finalcube = finalcubelist[0]
+        for j in range(params.nthreads - 1):
+            finalcube.stackin_cubelet(finalcubelist[j+1])
+    else:
+        finalcube = None
+
+    return finalcube
+
 
 
 def stacker(maplist, catlist, params):
@@ -1416,8 +1478,8 @@ def stacker(maplist, catlist, params):
     if params.goalnumcutouts:
         if isinstance(params.goalnumcutouts, (int, float)):
             numcutoutlist = [params.goalnumcutouts // len(maplist),
-                             params.goalnumcutouts // len(maplist),
-                             params.goalnumcutouts // len(maplist)]
+                            params.goalnumcutouts // len(maplist),
+                            params.goalnumcutouts // len(maplist)]
         else:
             numcutoutlist = params.goalnumcutouts
     else:
@@ -1440,7 +1502,11 @@ def stacker(maplist, catlist, params):
 
         if params.verbose:
             print('Starting field {}'.format(i + 1))
-        cube = field_stack(maplist[i], catlist[i], params, field=fields[i], goalnobj=numcutoutlist[i])
+        if params.parallelize:
+            cube = parallel_field_stack(maplist[i], catlist[i], params, field=fields[i])
+        else:
+            cube = field_stack(maplist[i], catlist[i], params, field=fields[i], goalnobj=numcutoutlist[i])
+
         cubelist.append(cube)
 
     if params.verbose:
@@ -1531,7 +1597,7 @@ def rho_h2(linelum, nuobs, params):
     linelum: line luminosity of the source in K km/s pc^2 (should be a quantity)
     nuobs:   observed frequency in frequency units (should be a quantity)
     params:  lim_stacker params object (used for central frequency and the size of the aperture,
-             in order to calculate the cosmic volume covered by the aperture)
+            in order to calculate the cosmic volume covered by the aperture)
     --------
     OUTPUTS:
     --------
@@ -1570,7 +1636,7 @@ def perchannel_flux_sum(tbvals, rmsvals, nuobs, params):
     INPUTS:
     -------
     tbvals:  array of brightness temperature values. first axis needs to be the spectral one
-             should be unitless (NxMxL)
+            should be unitless (NxMxL)
     rmsvals: the per-pixel rms uncertainties associated with tbvals. also a unitless array (NxMxL)
     nuobs:   observed frequency in frequency units (should be a float, in GHz)
     params:  lim_stacker params object (only used for central frequency)
@@ -1638,7 +1704,7 @@ def perchannel_flux_mean(tbvals, rmsvals, nuobs, params):
     INPUTS:
     -------
     tbvals:  array of brightness temperature values. first axis needs to be the spectral one
-             should be unitless (NxMxL)
+            should be unitless (NxMxL)
     rmsvals: the per-pixel rms uncertainties associated with tbvals. also a unitless array (NxMxL)
     nuobs:   observed frequency in frequency units (should be a float, in GHz)
     params:  lim_stacker params object (only used for central frequency)
@@ -1703,11 +1769,11 @@ def perpixel_flux(tbvals, rmsvals, nuobs, params):
     INPUTS:
     -------
     tbvals:  array of brightness temperature values. first axis needs to be the
-             spectral one. should be unitless (NxMxL)
+            spectral one. should be unitless (NxMxL)
     rmsvals: the per-pixel rms uncertainties associated with tbvals. also a
-             unitless array (NxMxL)
+            unitless array (NxMxL)
     nuobs:   observed frequency of the central pixel (index N/2) in frequency
-             units (should be a float, in GHz)
+            units (should be a float, in GHz)
     params:  lim_stacker params object (only used for central frequency)
     --------
     OUTPUTS:
@@ -1919,7 +1985,7 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     beamrholim = rhous.to(u.Msun / u.Mpc ** 3)
 
     obsunitdict = {'L': beamvalobs, 'dL': beamrmsobs,
-                   'rho': beamrhoobs, 'drho': beamrhorms,
-                   'nuobs_mean': meannuobs, 'z_mean': meanz}
+                'rho': beamrhoobs, 'drho': beamrhorms,
+                'nuobs_mean': meannuobs, 'z_mean': meanz}
 
     return obsunitdict
