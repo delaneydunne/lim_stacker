@@ -846,9 +846,7 @@ def combined_plotter(cube, params, stackim=None, stackrms=None, stackspec=None, 
     ubax.set_ylabel('Counts')
     ubax.set_title('VID')
 
-    cubevals,_ = cubelet_collapse_pointed(cubelet, rmslet,
-                                         (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth),
-                                         params, collapse=False)
+    cubevals,_ = cube.get_aperture(method='none')
     for val in cubevals.flatten():
         ubax.axvline(val/1e10, color='0.5', lw=0.5, zorder=0)
 

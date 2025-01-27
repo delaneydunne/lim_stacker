@@ -550,14 +550,16 @@ class cubelet():
 
     def get_aperture(self, in_place=False, method='weightmean', params=None):
 
-        if method == 'weightmean' or method == 'summed':
+        if method == 'weightmean' or method == 'summed' or method == 'none':
 
             ap = self.cube[self.apminpix[0]:self.apmaxpix[0]:, self.apminpix[1]:self.apmaxpix[1],
                  self.apminpix[2]:self.apmaxpix[2]]
             dap = self.cuberms[self.apminpix[0]:self.apmaxpix[0], self.apminpix[1]:self.apmaxpix[1],
                   self.apminpix[2]:self.apmaxpix[2]]
 
-            if method == 'summed':
+            if method == 'none':
+                return ap, dap
+            elif method == 'summed':
                 spec = np.nansum(ap, axis=(1, 2))
                 dspec = np.sqrt(np.nansum(dap ** 2, axis=(1, 2)))
             else:
@@ -1358,7 +1360,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None):
             # stack as you go
             if ti == 0:
                 stackinst = cubelet(cutout, params)
-                if stackinst.unit != 'linelum':
+                if  stackinst.unit != 'linelum':
                     stackinst.to_linelum(params)
                 if weight:
                     stackinst.weight_rms(weight)
@@ -1370,7 +1372,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None):
                 stackinst.stackin_cubelet(stackinst_new, params, weights=weight)  # Added 'params' here
 
             if goalnobj:
-                field_nobj += 1
+                field_nobj += 1     
 
                 if field_nobj == goalnobj:
                     if params.verbose:
