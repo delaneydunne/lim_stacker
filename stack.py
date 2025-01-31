@@ -438,8 +438,8 @@ class cubelet():
         dlinelum = dlinelum.to(u.K * u.km / u.s * u.pc ** 2)
 
         # store in object
-        self.cube = linelum.value
-        self.cuberms = dlinelum.value
+        self.cube = linelum.value.astype('float64')
+        self.cuberms = dlinelum.value.astype('float64')
         self.unit = 'linelum'
 
         return
@@ -470,25 +470,26 @@ class cubelet():
 
     def get_spectrum(self, in_place=False, method='weightmean', params=None):
 
-        # check if an adaptive spectrum already exists (then just return that)
-        try:
-            spec = self.spectrum 
-            dspec = self.spectrumrms 
-        except AttributeError:
 
-            if method == 'weightmean' or method == 'summed':
-                apspec = self.cube[:, self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
-                dapspec = self.cuberms[:, self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+        if method == 'weightmean' or method == 'summed':
+            apspec = self.cube[:, self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
+            dapspec = self.cuberms[:, self.apminpix[1]:self.apmaxpix[1], self.apminpix[2]:self.apmaxpix[2]]
 
-                if method == 'summed':
-                    spec = np.nansum(apspec, axis=(1, 2))
-                    dspec = np.sqrt(np.nansum(dapspec ** 2, axis=(1, 2)))
-                else:
-                    spec, dspec = weightmean(apspec, dapspec, axis=(1, 2))
-                    spec = spec * self.xwidth * self.ywidth
-                    dspec = dspec * self.xwidth * self.ywidth
+            if method == 'summed':
+                spec = np.nansum(apspec, axis=(1, 2))
+                dspec = np.sqrt(np.nansum(dapspec ** 2, axis=(1, 2)))
+            else:
+                spec, dspec = weightmean(apspec, dapspec, axis=(1, 2))
+                spec = spec * self.xwidth * self.ywidth
+                dspec = dspec * self.xwidth * self.ywidth
 
-            elif method == 'photometry' or method == 'adaptive_photometry':
+        elif method == 'photometry' or method == 'adaptive_photometry':
+
+            # check if an adaptive spectrum already exists (then just return that)
+            try:
+                spec = self.spectrum
+                dspec = self.spectrumrms 
+            except AttributeError: 
 
                 try:
                     beammodel = self.beammodel
@@ -530,8 +531,8 @@ class cubelet():
                 spec = np.array(photflux)
                 dspec = np.array(photrms)
 
-            self.spectrum = spec
-            self.spectrumrms = dspec
+        self.spectrum = spec
+        self.spectrumrms = dspec
 
         return spec, dspec
 
@@ -1385,6 +1386,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None):
                 print('   done {} of {} cutouts in this field'.format(i, galcat.nobj))
 
     try:
+        print('plotting ')#***
         stackinst.make_plots(comap, galcat, params, field=field)
     except UnboundLocalError:
         print('No values to stack in this field')
@@ -1449,18 +1451,22 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
         p.join()
 
     # join together all the cubes for the field
-    # remove nones
+    # (it's so involved to deal with nones)
     finalcubelist = []
     for cube in cubelist:
         if cube:
             finalcubelist.append(cube)
-    if len(finalcubelist) > 0:
-        finalcube = finalcubelist[0]
-        for j in range(params.nthreads - 1):
-            finalcube.stackin_cubelet(finalcubelist[j+1])
-    else:
-        finalcube = None
 
+    if len(finalcubelist) == 0:
+        finalcube = None
+    elif len(finalcubelist) == 1:
+        finalcube = finalcubelist[0].copy()
+    else:
+        finalcube = finalcubelist[0].copy()
+        for cube in finalcubelist[1:]:
+            finalcube.stackin_cubelet(cube)
+
+    # return finalcubelist
     return finalcube
 
 

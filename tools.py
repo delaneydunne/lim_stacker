@@ -16,6 +16,7 @@ import h5py
 import csv
 import warnings
 import copy
+from tqdm import tqdm
 warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
 warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
@@ -516,7 +517,7 @@ class catalogue():
         """
         x = []
         y = []
-        for i in range(self.nobj):
+        for i in tqdm(range(self.nobj)):
             # account for SkyCoord doing 2pi rotations on its own now
             ra = self.ra()[i]
             if ra > 250:
