@@ -52,6 +52,10 @@ fitvallims 100 10 10
 voxelhitlimit 50000
 # max RMS in K to include in the stack
 voxelrmslimit 0.01
+# adaptively scale the rms cuts (by rmsscale*avg(best 100 voxels)) instead of a hard limit
+# this is what's used for the power spectrum (with rmsscale=8)
+scalermscuts False
+rmsscale 8
 # verbose output when running
 verbose True
 # save the stack data

@@ -85,7 +85,7 @@ class parameters():
         self.dir = default_dir
 
         # integer-valued parameters
-        for attr in ['xwidth', 'ywidth', 'freqwidth', 'usefeed', 'voxelhitlimit', 'nthreads']:
+        for attr in ['xwidth', 'ywidth', 'freqwidth', 'usefeed', 'voxelhitlimit', 'nthreads', 'rmsscale']:
             try:
                 val = int(default_dir[attr])
                 setattr(self, attr, val)
@@ -109,7 +109,7 @@ class parameters():
         for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'chanmeanfilter',
                      'specmeanfilter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
                      'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace',
-                     'parallelize', 'adaptivephotometry', 'cosmogrid']:
+                     'parallelize', 'adaptivephotometry', 'cosmogrid', 'scalermscuts']:
             try:
                 val = default_dir[attr] == 'True'
                 setattr(self, attr, val)
@@ -926,6 +926,10 @@ class maps():
                     self.freq = np.array(file.get('freq_centers'))
                     self.ra = np.array(file.get('ra_centers'))
                     self.dec = np.array(file.get('dec_centers'))
+
+                if params.scalermscuts:
+                    print('scaling rms')#***
+                    params.voxelrmslimit = np.nanmean(np.sort(rmstemparr.flatten())[:100])*params.rmsscale
 
             else:
                 feedidx = params.usefeed - 1
