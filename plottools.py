@@ -855,7 +855,7 @@ def combined_plotter(cube, params, stackim=None, stackrms=None, stackspec=None, 
     apvid, dapvid = cube.aperture_vid()
 
     counts, bins = np.histogram(apvid/1e10, bins=100)
-    bincents = (bins[:-1]-bins[1:])/2+bins[:-1]
+    bincents = (bins[1:]-bins[:-1])/2+bins[:-1]
     arrext = np.max(np.abs((np.min(bincents), np.max(bincents))))
     xarr = np.linspace(-arrext, arrext, 200)
 
