@@ -1386,7 +1386,6 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None):
                 print('   done {} of {} cutouts in this field'.format(i, galcat.nobj))
 
     try:
-        print('plotting ')#***
         stackinst.make_plots(comap, galcat, params, field=field)
     except UnboundLocalError:
         print('No values to stack in this field')
