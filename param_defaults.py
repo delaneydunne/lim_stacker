@@ -49,13 +49,13 @@ frequsewidth 8
 fitmeanlimit 100
 fitvallims 100 10 10
 # min number of hits in a single voxel for inclusion in the stack
-voxelhitlimit 50000
+voxelhitlimit 0
 # max RMS in K to include in the stack
-voxelrmslimit 0.01
+voxelrmslimit 1e6
 # adaptively scale the rms cuts (by rmsscale*avg(best 100 voxels)) instead of a hard limit
 # this is what's used for the power spectrum (with rmsscale=8)
-scalermscuts False
-rmsscale 8
+scalermscuts True
+rmsscale 10
 # verbose output when running
 verbose True
 # save the stack data
