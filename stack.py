@@ -1114,6 +1114,10 @@ def single_cutout(idx, galcat, comap, params):
             ydiff = 1
         ypixcent = (y - comap.decbe[yidx]) / comap.ystep
 
+    # if the center voxel of the cutout is a nan, axe it
+    if np.isnan(comap[freqidx, yidx, xidx]):
+        return None
+
     # start setting up cutout object if it passes all these tests
     cutout = empty_table()
 
