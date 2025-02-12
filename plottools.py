@@ -980,12 +980,13 @@ def combined_plotter(cube, params, stackim=None, stackrms=None, stackspec=None, 
 
     """ radial profile plots """
     # profiles
+    minx, maxx = params.spacestackwidth - params.xwidth//2, params.spacestackwidth + params.xwidth//2 + 1
     if params.plotunits == 'linelum':
-        prof1 = stackim[params.spacestackwidth,:]/1e10
-        prof2 = stackim[:,params.spacestackwidth]/1e10
+        prof1 = np.nansum(stackim[minx:maxx,:]/1e10, axis=0)
+        prof2 = np.nansum(stackim[:,minx:maxx]/1e10, axis=1)
     elif params.plotunits == 'flux':
-        prof1 = stackim[params.spacestackwidth,:]
-        prof2 = stackim[:,params.spacestackwidth]
+        prof1 = np.nansum(stackim[minx:maxx,:], axis=0)
+        prof2 = np.nansum(stackim[:,minx:maxx], axis=1)
     meanprof = np.nanmean((prof1, prof2), axis=0)
 
     # x-axis

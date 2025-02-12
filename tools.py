@@ -988,7 +988,7 @@ class maps():
         if self.xstep < 0:
             self.xstep = -self.xstep
             self.ra = np.flip(self.ra)
-            self.rabe = np.flip(self.rabe)
+            self.rabe = np.flip(self.rabe) + self.xstep
             self.map = np.flip(self.map, axis=-1)
             self.rms = np.flip(self.rms, axis=-1)
             self.hit = np.flip(self.hit, axis=-1)
