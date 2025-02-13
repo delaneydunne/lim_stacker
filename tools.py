@@ -5,7 +5,7 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as const
 from astropy.coordinates import SkyCoord
-from astropy.convolution import Gaussian2DKernel, convolve
+from astropy.convolution import Gaussian2DKernel, Box2DKernel, convolve
 from astropy import wcs
 from astropy.cosmology import FlatLambdaCDM
 from pixell import utils
@@ -85,7 +85,8 @@ class parameters():
         self.dir = default_dir
 
         # integer-valued parameters
-        for attr in ['xwidth', 'ywidth', 'freqwidth', 'usefeed', 'voxelhitlimit', 'nthreads', 'rmsscale']:
+        for attr in ['xwidth', 'ywidth', 'freqwidth', 'usefeed', 'voxelhitlimit', 'nthreads', 'rmsscale',
+                     'isolatedpixkernel']:
             try:
                 val = int(default_dir[attr])
                 setattr(self, attr, val)
@@ -97,7 +98,7 @@ class parameters():
             self.usefeed = False
 
         # float-valued parameters
-        for attr in ['centfreq', 'beamwidth', 'fitmeanlimit', 'voxelrmslimit']:
+        for attr in ['centfreq', 'beamwidth', 'fitmeanlimit', 'voxelrmslimit', 'isolatedpixcutoff']:
             try:
                 val = float(default_dir[attr])
                 setattr(self, attr, val)
@@ -109,7 +110,8 @@ class parameters():
         for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'chanmeanfilter',
                      'specmeanfilter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
                      'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace',
-                     'parallelize', 'adaptivephotometry', 'cosmogrid', 'scalermscuts']:
+                     'parallelize', 'adaptivephotometry', 'cosmogrid', 'scalermscuts',
+                     'maskisolatedpix']:
             try:
                 val = default_dir[attr] == 'True'
                 setattr(self, attr, val)
@@ -980,6 +982,11 @@ class maps():
             self.rms = np.reshape(self.rms, (4*chanpersb, len(self.ra), len(self.dec)))
             self.hit = np.reshape(self.hit, (4*chanpersb, len(self.ra), len(self.dec)))
 
+        # some cuts leave a lot of isolated pixels, get rid of those
+        if params.maskisolatedpix:
+            print('masking isolated signal pixels')
+            self.mask_isolated_pix(params)
+
         # build the other convenience coordinate arrays, make sure the coordinates map to
         # the correct part of the voxel
         self.setup_coordinates()
@@ -996,6 +1003,45 @@ class maps():
         # move some things to params to keep the info handy
         params.nchans = self.map.shape[0]
         params.chanwidth = np.abs(self.freq[1] - self.freq[0])
+
+    def mask_isolated_pix(self, params):
+        """
+        new scanning strategies are starting to show fringing in the maps -- this is a filter to clean out 
+        isolated pixels. will be applied if params.maskisolatedpix is true. uses:
+            params.isolatedpixkernel: width in spax to smooth by before performing the mask (default 3)
+            params.isolatedpixcutoff: fraction of neighbouring spax that should be unmasked in order to include
+                a given spaxel (default 5/9)
+        currently only works in_place
+        will flag the map object with 'edgemasked=True' if applied
+        """
+
+        # binary mask for if a voxel is still included after the previous masking
+        maskarr = np.ones(self.map.shape)
+        maskarr[np.where(np.isnan(self.map))] = 0
+
+        # set up boxcar kernel
+        kernel = Box2DKernel(params.isolatedpixkernel)
+
+        # smooth the binary mask (have to iterate through channels)
+        smmask = []
+        for chan in range(maskarr.shape[0]):
+            smchan = convolve(maskarr[chan,:,:], kernel, boundary='fill', fill_value=0)
+            smmask.append(smchan)
+        smmask = np.stack(smmask)
+
+        # generate a mask that will get rid of anything below the cutoff value (this will 
+        # include all previous masking and any of the new edges/isolated pix)
+        newmaskidx = np.where(smmask <= params.isolatedpixcutoff)
+
+        # apply the mask to the map object
+        self.map[newmaskidx] = np.nan 
+        self.rms[newmaskidx] = np.nan
+        self.hit[newmaskidx] = 0
+        self.edgemasked = True
+
+        return
+
+
 
     def load_cosmogrid(self, inputfile, params, reshape=True):
 

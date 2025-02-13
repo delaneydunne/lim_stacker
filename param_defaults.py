@@ -56,6 +56,10 @@ voxelrmslimit 1e6
 # this is what's used for the power spectrum (with rmsscale=8)
 scalermscuts True
 rmsscale 10
+# mask any isolated pixels that may have been left by the previous masks
+maskisolatedpix True 
+isolatedpixkernel 3
+isolatedpixcutoff 0.55556
 # verbose output when running
 verbose True
 # save the stack data
