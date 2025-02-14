@@ -55,11 +55,13 @@ voxelrmslimit 1e6
 # adaptively scale the rms cuts (by rmsscale*avg(best 100 voxels)) instead of a hard limit
 # this is what's used for the power spectrum (with rmsscale=8)
 scalermscuts True
-rmsscale 10
+rmsscale 8
 # mask any isolated pixels that may have been left by the previous masks
 maskisolatedpix True 
-isolatedpixkernel 3
-isolatedpixcutoff 0.55556
+# size of the boxcar kernel in pix
+isolatedpixkernel 3 
+# number of 8-connected pix that need to have signal to include a given pixel (5/9)
+isolatedpixcutoff 0.55556 
 # verbose output when running
 verbose True
 # save the stack data
