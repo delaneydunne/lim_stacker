@@ -58,6 +58,8 @@ def offset_and_stack(maplist, catlist, params, offrng, method=None):
         randomize = cat_rand_offset_sensmap
     elif method == 'uniform':
         randomize = cat_rand_offset_random
+    elif method == 'catalogue':
+        randomize = cat_rand_offset_senscat
 
     offcatlist = []
     for j in range(len(catlist)):
