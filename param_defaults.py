@@ -104,3 +104,5 @@ cosmogrid False
 
 """ adaptive photometry """
 adaptivephotometry False
+
+bootstrapseed 11111

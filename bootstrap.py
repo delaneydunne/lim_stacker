@@ -214,6 +214,10 @@ def cat_rand_offset_sensmap(mapinst, catinst, params, offrng=None, senspath=None
     generates a random catalog following the same spatial and spectral distribution as the actual
     hetdex map. requires a passed sensitivity map, but pulls redshift distribution from the input catalog
     """
+    # if there aren't any objects in the passed catalog, just return a copy of it
+    if catinst.nobj == 0:
+        return catinst.copy()
+
     # generate an rng if needed
     if not offrng:
         try:
@@ -280,6 +284,69 @@ def cat_rand_offset_sensmap(mapinst, catinst, params, offrng=None, senspath=None
     offcat.nobj = 2*catinst.nobj 
     # for indexing -- use ra to add to the artificial index so fields are distinct
     offcat.catfileidx = np.arange(randcatsize) + int(ra[0]*1e6)
+    offcat.idx = offcat.catfileidx
+
+    return offcat
+
+def cat_rand_offset_senscat(mapinst, catinst, params, offrng=None, senspath=None):
+    """
+    generates a random catalog following the same spatial and spectral distribution as the actual
+    hetdex map. requires a passed sensitivity map, but pulls redshift distribution from the input catalog
+    """
+    # if there aren't any objects in the passed catalog, just return a copy of it
+    if catinst.nobj == 0:
+        return catinst.copy()
+    
+    # generate an rng if needed
+    if not offrng:
+        try:
+            offrng = params.bootstraprng
+        except AttributeError:
+            offrng = np.random.default_rng(params.bootstrapseed)
+            params.bootstraprng = offrng 
+            print("Defining new bootstrap rng using passed seed "+str(params.bootstrapseed))
+
+    # load in the sensitivity map if it hasn't already done
+    try:
+        _,_ = params.field_1_senscat
+    except AttributeError:
+        if senspath:
+            params.create_sensmap_bootstrap(senspath, cat=True)
+        else:
+            print("Don't have generated sensitivity arrays, need to pass senspath")
+            return
+
+    # figure out which field you're in
+    fieldra = int(np.round(mapinst.fieldcent.ra.deg))
+    if fieldra == 25:
+        fieldra, fielddec = params.field_1_senscat
+    elif fieldra == 170:
+        fieldra, fielddec = params.field_2_senscat
+    elif fieldra == 226:
+        fieldra, fielddec = params.field_3_senscat
+        
+    # redshift axis
+    zbins, zprobs = params.redshift_sensmap 
+    zstep = zbins[1] - zbins[0]
+
+    randcatsize = (2*catinst.nobj)
+    
+    
+    # randomly select an ra and dec
+    spaceidx = offrng.choice(np.arange(len(fieldra)), size=randcatsize, replace=False)    
+    randra, randdec = fieldra[spaceidx], fielddec[spaceidx]
+
+    # redshifts
+    zidx = offrng.choice(a=zbins.size, p=zprobs, size=randcatsize)
+    zvals = zbins[zidx] + offrng.uniform(-zstep/2, zstep/2, size=randcatsize)
+
+    # read into new catalog object
+    offcat = catinst.copy()
+    offcat.coords = SkyCoord(randra*u.deg, randdec*u.deg)
+    offcat.z = zvals
+    offcat.nobj = 2*catinst.nobj 
+    # for indexing -- use ra to add to the artificial index so fields are distinct
+    offcat.catfileidx = np.arange(randcatsize) + int(randra[0]*1e6)
     offcat.idx = offcat.catfileidx
 
     return offcat

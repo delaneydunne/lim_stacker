@@ -86,7 +86,7 @@ class parameters():
 
         # integer-valued parameters
         for attr in ['xwidth', 'ywidth', 'freqwidth', 'usefeed', 'voxelhitlimit', 'nthreads', 'rmsscale',
-                     'isolatedpixkernel']:
+                     'isolatedpixkernel', 'bootstrapseed']:
             try:
                 val = int(default_dir[attr])
                 setattr(self, attr, val)
@@ -339,7 +339,7 @@ class parameters():
             print("\t\t Numbers of beams: ({}, {})".format(self.fitmasknbeams, self.fitnbeams))
         print("-------------")
 
-    def create_sensmap_bootstrap(self, sensfilepath):
+    def create_sensmap_bootstrap(self, sensfilepath, cat=False):
         """
         reads in the hetdex sensitivity map and sets it up for bootstrapping (so it only has to
         be done once)
@@ -347,29 +347,49 @@ class parameters():
         need to relax these as well
         """
 
-        # field 1
-        with np.load(sensfilepath+'sensitivity_field_1_processed.npz') as f:
-            hexsens = f['sens']
-            ras = f['ra']
-            decs = f['dec']
-            
-        self.field_1_sensmap = (ras, decs, hexsens)
+        if not cat:
+            # field 1
+            with np.load(sensfilepath+'sensitivity_field_1_processed.npz') as f:
+                hexsens = f['sens']
+                ras = f['ra']
+                decs = f['dec']
+                
+            self.field_1_sensmap = (ras, decs, hexsens)
 
-        # field 2
-        with np.load(sensfilepath+'sensitivity_field_2_processed.npz') as f:
-            hexsens = f['sens']
-            ras = f['ra']
-            decs = f['dec']
-            
-        self.field_2_sensmap = (ras, decs, hexsens)
+            # field 2
+            with np.load(sensfilepath+'sensitivity_field_2_processed.npz') as f:
+                hexsens = f['sens']
+                ras = f['ra']
+                decs = f['dec']
+                
+            self.field_2_sensmap = (ras, decs, hexsens)
 
-        # field 3
-        with np.load(sensfilepath+'sensitivity_field_3_processed.npz') as f:
-            hexsens = f['sens']
-            ras = f['ra']
-            decs = f['dec']
-            
-        self.field_3_sensmap = (ras, decs, hexsens)
+            # field 3
+            with np.load(sensfilepath+'sensitivity_field_3_processed.npz') as f:
+                hexsens = f['sens']
+                ras = f['ra']
+                decs = f['dec']
+                
+            self.field_3_sensmap = (ras, decs, hexsens)
+
+        else:
+            # field 1
+            with np.load(sensfilepath+'off_catalog_positions_field_1.npz') as f:
+                ras = f['ra']
+                decs = f['dec']
+            self.field_1_senscat = (ras, decs)
+
+            # field 2
+            with np.load(sensfilepath+'off_catalog_positions_field_2.npz') as f:
+                ras = f['ra']
+                decs = f['dec']
+            self.field_2_senscat = (ras, decs)
+
+            # field 3
+            with np.load(sensfilepath+'off_catalog_positions_field_3.npz') as f:
+                ras = f['ra']
+                decs = f['dec']
+            self.field_3_senscat = (ras, decs)
 
         # redshift
         with np.load(sensfilepath+'sensitivity_redshift_average.npz') as f:
