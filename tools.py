@@ -1060,7 +1060,37 @@ class maps():
         self.edgemasked = True
 
         return
+    
+    def subtract_mean(self):
+        """
+        subtract off the mean in each channel and each spaxel (simulates the low-pass filter in an actual map)
+        order agrees with the order used by the actual COMAP pipline (ie per-channel and then per-spaxel)
 
+        inputs:
+        -------
+            None, uses self.map directly
+        outputs:
+        --------
+            self.meanvals: the mean value in each spectral channel and each spaxel, summed together to create a data cube
+                            (add it back on to the map to get the original one)
+        """
+
+        ogmap = self.map 
+        spaceres = self.map.shape[2]
+        specres = self.map.shape[0]
+
+        specmean = np.nanmean(ogmap, axis=(1,2))
+        specmean = np.tile(specmean, (spaceres, spaceres, 1)).T
+
+        smap = ogmap - specmean
+
+        spacemean  = np.nanmean(smap, axis=0)
+        spacemean = np.tile(spacemean, (specres,1,1))
+
+        ssmap = smap - spacemean
+
+        self.map = ssmap 
+        self.meanvals = spacemean + specmean 
 
 
     def load_cosmogrid(self, inputfile, params, reshape=True):
