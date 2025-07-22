@@ -1129,15 +1129,10 @@ def single_cutout(idx, galcat, comap, params):
     cutout.freq = nuobs
     cutout.x = x
     cutout.y = y
-    cutout.xstep = comap.xstep * 60
-    cutout.ystep = comap.ystep * 60
     cutout.fstep = comap.fstep
     cutout.xpixcent = xpixcent
     cutout.ypixcent = ypixcent
     cutout.fstep = comap.fstep
-
-    # correct x step for distortion (assumes plate caree coordinate system, which is what comap uses)
-    cutout.xstep = cutout.xstep * np.cos(comap.fieldcent.dec.deg / 360 * 2*np.pi)
 
     # these things depend on cosmogrid 
     if params.cosmogrid:
@@ -1146,6 +1141,9 @@ def single_cutout(idx, galcat, comap, params):
     else:
         cutout.xstep = comap.xstep * 60
         cutout.ystep = comap.ystep * 60
+
+    # correct x step for distortion (assumes plate caree coordinate system, which is what comap uses)
+    cutout.xstep = cutout.xstep * np.cos(comap.fieldcent.dec.deg / 360 * 2*np.pi)
 
     """ set up indices """
     # index the actual aperture to be stacked from the cutout
