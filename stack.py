@@ -1136,6 +1136,9 @@ def single_cutout(idx, galcat, comap, params):
     cutout.ypixcent = ypixcent
     cutout.fstep = comap.fstep
 
+    # correct x step for distortion (assumes plate caree coordinate system, which is what comap uses)
+    cutout.xstep = cutout.xstep * np.cos(comap.fieldcent.dec.deg / 360 * 2*np.pi)
+
     # these things depend on cosmogrid 
     if params.cosmogrid:
         cutout.xstep = comap.xstep[freqidx] * 60
