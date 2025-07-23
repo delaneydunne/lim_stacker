@@ -951,7 +951,11 @@ class maps():
 
                 if params.scalermscuts:
                     print('scaling rms')#***
-                    params.voxelrmslimit = np.nanmean(np.sort(rmstemparr.flatten())[:100])*params.rmsscale
+                    if not np.any(rmstemparr == 0.):
+                        params.voxelrmslimit = np.nanmean(np.sort(rmstemparr.flatten())[:100])*params.rmsscale
+                    else:
+                        rmstemparr[np.where(rmstemparr == 0.)] = np.inf
+                        params.voxelrmslimit = np.nanmean(np.sort(rmstemparr.flatten())[:100])*params.rmsscale
 
             else:
                 feedidx = params.usefeed - 1
