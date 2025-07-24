@@ -1669,6 +1669,7 @@ class maps():
         with h5py.File(outfile, 'w') as f:
             dset = f.create_dataset('map_coadd', data = self.map, dtype='float64')
             dset = f.create_dataset('rms_coadd', data = self.rms, dtype='float64')
+            dset = f.create_dataset('nhit_coadd', data = self.hit, dtype='float64')
             dset = f.create_dataset('freq', data = outfreq, dtype='float64')
             dset = f.create_dataset('x', data = outra, dtype='float64')
             dset = f.create_dataset('y', data = outdec, dtype='float64')
@@ -2016,13 +2017,14 @@ def nuobs_to_nuem(nuobs, z):
 
 
 """ SETUP FUNCTIONS """
-def field_setup(mapfile, catfile, params, trim_cat=True, sim_cat=False, lcat_cutoff=None, goal_nobj=None, weight='linear'):
+def field_setup(mapfile, catfile, params, trim_cat=True, reshape=True, sim_cat=False, lcat_cutoff=None, 
+                goal_nobj=None, weight='linear'):
     """
     wrapper function to set up for a single-field stack run
     *** tidy this up again -- put simulation parameters into params**
     """
     # load in the map
-    mapinst = maps(params, inputfile=mapfile, cosmogrid=params.cosmogrid)
+    mapinst = maps(params, inputfile=mapfile, cosmogrid=params.cosmogrid, reshape=reshape)
 
     # load in the catalogue
     if not sim_cat:
@@ -2062,7 +2064,7 @@ def field_setup(mapfile, catfile, params, trim_cat=True, sim_cat=False, lcat_cut
 
     return mapinst, catinst
 
-def setup(mapfiles, cataloguefile, params, trim_cat=True):
+def setup(mapfiles, cataloguefile, params, trim_cat=True, reshape=True):
     """
     wrapper function to load in data and set up objects for a stack run
     accepts either a list of per-field catalogue files or one big one
@@ -2072,9 +2074,9 @@ def setup(mapfiles, cataloguefile, params, trim_cat=True):
     catlist = []
     for i in range(len(mapfiles)):
         if isinstance(cataloguefile, (list, tuple, np.ndarray)):
-            mapinst, catinst = field_setup(mapfiles[i], cataloguefile[i], params, trim_cat=trim_cat)
+            mapinst, catinst = field_setup(mapfiles[i], cataloguefile[i], params, trim_cat=trim_cat, reshape=reshape)
         else:
-            mapinst, catinst = field_setup(mapfiles[i], cataloguefile, params, trim_cat=trim_cat)
+            mapinst, catinst = field_setup(mapfiles[i], cataloguefile, params, trim_cat=trim_cat, reshape=reshape)
         maplist.append(mapinst)
         catlist.append(catinst)
 
