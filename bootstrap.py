@@ -4,6 +4,7 @@ from .stack import *
 
 import os
 import numpy as np
+import pandas as pd
 
 from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -34,11 +35,13 @@ def field_offset_and_stack(mapinst, catinst, params, offrng, method=None):
         randomize = cat_rand_offset_shuffle
     elif method == 'uniform':
         randomize = cat_rand_offset_random
+    elif method == 'hx_randoms':
+        randomize = cat_rand_offset_hxrandoms
 
     # randomly offset the catalogue
     offcat = randomize(mapinst, catinst, params, offrng)
 
-    outcube = field_stacker(mapinst, offcat, params)
+    outcube = field_stack(mapinst, offcat, params)
 
     return np.array([outcube.linelum, outcube.dlinelum])
 
@@ -47,6 +50,7 @@ def offset_and_stack(maplist, catlist, params, offrng, method=None):
 
     # pick the function to create a random catalog
     if not method or method == 'offset':
+        print("didn't pick a randomization method, defaulting to 'offset'")
         randomize = cat_rand_offset
     elif method == 'offset_freq':
         randomize = cat_rand_offset_freq 
@@ -60,6 +64,8 @@ def offset_and_stack(maplist, catlist, params, offrng, method=None):
         randomize = cat_rand_offset_random
     elif method == 'catalogue':
         randomize = cat_rand_offset_senscat
+    elif method == 'hx_randoms':
+        randomize = cat_rand_offset_hxrandoms
 
     offcatlist = []
     for j in range(len(catlist)):
@@ -75,7 +81,7 @@ def offset_and_stack(maplist, catlist, params, offrng, method=None):
 
     return np.array([outcube.linelum, outcube.dlinelum])
 
-def cat_rand_offset(mapinst, catinst, params, offrng=None):
+def cat_rand_offset(mapinst, catinst, params, offrng=None, maxoff=5):
 
     # set up the rng (use the one passed, or failing that the one in params, or
     # failing that define a new one)
@@ -90,7 +96,7 @@ def cat_rand_offset(mapinst, catinst, params, offrng=None):
     # make a catalogue of random offsets that shouldn't overlap with flux from the actual object
     # 2* as big to make sure there are enough objects included to hit goalnumcutouts
     randcatsize = (3,2*catinst.nobj)
-    randoffs = offrng.uniform(1,5,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
+    randoffs = offrng.uniform(1,maxoff,randcatsize) * np.sign(offrng.uniform(-1,1,randcatsize))
 
     offcat = catinst.copy()
 
@@ -103,7 +109,7 @@ def cat_rand_offset(mapinst, catinst, params, offrng=None):
     offcat.freq = freqoff
     offcat.z = zoff
     offcat.nobj = 2*catinst.nobj
-    # for indexing -- use ra to add to the artificial index so fields are distinct
+    # for indexing -- use ra to add to the artificial index so fields arerand distinct
     offcat.catfileidx = np.arange(len(zoff)) + int(raoff[0]*1e6)
     offcat.idx = offcat.catfileidx
 
@@ -349,6 +355,69 @@ def cat_rand_offset_senscat(mapinst, catinst, params, offrng=None, senspath=None
     offcat.nobj = 2*catinst.nobj 
     # for indexing -- use ra to add to the artificial index so fields are distinct
     offcat.catfileidx = np.arange(randcatsize) + int(randra[0]*1e6)
+    offcat.idx = offcat.catfileidx
+
+    return offcat
+
+def cat_rand_offset_hxrandoms(mapinst, catinst, params, offrng=None):
+    """
+    generates a random catalog following the same spatial and spectral distribution as the actual
+    hetdex map. requires a passed sensitivity map, but pulls redshift distribution from the input catalog
+    """
+    # if there aren't any objects in the passed catalog, just return a copy of it
+    if catinst.nobj == 0:
+        return catinst.copy()
+    
+    # generate an rng if needed
+    if not offrng:
+        try:
+            offrng = params.bootstraprng
+        except AttributeError:
+            offrng = np.random.default_rng(params.bootstrapseed)
+            params.bootstraprng = offrng 
+            print("Defining new bootstrap rng using passed seed "+str(params.bootstrapseed))
+
+    # open and load in the hetdex recovered random catalogue
+    try:
+        fullrandcat = pd.read_csv(params.hx_random_path) 
+    except AttributeError:
+        print('need to pass a path to the randoms in params.hx_random_path')
+
+    # cut to the correct field
+    raextlist = [np.array([24.06833333, 26.80166667]),
+                 np.array([168.35732037, 171.64267963]),
+                 np.array([224.45202637 , 227.85839844])]
+
+    decextlist = [np.array([-0.69998699,  0.83245301]),
+                  np.array([51.3333931,  53.66596985]),
+                  np.array([53.83337021, 56.2])]
+    
+    # figure out which field you're in
+    fieldra = int(np.round(mapinst.fieldcent.ra.deg))
+    if fieldra == 25:
+        field = 0
+    elif fieldra == 170:
+        field = 1
+    elif fieldra == 226:
+        field = 2
+
+    fieldrandcat = fullrandcat.query('ra > {} and ra < {} and dec > {} and dec < {}'.format(raextlist[field][0], raextlist[field][1],
+                                                                                        decextlist[field][0], decextlist[field][1]))
+    
+    # goal output size
+    randcatsize = (2*catinst.nobj)
+
+    # randomly select indices from fieldrandcat, weighted by SN
+    idxs = offrng.choice(np.arange(len(fieldrandcat)), size=randcatsize, p=fieldrandcat.snr / np.sum(fieldrandcat.snr))
+
+    # generate new catalog object
+    offdf = fieldrandcat.iloc[idxs]
+    offcat = catinst.copy()
+    offcat.coords = SkyCoord(np.array(offdf.ra)*u.deg, np.array(offdf.dec)*u.deg)
+    offcat.z = np.array(offdf.z)
+    offcat.nobj = randcatsize 
+    # for indexing -- use ra to add to the artificial index so fields are distinct
+    offcat.catfileidx = np.arange(randcatsize) + int(fieldra*1e6)
     offcat.idx = offcat.catfileidx
 
     return offcat
