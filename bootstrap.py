@@ -41,7 +41,7 @@ def field_offset_and_stack(mapinst, catinst, params, offrng, method=None):
     # randomly offset the catalogue
     offcat = randomize(mapinst, catinst, params, offrng)
 
-    outcube = field_stack(mapinst, offcat, params)
+    outcube = field_stack(mapinst, offcat, params, goalnobj=params.goalnumcutouts)
 
     return np.array([outcube.linelum, outcube.dlinelum])
 
@@ -383,7 +383,7 @@ def cat_rand_offset_hxrandoms(mapinst, catinst, params, offrng=None):
     except AttributeError:
         print('need to pass a path to the randoms in params.hx_random_path')
 
-    # cut to the correct field
+    # cut to the correct field *** there's probably a more efficient way to do this
     raextlist = [np.array([24.06833333, 26.80166667]),
                  np.array([168.35732037, 171.64267963]),
                  np.array([224.45202637 , 227.85839844])]
