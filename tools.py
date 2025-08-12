@@ -963,17 +963,17 @@ class maps():
                     print('loading feed {} only'.format(params.usefeed))
                 # load each of the individual feed maps
                 maptemparr = np.array(file.get('map'))[feedidx,:,:,:,:]
-                rmstemparr = np.array(file.get('rms'))[feedidx,:,:,:,:]
+                try:
+                    rmstemparr = np.array(file.get('sigma_wn'))[feedidx,:,:,:,:]
+                except IndexError:
+                    # legacy naming from season 1
+                    rmstemparr = np.array(file.get('rms'))[feedidx,:,:,:,:]
                 hittemparr = np.array(file.get('nhit'))[feedidx,:,:,:,:]
 
                 if not np.any(self.freq):
                     self.freq = np.array(file.get('freq_centers'))
                     self.ra = np.array(file.get('ra_centers'))
                     self.dec = np.array(file.get('dec_centers'))
-
-                if not np.any(rmstemparr):
-                    rmstemparr = np.array(file.get('sigma_wn'))[feedidx,:,:,:,:]
-                    print(rmstemparr.shape)
 
                 # if going per-feed, need to knock the hit limit way down
                 params.voxelhitlimit /= 19
