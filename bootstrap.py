@@ -408,7 +408,7 @@ def cat_rand_offset_hxrandoms(mapinst, catinst, params, offrng=None):
     randcatsize = (2*catinst.nobj)
 
     # randomly select indices from fieldrandcat, weighted by SN
-    idxs = offrng.choice(np.arange(len(fieldrandcat)), size=randcatsize, p=fieldrandcat.snr / np.sum(fieldrandcat.snr))
+    idxs = offrng.choice(np.arange(len(fieldrandcat)), size=randcatsize, p=(1/fieldrandcat.snr) / np.sum(1/fieldrandcat.snr))
 
     # generate new catalog object
     offdf = fieldrandcat.iloc[idxs]
