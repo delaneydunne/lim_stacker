@@ -1401,13 +1401,15 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None):
     else:
         fieldstr = ''
 
-    try:
-        if stackinst:
-            stackinst.save_cubelet(params, fieldstr)
+    # if parallelize is set, this will only be a subset of the field stack, so don't save it
+    if params.parallelize:
+        try:
+            if stackinst:
+                stackinst.save_cubelet(params, fieldstr)
 
-        return stackinst
-    except UnboundLocalError:
-        return None
+            return stackinst
+        except UnboundLocalError:
+            return None
     
 def field_stack_queued(comap, galcat, params, field, queue):
     if params.verbose:
@@ -1512,8 +1514,16 @@ def stacker(maplist, catlist, params):
 
         if params.verbose:
             print('Starting field {}'.format(i + 1))
+
         if params.parallelize:
             cube = parallel_field_stack(maplist[i], catlist[i], params, field=fields[i])
+            try:
+                if cube:
+                    fieldstr = '/field' + str(fields[i])
+                    cube.save_cubelet(params, fieldstr)
+                return cube
+            except UnboundLocalError:
+                return None
         else:
             cube = field_stack(maplist[i], catlist[i], params, field=fields[i], goalnobj=numcutoutlist[i])
 
