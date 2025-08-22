@@ -46,7 +46,7 @@ def field_offset_and_stack(mapinst, catinst, params, offrng, method=None):
     return np.array([outcube.linelum, outcube.dlinelum])
 
 
-def offset_and_stack(maplist, catlist, params, offrng, method=None):
+def offset_and_stack(maplist, catlist, params, offrng, method=None, return_cube=False):
 
     # pick the function to create a random catalog
     if not method or method == 'offset':
@@ -79,7 +79,10 @@ def offset_and_stack(maplist, catlist, params, offrng, method=None):
     # run the actual stack
     outcube = stacker(maplist, offcatlist, params)
 
-    return np.array([outcube.linelum, outcube.dlinelum])
+    if return_cube:
+        return outcube
+    else:
+        return np.array([outcube.linelum, outcube.dlinelum])
 
 def cat_rand_offset(mapinst, catinst, params, offrng=None, maxoff=5):
 
