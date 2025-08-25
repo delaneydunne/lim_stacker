@@ -35,8 +35,12 @@ def field_offset_and_stack(mapinst, catinst, params, offrng, method=None, return
         randomize = cat_rand_offset_shuffle
     elif method == 'uniform':
         randomize = cat_rand_offset_random
+    elif method == 'catalogue':
+        randomize = cat_rand_offset_senscat
     elif method == 'hx_randoms':
         randomize = cat_rand_offset_hxrandoms
+    else:
+        print("Don't know that randomization method, options are 'offset', 'offset_freq', 'offset_space', 'shuffle', 'uniform', 'catalogue', 'hx_randoms")
 
     # randomly offset the catalogue
     offcat = randomize(mapinst, catinst, params, offrng)
@@ -69,6 +73,8 @@ def offset_and_stack(maplist, catlist, params, offrng, method=None, return_cube=
         randomize = cat_rand_offset_senscat
     elif method == 'hx_randoms':
         randomize = cat_rand_offset_hxrandoms
+    else:
+        print("Don't know that randomization method, options are 'offset', 'offset_freq', 'offset_space', 'shuffle', 'uniform', 'catalogue', 'hx_randoms")
 
     offcatlist = []
     for j in range(len(catlist)):
