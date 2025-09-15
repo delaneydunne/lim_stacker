@@ -112,9 +112,9 @@ def cat_rand_offset(mapinst, catinst, params, offrng=None, maxoff=5):
 
     offcat = catinst.copy()
 
-    raoff = np.concatenate((catinst.ra(), catinst.ra())) + 10*randoffs[0,:]
-    decoff = np.concatenate((catinst.dec(), catinst.dec())) + 10*randoffs[1,:]
-    freqoff = np.concatenate((catinst.freq, catinst.freq)) + 10*randoffs[2,:]
+    raoff = np.concatenate((catinst.ra(), catinst.ra())) + mapinst.xstep*randoffs[0,:]
+    decoff = np.concatenate((catinst.dec(), catinst.dec())) + mapinst.ystep*randoffs[1,:]
+    freqoff = np.concatenate((catinst.freq, catinst.freq)) + mapinst.fstep*randoffs[2,:]
     zoff = freq_to_z(params.centfreq, freqoff)
 
     offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
