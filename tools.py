@@ -1018,7 +1018,7 @@ class maps():
         # newest iteration flips the ra axis, so undo that:
         if self.xstep < 0:
             self.xstep = -self.xstep
-            self.ra = np.flip(self.ra)
+            self.ra = np.flip(self.ra) - self.xstep
             self.rabe = np.flip(self.rabe)
             self.map = np.flip(self.map, axis=-1)
             self.rms = np.flip(self.rms, axis=-1)
