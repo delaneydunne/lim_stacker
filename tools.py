@@ -796,7 +796,7 @@ class catalogue():
         # save to catalog object
         outra, outdec = outvector 
         outra, outdec = np.rad2deg(outra), np.rad2deg(outdec)
-        outra = outra + outmap.ystep
+        outra = outra
         self.coords = SkyCoord(outra*u.deg, -outdec*u.deg)
 
 
