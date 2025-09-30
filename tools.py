@@ -8,6 +8,7 @@ from astropy.coordinates import SkyCoord
 from astropy.convolution import Gaussian2DKernel, Box2DKernel, convolve
 from astropy import wcs
 from astropy.cosmology import FlatLambdaCDM
+cosmo = FlatLambdaCDM(H0=70*u.km / (u.Mpc*u.s), Om0=0.286, Ob0=0.047)
 from pixell import utils
 from reproject import reproject_adaptive
 import os
@@ -17,6 +18,7 @@ import csv
 import warnings
 import copy
 from tqdm import tqdm
+from scipy.interpolate import CubicSpline
 warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
 warnings.filterwarnings("ignore", message="invalid value encountered in power")
 warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
@@ -709,10 +711,21 @@ class catalogue():
         uses:
             lcat_cutoff: the lower limit on catalog luminosity to include (in Lsun)
             goal_nobj: number of catalog objects to include once the cut is made
+            weight: how the catalogue should be weighted once the luminosity cut is applied. default is linear,
+                    log takes log10 before weighting, and pass 'mags' if the cutoff is an apparent magnitudes one
         """
 
         # cut by luminosity
-        goodidx = np.where(self.Lcat > lcat_cutoff)[0]
+        # if working with magnitudes, do that converstion and cut that way
+        if weight=='mags':
+            # convert from Lsun to relative g-band magnitudes
+            Mg = 4.74 - np.log10(self.Lcat) / 0.4
+            mg = mag_abs_to_rel(Mg, self.redshift)
+
+            goodidx = np.where(mg < params.lcat_cutoff)
+
+        else:
+            goodidx = np.where(self.Lcat > lcat_cutoff)[0]
         self.subset(goodidx)
 
         # select nobj random objects from the leftover catalog, shuffling their indices randomly
@@ -720,7 +733,7 @@ class catalogue():
             if not rngseed:
                 rngseed = params.rotseed
             rng = np.random.default_rng(rngseed)
-            if weight == 'linear':
+            if weight == 'linear' or weight == 'mags':
                 weights = self.Lcat / np.sum(self.Lcat)
             elif weight == 'log':
                 weights = np.log10(self.Lcat) / np.sum(np.log10(self.Lcat))
@@ -2137,3 +2150,25 @@ def field_zbin_stack_output(galidxs, comap, galcat, params):
     nperbin, binedges = np.histogram(usedzvals, bins=params.nzbins)
 
     return nperbin, binedges
+
+""" MAGNITUDES HELPER FUNCTIONS """
+# dealing with magnitudes
+def mag_abs_to_rel(Mg, z, dered=False):
+    """ convert from absolute magnitudes Mg to relative magnitudes, using the Schlegel 1990 K-corrections
+     following Croom et al. 2009"""
+    if dered:
+        kz = np.arange(2.0, 3.5, 0.1)
+        kKB = np.array([-0.53, -0.55, -0.61, -0.64, -0.64, -0.60, -.56, -0.51, -0.46, -0.4,
+                            -0.33, -0.25, -0.16, -0.05, 0.07])
+        kinterp = CubicSpline(kz, kKB)
+        kfac = kinterp(z) - kinterp(2)
+    else:
+        kfac = 0
+    
+    return Mg + cosmo.distmod(z).value + kfac
+
+def Lsun_to_Mbol(Lsun):
+    return 4.74 - np.log10(Lsun) / 0.4
+
+def Lsun_to_Mbol(Lsun):
+    return 4.74 - np.log10(Lsun) / 0.4

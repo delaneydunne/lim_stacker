@@ -554,7 +554,7 @@ class cubelet():
 
         if method == 'weightmean' or method == 'summed' or method == 'none':
 
-            ap = self.cube[self.apminpix[0]:self.apmaxpix[0]:, self.apminpix[1]:self.apmaxpix[1],
+            ap = self.cube[self.apminpix[0]:self.apmaxpix[0], self.apminpix[1]:self.apmaxpix[1],
                 self.apminpix[2]:self.apmaxpix[2]]
             dap = self.cuberms[self.apminpix[0]:self.apmaxpix[0], self.apminpix[1]:self.apmaxpix[1],
                 self.apminpix[2]:self.apmaxpix[2]]
