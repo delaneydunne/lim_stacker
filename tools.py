@@ -722,7 +722,7 @@ class catalogue():
             Mg = 4.74 - np.log10(self.Lcat) / 0.4
             mg = mag_abs_to_rel(Mg, self.z)
 
-            goodidx = np.where(mg < lcat_cutoff)
+            goodidx = np.where(mg < lcat_cutoff)[0]
 
         else:
             goodidx = np.where(self.Lcat > lcat_cutoff)[0]
