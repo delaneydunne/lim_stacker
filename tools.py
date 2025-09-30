@@ -720,7 +720,7 @@ class catalogue():
         if weight=='mags':
             # convert from Lsun to relative g-band magnitudes
             Mg = 4.74 - np.log10(self.Lcat) / 0.4
-            mg = mag_abs_to_rel(Mg, self.redshift)
+            mg = mag_abs_to_rel(Mg, self.z)
 
             goodidx = np.where(mg < params.lcat_cutoff)
 
