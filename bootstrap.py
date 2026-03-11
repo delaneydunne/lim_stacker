@@ -450,9 +450,9 @@ def cat_rand_offset_random(mapinst, catinst, params, offrng=None):
     randcatsize = (2*catinst.nobj)
     randcatidx = offrng.permutation(randcatsize)
 
-    ralims = minmax(mapinst.ra)
-    declims = minmax(mapinst.dec)
-    zlims = minmax(freq_to_z(115.27, mapinst.freq))
+    ralims = minmax(catinst.ra())
+    declims = minmax(catinst.dec())
+    zlims = minmax(catinst.z)
 
     offcat = catinst.copy()
     zshuff = offrng.uniform(zlims[0], zlims[1], randcatsize)
