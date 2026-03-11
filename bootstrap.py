@@ -434,7 +434,7 @@ def cat_rand_offset_hxrandoms(mapinst, catinst, params, offrng=None):
 
     return offcat
 
-def cat_rand_offset_random(mapinst, catinst, params, offrng=None):
+def cat_rand_offset_random(mapinst, catinst, params, offrng=None, randcatfac=4):
     """
     generates a completely uniform random catalog (ie no correlation with the input catalog
     other than the size)
@@ -447,7 +447,7 @@ def cat_rand_offset_random(mapinst, catinst, params, offrng=None):
             params.bootstraprng = offrng 
             print("Defining new bootstrap rng using passed seed "+str(params.bootstrapseed))
 
-    randcatsize = (2*catinst.nobj)
+    randcatsize = (randcatfac*catinst.nobj)
     randcatidx = offrng.permutation(randcatsize)
 
     ralims = minmax(catinst.ra())
