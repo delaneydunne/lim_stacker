@@ -461,7 +461,7 @@ def cat_rand_offset_random(mapinst, catinst, params, offrng=None, randcatfac=4):
     offcat.z = zshuff 
     offcat.freq = nuem_to_nuobs(115.27, zshuff)
     offcat.coords = SkyCoord(raoff*u.deg, decoff*u.deg)
-    offcat.nobj = 2*catinst.nobj
+    offcat.nobj = randcatfac*catinst.nobj
     # for indexing -- use ra to add to the artificial index so the fields are distinct
     offcat.catfileidx = np.arange(len(zshuff)) + int(raoff[0]*1e6)
     offcat.idx = offcat.catfileidx
