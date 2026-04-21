@@ -308,7 +308,7 @@ def cat_rand_offset_sensmap(mapinst, catinst, params, offrng=None, senspath=None
 
     return offcat
 
-def cat_rand_offset_sensmap_odin(mapinst, catinst, params, offrng=None, senspath=None):
+def cat_rand_offset_sensmap_odin(mapinst, catinst, params, offrng=None, senspath=None, randcatsize=None):
     """
     generates a random catalog following the same spatial and spectral distribution as the actual
     hetdex map. requires a passed sensitivity map, but pulls redshift distribution from the input catalog
@@ -342,7 +342,9 @@ def cat_rand_offset_sensmap_odin(mapinst, catinst, params, offrng=None, senspath
     zbins, zprobs = params.redshift_sensmap 
     zstep = zbins[1] - zbins[0]
 
-    randcatsize = (2*catinst.nobj)
+    # if a goal size isn't passed, match it to the input catalogue
+    if not randcatsize:
+        randcatsize = (2*catinst.nobj)
 
     # steps in RA and Dec
     dra = fieldra[1] - fieldra[0]
