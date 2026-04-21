@@ -341,7 +341,7 @@ class parameters():
             print("\t\t Numbers of beams: ({}, {})".format(self.fitmasknbeams, self.fitnbeams))
         print("-------------")
 
-    def create_sensmap_bootstrap(self, sensfilepath, cat=False):
+    def create_sensmap_bootstrap(self, sensfilepath, cat=False, odin=False):
         """
         reads in the hetdex sensitivity map and sets it up for bootstrapping (so it only has to
         be done once)
@@ -392,6 +392,14 @@ class parameters():
                 ras = f['ra']
                 decs = f['dec']
             self.field_3_senscat = (ras, decs)
+
+        if odin:
+            # extra coverage in the SHELA field
+            with np.load(sensfilepath+'sensitivity_odin_field_1_processed.npz') as f:
+                hexsens = f['sens']
+                ras = f['ra']
+                decs = f['dec']
+            self.odin_sensmap = (ras, decs, hexsens)
 
         # redshift
         with np.load(sensfilepath+'sensitivity_redshift_average.npz') as f:

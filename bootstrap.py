@@ -229,7 +229,7 @@ def cat_rand_offset_shuffle(mapinst, catinst, params, offrng=None):
     return offcat
 
 
-def cat_rand_offset_sensmap(mapinst, catinst, params, offrng=None, senspath=None):
+def cat_rand_offset_sensmap(mapinst, catinst, params, offrng=None, senspath=None, odin=True):
     """
     generates a random catalog following the same spatial and spectral distribution as the actual
     hetdex map. requires a passed sensitivity map, but pulls redshift distribution from the input catalog
@@ -307,6 +307,79 @@ def cat_rand_offset_sensmap(mapinst, catinst, params, offrng=None, senspath=None
     offcat.idx = offcat.catfileidx
 
     return offcat
+
+def cat_rand_offset_sensmap_odin(mapinst, catinst, params, offrng=None, senspath=None):
+    """
+    generates a random catalog following the same spatial and spectral distribution as the actual
+    hetdex map. requires a passed sensitivity map, but pulls redshift distribution from the input catalog
+    """
+    # if there aren't any objects in the passed catalog, just return a copy of it
+    if catinst.nobj == 0:
+        return catinst.copy()
+
+    # generate an rng if needed
+    if not offrng:
+        try:
+            offrng = params.bootstraprng
+        except AttributeError:
+            offrng = np.random.default_rng(params.bootstrapseed)
+            params.bootstraprng = offrng 
+            print("Defining new bootstrap rng using passed seed "+str(params.bootstrapseed))
+
+    # special carveout for the new odin observations for now
+    try:
+        fieldra, fielddec, fieldsens = params.odin_sensmap
+    except AttributeError:
+        if senspath:
+            params.create_sensmap_bootstrap(senspath, odin=True)
+            fieldra, fielddec, fieldsens = params.field_1_sensmap
+        else:
+            print("Don't have generated sensitivity arrays for new ODIN shots specifically, need to pass senspath")
+            return
+        
+            
+    # redshift axis
+    zbins, zprobs = params.redshift_sensmap 
+    zstep = zbins[1] - zbins[0]
+
+    randcatsize = (2*catinst.nobj)
+
+    # steps in RA and Dec
+    dra = fieldra[1] - fieldra[0]
+    ddec = fielddec[1] - fielddec[0]
+
+    # this array is exposure times -- probs shouldn't be inverted but should be square rooted
+    fieldsens = np.sqrt(fieldsens)
+
+    # pull a random location in the hetdex sensitivity map, weighted by the sensitivity
+    hxsensflat = fieldsens.flatten() / np.nansum(fieldsens)
+    # cast nans to zero
+    hxsensflat[np.where(np.isnan(hxsensflat))] = 0.
+    # choose a random index and index the 2d array
+    sampidx = offrng.choice(a=hxsensflat.size, p=hxsensflat, size=randcatsize)
+    adjidx = np.unravel_index(sampidx, fieldsens.shape)
+
+    dx = offrng.uniform(-dra/2, dra/2, size=randcatsize)
+    dy = offrng.uniform(-ddec/2, ddec/2, size=randcatsize)
+
+    ra = fieldra[adjidx[1]] + dx
+    dec = fielddec[adjidx[0]] + dy
+
+    # redshifts
+    zidx = offrng.choice(a=zbins.size, p=zprobs, size=randcatsize)
+    zvals = zbins[zidx] + offrng.uniform(-zstep/2, zstep/2, size=randcatsize)
+
+    # read into new catalog object
+    offcat = catinst.copy()
+    offcat.coords = SkyCoord(ra*u.deg, dec*u.deg)
+    offcat.z = zvals
+    offcat.nobj = 2*catinst.nobj 
+    # for indexing -- use ra to add to the artificial index so fields are distinct
+    offcat.catfileidx = np.arange(randcatsize) + int(ra[0]*1e8)
+    offcat.idx = offcat.catfileidx
+
+    return offcat
+        
 
 def cat_rand_offset_senscat(mapinst, catinst, params, offrng=None, senspath=None):
     """
