@@ -660,6 +660,17 @@ class catalogue():
             newcat.z[fpidx] = zvals 
 
             return newcat
+        
+    def append(self, newcat):
+        """
+        add two catalogue objects together
+        """
+
+        for attr in ["catfileidx", "coords", "dec", "freq", "idx", "ra", "z"]:
+            self.__setattr__(attr, np.concatenate((self.__getattribute__(attr), newcat.__getattribute__(attr))))
+
+        self.nobj = self.nobj + newcat.nobj
+        return
 
 
 
