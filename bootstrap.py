@@ -375,7 +375,7 @@ def cat_rand_offset_sensmap_odin(mapinst, catinst, params, offrng=None, senspath
     offcat = catinst.copy()
     offcat.coords = SkyCoord(ra*u.deg, dec*u.deg)
     offcat.z = zvals
-    offcat.nobj = 2*catinst.nobj 
+    offcat.nobj = randcatsize 
     # for indexing -- use ra to add to the artificial index so fields are distinct
     offcat.catfileidx = np.arange(randcatsize) + int(ra[0]*1e8)
     offcat.idx = offcat.catfileidx
