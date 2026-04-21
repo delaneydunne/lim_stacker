@@ -668,6 +668,8 @@ class catalogue():
 
         for attr in ["catfileidx", "coords", "freq", "idx", "z"]:
             self.__setattr__(attr, np.concatenate((self.__getattribute__(attr), newcat.__getattribute__(attr))))
+        # fix skycoord concatenation
+        self.coords = SkyCoord(self.coords)
 
         self.nobj = self.nobj + newcat.nobj
         return
