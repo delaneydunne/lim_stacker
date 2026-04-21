@@ -666,7 +666,7 @@ class catalogue():
         add two catalogue objects together
         """
 
-        for attr in ["catfileidx", "coords", "dec", "freq", "idx", "ra", "z"]:
+        for attr in ["catfileidx", "coords", "freq", "idx", "z"]:
             self.__setattr__(attr, np.concatenate((self.__getattribute__(attr), newcat.__getattribute__(attr))))
 
         self.nobj = self.nobj + newcat.nobj
