@@ -11,7 +11,7 @@ freqwidth 3
 centfreq 115.27
 # std of a gaussian 2D beam in arcmin
 beamwidth 4.5
-# cosmology to use (default 'comap' is the one from the ES papers)
+# cosmology to use (default 'comap' is the one from the ES (Early Science) papers)
 cosmo comap
 
 """ stacking metaparameters """
@@ -95,7 +95,7 @@ plotcubelet True
 plotunits linelum
 
 """ parallelization """
-parallelize False
+parallelize True
 nthreads 5
 
 """ physical spacing"""

@@ -23,7 +23,7 @@ from radio_beam import Beam
 from reproject import reproject_adaptive
 
 # for photometric aperture extraction
-from photutils.psf import IntegratedGaussianPRF, PSFPhotometry
+from photutils.psf import GaussianPRF, PSFPhotometry
 from astropy.table import QTable
 
 # ignore warnings:
@@ -717,7 +717,7 @@ class cubelet():
         # store field-separated index list
         fieldidxlist = []
         for cat in catlist:
-            fieldidxlist.append(np.where(np.in1d(cat.idx, self.catidx))[0])  # ** do np.isin at some point
+            fieldidxlist.append(np.where(np.isin(cat.idx, self.catidx))[0])  # ** do np.isin at some point
 
         self.fieldcatidx = fieldidxlist
 
@@ -1529,8 +1529,8 @@ def stacker(maplist, catlist, params):
 
     # combine everything together into one stack
     stackedcube = cubelist[0]
-    stackedcube.stackin_cubelet(cubelist[1])
-    stackedcube.stackin_cubelet(cubelist[2])
+    #stackedcube.stackin_cubelet(cubelist[1]) # PH: I only have one field (1 simulated map) unlike the 3 COMAP fields
+    #stackedcube.stackin_cubelet(cubelist[2]) # same
 
     llum, dllum = stackedcube.get_aperture()
 

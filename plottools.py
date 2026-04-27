@@ -1127,7 +1127,7 @@ def catalogue_overplotter(catlist, maplist, catinds, params, printnobjs=True, tr
     # wrangle the index list into three ones for plotting
     goodcatidx = []
     for cat in catlist:
-        goodcatidx.append(np.where(np.in1d(cat.idx, catinds))[0]) # ** do np.isin at some point
+        goodcatidx.append(np.where(np.isin(cat.idx, catinds))[0]) # ** do np.isin at some point
 
     
     fig,axs = plt.subplots(1,4, figsize=(8.5,3.3), constrained_layout=True)
@@ -1139,8 +1139,9 @@ def catalogue_overplotter(catlist, maplist, catinds, params, printnobjs=True, tr
         # plt.style.use('seaborn-ticks')
 
     fields = ['Field 1', 'Field 2', 'Field 3']
+    fields = ['Field 1'] # eventually, maybe put a parameter nfields
 
-    for i in range(3):
+    for i in range(len(fields)):
         fieldz = catlist[i].z[goodcatidx[i]]
         fieldcoord = catlist[i].coords[goodcatidx[i]]
 
@@ -1201,7 +1202,7 @@ def field_catalogue_plotter(cat, goodcatidx, params):
 
     fig, ax = plt.subplots(1)
 
-    inobjidx = np.where(np.in1d(cat.idx, goodcatidx))
+    inobjidx = np.where(np.isin(cat.idx, goodcatidx))
 
     fieldz = cat.z[inobjidx]
     fieldcoord = cat.coords[inobjidx]
@@ -1227,7 +1228,7 @@ def field_catalogue_overplotter(cat, comap, goodcatidx, params, fieldstr=None):
 
     fig,ax = plt.subplots(1)
 
-    inobjidx = np.where(np.in1d(cat.catfileidx, goodcatidx))
+    inobjidx = np.where(np.isin(cat.catfileidx, goodcatidx))
 
     fieldz = cat.z[inobjidx]
     fieldcoord = cat.coords[inobjidx]
