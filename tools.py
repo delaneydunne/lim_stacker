@@ -1036,9 +1036,9 @@ class maps():
             chanpersb = self.map.shape[1]
             # also reshape into 3 dimensions instead of separating sidebands
             self.freq = np.reshape(self.freq, 4*chanpersb)
-            self.map = np.reshape(self.map, (4*chanpersb, len(self.ra), len(self.dec)))
-            self.rms = np.reshape(self.rms, (4*chanpersb, len(self.ra), len(self.dec)))
-            self.hit = np.reshape(self.hit, (4*chanpersb, len(self.ra), len(self.dec)))
+            self.map = np.reshape(self.map, (4*chanpersb, len(self.dec), len(self.ra)))
+            self.rms = np.reshape(self.rms, (4*chanpersb, len(self.dec), len(self.ra)))
+            self.hit = np.reshape(self.hit, (4*chanpersb, len(self.dec), len(self.ra)))
 
         # some cuts leave a lot of isolated pixels, get rid of those
         if params.maskisolatedpix:
