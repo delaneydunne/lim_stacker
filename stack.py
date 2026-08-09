@@ -1311,7 +1311,7 @@ def single_cutout(idx, galcat, comap, params):
 """ ACTUAL STACKING """
 
 
-def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None):
+def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, parallel_run=False):
     """
     wrapper to stack up a single field, using the cubelet object
     assumes comap is already in the desired units
@@ -1374,11 +1374,13 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None):
             if i % printi == 0:
                 print('   done {} of {} cutouts in this field'.format(i, galcat.nobj))
 
-    try:
-        stackinst.make_plots(comap, galcat, params, field=field)
-    except UnboundLocalError:
-        print('No values to stack in this field')
-        # return None
+    if not parallel_run:
+        # plot field output if this is being run on its own
+        try:
+            stackinst.make_plots(comap, galcat, params, field=field)
+        except UnboundLocalError:
+            print('No values to stack in this field')
+            # return None
 
     if field:
         fieldstr = '/field' + str(field)
@@ -1397,7 +1399,7 @@ def field_stack_queued(comap, galcat, params, field, queue):
     if params.verbose:
         print('Starting a process with {} catalog objects'.format(galcat.nobj))
 
-    pcube = field_stack(comap, galcat, params, field=field)
+    pcube = field_stack(comap, galcat, params, field=field, parallel_run=True)
     queue.put(pcube)
     
     
@@ -1457,6 +1459,12 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
         finalcube = finalcubelist[0].copy()
         for cube in finalcubelist[1:]:
             finalcube.stackin_cubelet(cube)
+
+    # plot the final joined output for this cube
+    try:
+        finalcube.make_plots(comap, galcat, params, field=field)
+    except UnboundLocalError:
+        print('No values to stack in this field')
 
     # return finalcubelist
     return finalcube
