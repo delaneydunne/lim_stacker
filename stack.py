@@ -1204,9 +1204,15 @@ def single_cutout(idx, galcat, comap, params):
     cutout.spaceyidx = ycutidx
 
     # pad edges of map with nans so you don't have to worry about going off the edge
-    # *** OPTIMIZE THIS
-    padmap = np.pad(comap.map, ((df, df), (dxy, dxy), (dxy, dxy)), 'constant', constant_values=np.nan)
-    padrms = np.pad(comap.rms, ((df, df), (dxy, dxy), (dxy, dxy)), 'constant', constant_values=np.nan)
+    # do this only the first time, and then just save the ouptut for later
+    try:
+        padmap = comap.padmap
+        padrms = comap.padrms
+    except AttributeError:
+        padmap = np.pad(comap.map, ((df, df), (dxy, dxy), (dxy, dxy)), 'constant', constant_values=np.nan)
+        padrms = np.pad(comap.rms, ((df, df), (dxy, dxy), (dxy, dxy)), 'constant', constant_values=np.nan)
+        comap.padmap = padmap
+        comap.padrms = padrms
 
     padfreqidx = (cutout.freqfreqidx[0] + df, cutout.freqfreqidx[1] + df)
     padxidx = (cutout.spacexidx[0] + dxy, cutout.spacexidx[1] + dxy)
