@@ -51,12 +51,11 @@ class cubelet():
         """
 
         if type(input) == str:
-            self.from_files(input, params)
+            self.from_files(input, params, xstep=xstep)
         else:
-            self.from_cutout(input, params, xstep=xstep)
+            self.from_cutout(input, params)
 
-    def from_cutout(self, cutout, params, xstep=None):
-        # *** have not dealt with xstep yet
+    def from_cutout(self, cutout, params):
         # housekeeping info
         self.unit = 'K'  # params.plotunits ***** this is terrible
         self.adaptivephotometry = params.adaptivephotometry
@@ -139,6 +138,33 @@ class cubelet():
         with np.load(cubefile) as f:
             cubevals = f['T']
             rmsvals = f['rms']
+            try:
+                xarr = f['xarr']
+                freqarr = f['freqarr']
+                xstep = np.diff(xarr)[0]
+                fstep = np.diff(freqarr)[0]
+                if fstep != params.chanwidth:
+                    print(f"WARNNG: the chanwidth passed through parameters ({params.chanwidth}) doesn't match the one in the file"
+                           "({fstep}), defaulting to the file value")
+            except KeyError:
+                # set up frequency/angular arrays if they weren't included in the file
+                if not xstep:
+                    print("No xstep passed or in file, defaulting to 2 arcmin")
+                    xstep = 2
+                if params.xwidth % 2 == 0:
+                    xarr = np.arange(params.spacestackwidth * 2) * xstep - (params.spacestackwidth - 0.5) * xstep
+                else:
+                    xarr = np.arange(params.spacestackwidth * 2 + 1) * xstep - (params.spacestackwidth) * xstep
+                
+                if params.freqwidth % 2 == 0:
+                    freqarr = np.arange(params.freqstackwidth * 2) * params.chanwidth - (
+                                params.freqstackwidth - 0.5) * params.chanwidth
+                else:
+                    freqarr = np.arange(params.freqstackwidth * 2 + 1) * params.chanwidth - (
+                        params.freqstackwidth) * params.chanwidth
+                
+        self.xarr = xarr
+        self.freqarr = freqarr
 
         self.cube = cubevals
         self.cuberms = rmsvals
@@ -154,22 +180,6 @@ class cubelet():
         self.apminpix = (params.freqstackwidth - foff, params.spacestackwidth - xoff, params.spacestackwidth - xoff)
         self.apmaxpix = (
         params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
-
-        # set up frequency/angular arrays
-        if params.freqwidth % 2 == 0:
-            self.freqarr = np.arange(params.freqstackwidth * 2) * params.chanwidth - (
-                        params.freqstackwidth - 0.5) * params.chanwidth
-        else:
-            self.freqarr = np.arange(params.freqstackwidth * 2 + 1) * params.chanwidth - (
-                params.freqstackwidth) * params.chanwidth
-
-        if not xstep:
-            xstep = 2
-
-        if params.xwidth % 2 == 0:
-            self.xarr = np.arange(params.spacestackwidth * 2) * xstep - (params.spacestackwidth - 0.5) * xstep
-        else:
-            self.xarr = np.arange(params.spacestackwidth * 2 + 1) * xstep - (params.spacestackwidth) * xstep
 
         # load in output values
         outvals = pd.read_csv(valuefile)
@@ -344,25 +354,9 @@ class cubelet():
         self.cube /= 0.72
         self.cuberms /= 0.72
 
-        # actual COMAP beam
-        try:
-            beam_fwhm = (params.goalbeamscale / cosmo.kpc_proper_per_arcmin(self.z_mean)).to(u.arcmin)
-            self.beamscale = beam_fwhm
-        except AttributeError:
-            beam_fwhm = params.beamwidth * u.arcmin
-        sigma_x = beam_fwhm / (2 * np.sqrt(2 * np.log(2)))
-        sigma_y = sigma_x
-        omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
-
-        # voxel solid angle
-        # try:
-        #     pixsize = params.xstep*u.deg
-        #     print('xstep')
-
-        # except AttributeError:
-        #     pixsize = 2*u.arcmin
-        pixsize = (self.xarr[1] - self.xarr[0]) * u.arcmin
-        omega_B = (pixsize ** 2).to(u.sr)
+        # voxel solid angle (working with diffuse extended field, so essentially get out Jy/sr)
+        pixsize_x = (self.xarr[1] - self.xarr[0]) * u.arcmin
+        omega_B = (pixsize_x ** 2).to(u.sr)
 
         # central frequency of each individual spectral channel
         freqbc = self.nuobs_mean[0] + self.freqarr
@@ -417,19 +411,6 @@ class cubelet():
         linelum = const.c ** 2 / (2 * const.k_B) * self.cube * DLs ** 2 / (nuobs ** 2 * (1 + zval) ** 3)
         dlinelum = const.c ** 2 / (2 * const.k_B) * self.cuberms * DLs ** 2 / (nuobs ** 2 * (1 + zval) ** 3)
 
-        # put this in per-pixel units for map purposes
-        try:
-            beam_fwhm = self.beamscale[0]
-        except AttributeError:
-            beam_fwhm = 4.5 * u.arcmin
-
-        sigma_x = beam_fwhm / (2 * np.sqrt(2 * np.log(2)))
-        sigma_y = sigma_x
-        omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
-
-        xstep = self.xarr[1] - self.xarr[0]
-        omega_pix = ((xstep * u.arcmin) ** 2).to(u.sr)
-
         linelum = linelum
         dlinelum = dlinelum
 
@@ -468,7 +449,7 @@ class cubelet():
 
         return beammodel
 
-    def get_spectrum(self, in_place=False, method='weightmean', params=None):
+    def get_spectrum(self, in_place=False, method='summed', params=None):
 
 
         if method == 'weightmean' or method == 'summed':
@@ -550,7 +531,7 @@ class cubelet():
 
         return im, dim
 
-    def get_aperture(self, in_place=False, method='weightmean', params=None):
+    def get_aperture(self, in_place=False, method='summed', params=None):
 
         if method == 'weightmean' or method == 'summed' or method == 'none':
 
@@ -628,7 +609,7 @@ class cubelet():
 
     
     
-    def get_offset_aperture(self, offset=(0,0,0), in_place=False, method='weightmean', params=None):
+    def get_offset_aperture(self, offset=(0,0,0), in_place=False, method='summed', params=None):
         """ same as get_aperture, but offset by offset=(z, x, y) pixels """
 
         if method == 'weightmean' or method == 'summed':
@@ -691,7 +672,7 @@ class cubelet():
         if self.adaptivephotometry:
             llum, dllum = self.get_aperture(method='adaptive_photometry')  # made changes here
         else:
-            llum, dllum = self.get_aperture()  # defaults to weightmean
+            llum, dllum = self.get_aperture()  # defaults to summed
         self.linelum = llum
         self.dlinelum = dllum
 
@@ -803,7 +784,7 @@ class cubelet():
         np.savez(idxfile, self.catidx)
 
         cubefile = params.datasavepath + fieldstr + '/stacked_3d_cubelet.npz'
-        np.savez(cubefile, T=self.cube, rms=self.cuberms)
+        np.savez(cubefile, T=self.cube, rms=self.cuberms, xarr=self.xarr, freqarr=self.freqarr)
 
         return
 
@@ -1257,12 +1238,12 @@ def single_cutout(idx, galcat, comap, params):
             cutout.xidx[0]:cutout.xidx[1]]
 
     # check how many center aperture pixels are masked
-    if np.sum(np.isnan(pixval).flatten()) > (params.freqwidth * params.xwidth ** 2) / 2:
+    if np.sum(np.isnan(pixval).flatten()) > (params.freqwidth * params.xwidth * params.ywidth) / 2:
         return None
 
     # less than half of EACH SPECTRAL CHANNEL masked
     for i in range(pixval.shape[0]):
-        if np.sum(np.isnan(pixval[i, :, :]).flatten()) > params.xwidth ** 2 / 2:
+        if np.sum(np.isnan(pixval[i, :, :]).flatten()) > params.xwidth * params.ywidth / 2:
             return None
 
     """ more advanced stacks """

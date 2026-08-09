@@ -1200,23 +1200,17 @@ class maps():
         self.map /= 0.72
         self.rms /= 0.72
 
-        # actual COMAP beam
-        beam_fwhm = 4.5*u.arcmin
-        sigma_x = beam_fwhm / (2 * np.sqrt(2 * np.log(2)))
-        sigma_y = sigma_x
-        omega_B = (2 * np.pi * sigma_x * sigma_y).to(u.sr)
 
-        # voxel solid angle
-        # l_vox = 2*u.arcmin
-        # omega_B = (l_vox**2).to(u.sr)
+        # extended diffuse field => quantity comes out in Jy/sr where sr given by pixel area
+        omega_pix = ((self.xstep * self.ystep * np.cos(self.fieldcent.dec.to(u.rad)))*u.deg**2).to(u.arcmin**2)
 
         # central frequency of each individual spectral channel
         self.freqbc = self.fstep / 2 + self.freq
         freqvals = np.tile(self.freqbc, (self.map.shape[2], self.map.shape[1], 1)).T * u.GHz
 
         # calculate fluxes in Jy
-        Svals = rayleigh_jeans(self.map*u.K, freqvals, omega_B)
-        Srmss = rayleigh_jeans(self.rms*u.K, freqvals, omega_B)
+        Svals = rayleigh_jeans(self.map*u.K, freqvals, omega_pix)
+        Srmss = rayleigh_jeans(self.rms*u.K, freqvals, omega_pix)
 
         # multiply by the channel width in km/s
         delnus = (self.fstep* u.GHz / freqvals * const.c).to(u.km/u.s)
