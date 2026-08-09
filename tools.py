@@ -1859,6 +1859,7 @@ def weightmean(vals, rmss, axis=None, weights=None):
     default is over a a fully flattened array if no axes are passed
     will be default weight by inverse variance only, but if 'weights' are passed then 
     will also weight by whatever that is
+    code assumes 'weights' is already squared if need be
     """
     if np.any(weights):
         weights = weights / rmss**2 # *** probably going to have to worry about the shape of the weights array

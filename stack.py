@@ -339,7 +339,7 @@ class cubelet():
         return
 
     def weight_rms(self, weight):
-        self.cuberms = self.cuberms / weight ** 2
+        self.cuberms = self.cuberms / weight
         return
 
     def to_flux(self, params, velocity_integrate=True):
@@ -1319,7 +1319,10 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None):
 
     # set up for rotating each cutout randomly if that's set to happen
     if params.rotate:
-        params.rng = np.random.default_rng(params.rotseed)
+        try:
+            _ = params.rng
+        except AttributeError:
+            params.rng = np.random.default_rng(params.rotseed)
 
     ti = 0
     # if we're keeping track of the number of cutouts
@@ -1407,6 +1410,10 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
     """
 
     # housekeeping
+
+    # set up one global rng
+    if params.rotate:
+        params.rng = np.random.default_rng(params.rotseed)
 
     # init queue object
     qout = Queue()
