@@ -639,7 +639,7 @@ class catalogue():
         zvals = params.rng.uniform(zlims[1], zlims[0], size=num_fp)
 
         # generate random indices to replace with false positives
-        fpidx = params.rng.integers(0, self.nobj, num_fp)
+        fpidx = params.rng.choice(np.arange(self.nobj), size=num_fp, replace=False)
 
         if in_place:
             # store the indices that are false positives in the catalogue object for future reference
