@@ -100,7 +100,8 @@ class parameters():
             self.usefeed = False
 
         # float-valued parameters
-        for attr in ['centfreq', 'beamwidth', 'fitmeanlimit', 'voxelrmslimit', 'isolatedpixcutoff']:
+        for attr in ['centfreq', 'beamwidth', 'fitmeanlimit', 'voxelrmslimit', 'isolatedpixcutoff',
+                     'cat_offset_velocity', 'cat_offset_scatter']:
             try:
                 val = float(default_dir[attr])
                 setattr(self, attr, val)
@@ -568,7 +569,7 @@ class catalogue():
         except AttributeError:
             self.set_chan(comap, params)
 
-    def z_offset(self, mean, scatter, params, type='z', in_place=True, verbose=True):
+    def z_offset(self, mean, scatter, params, type='vel', in_place=True, verbose=True):
         """
         randomly offset the velocities in the catalogue using a gaussian kernal
         if type is z, mean/scatter are redshifts
@@ -578,21 +579,17 @@ class catalogue():
         if verbose, will also spit out the passed offset and mean as freq/velocity/redshift if not given
         """
 
-        rng = params.rng
+        rng = params.rng                
 
-        # if verbose:
-        #     zmean = np.mean(catinst.z)
-        #     if type == 'vel':
-        #         rvmean = const.c*((1+zmean)**2 - 1) / ((1+zmean)**2 + 1)
-        #         nrvmean = rvmean + mean 
-
-                
+        if params.verbose:
+            print(f"offseting catalogue objects in the spectral axis by {mean} km/s, with scatter {scatter} km/s")
 
         if in_place:
             # just scatter the original
             if type == 'z':
                 offset_redshifts(self, mean, scatter, rng)
             elif type == 'vel':
+
                 offset_velocities(self, mean, scatter, rng)
             elif type == 'freq':
                 offset_frequencies(self, mean, scatter, rng)
@@ -1967,23 +1964,20 @@ def simlum_to_stacklum(simlum, stackout, params):
 """ SIMULATION OFFSETTING """
 def offset_velocities(catinst, meanoff, scatter, rng):
     """
-    **** fix this. it is wrong
     randomly offsets the redshift of the catalogue objects with a gaussian kernel
     with mean value meanoff and standard deviation scatter (given as VELOCITIES). 
     RNG is the input random number generator for consistency
     """
-    # get recession velocities from the catalog redshifts
-    rec_vels = const.c * ((1+catinst.z)**2 - 1) / ((1+catinst.z)**2 + 1)
-    rec_vels = rec_vels.to(u.km/u.s)
 
     # random list of velocity offsets
     off_vels = rng.normal(loc=meanoff, scale=scatter, size=catinst.nobj) * u.km/u.s
 
-    # add these in and generate a new list of redshifts
-    new_vels = off_vels + rec_vels 
-    new_z = np.sqrt((const.c+new_vels) / (const.c-new_vels)) - 1
+    # change this to redshift offsets
+    dz = off_vels / (const.c.to(u.km/u.s)) * (1+catinst.z) # following steidel+2018, equation 5
 
-    catinst.z = new_z
+    newz = dz.value + catinst.z
+
+    catinst.z = newz
 
 def offset_redshifts(catinst, meanoff, scatter, rng):
     """
@@ -2060,9 +2054,15 @@ def field_setup(mapfile, catfile, params, trim_cat=True, reshape=True, sim_cat=F
         catinst = catalogue(catfile)
         # clip the catalogue to the field
         catinst.cull_to_map(mapinst, params, maxsep=2*u.deg)
+        # apply redshift offsets if they're passed
+        catinst.z_offset(params.cat_offset_velocity, params.cat_offset_scatter, params,
+                          type='vel')
     else:
         catinst = catalogue(catfile, load_all=True)
         catinst.observation_cull(params, lcat_cutoff, goal_nobj, weight=weight)
+        # apply redshift offsets and scatter if they're passed
+        catinst.z_offset(params.cat_offset_velocity, params.cat_offset_scatter, params,
+                         type='vel')
 
     # adjust the beam to match the actual size of the spaxels
     params.pixbeamwidth = params.beamwidth / (np.nanmean(mapinst.ystep)*u.deg).to(u.arcmin).value # *** cosmogrid fixing

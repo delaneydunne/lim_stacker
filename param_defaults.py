@@ -14,6 +14,12 @@ beamwidth 4.5
 # cosmology to use (default 'comap' is the one from the ES papers)
 cosmo comap
 
+""" properties of the catalogue """
+# systemic offset velocity to apply to the catalogue before stacking
+cat_offset_velocity 0.
+# scatter in the velocity relation (used for simulations only)
+cat_offset_scatter 0.
+
 """ stacking metaparameters """
 # only take a specific feed to stack on
 # (load all feeds in if set > 20)
