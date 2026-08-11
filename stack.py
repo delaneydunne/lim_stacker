@@ -531,7 +531,35 @@ class cubelet():
 
         return im, dim
 
-    def get_aperture(self, in_place=False, method='summed', params=None):
+    def get_aperture(self, in_place=False, method='summed', params=None, fieldidx=None):
+        """
+        return the overall average L'co of the objects included in the cubelet. Will return
+        a tuple of (linelum, dlinelum), and also add 'aperture_value' and 'aperture_rms' as attributes 
+        of the cubelet if 'in_place'=True. Pass 'method' to determine how the L'co is calculated:
+        ----------
+        options for 'method':
+            'summed':      (default) sum over the pixels of the aperture directly. most robust implementation
+            'weightmean':  perform a weighted average over the full aperture, and then multiply 
+                            by the number of pixels inside the aperture (better noise performance, doesn't 
+                            deal with NaNs as well)
+            'photometry':  EMM 2025 -- fits a 2D beam model to the cubelet in each channel and then integrates
+                            over channels. Assumes catalogue object is in the centre of the central pixel.
+                            Currently have a hardcoded beam size
+            'adaptive_photometry': EMM 2025 -- fits a 2D beam model to the cubelet in each channel and then integrates
+                            over channels. Adaptively centres the beam model onto the exact location of the 
+                            catalogue object. Currently have a hardcorded beam size
+            'matched_filter': (needs params) finds the least-squares solution fitting the data to a generated template. 
+                            Need to pass two versions of the template through params -- params.sscube, the raw
+                            template, and params.sfcube, the template after filtering by the data reduction pipeline.
+                            If there are multiple fields involved in the stack run, also pass fieldidx to index the
+                            list of templates in params.sscube/params.sfcube
+            'weighted_matched_filter': (needs params) finds the least-squares solution fitting the data to a generated
+                            template, weighting by the covariance (assuming it's diagonal between different pixels of
+                            the cubelet, which should be true assuming white noise). Need to pass two versions of the
+                            template through params -- params.sscube, the raw template, and params.sfcube, the template 
+                            after filtering by the data reduction pipeline. If there are multiple fields involved in the 
+                            stack run, also pass fieldidx to index the list of templates in params.sscube/params.sfcube
+        """
 
         if method == 'weightmean' or method == 'summed' or method == 'none':
 
@@ -550,6 +578,9 @@ class cubelet():
                 # correct for adjusted solid angle
                 spec = spec * self.xwidth * self.ywidth
                 dspec = dspec * self.xwidth * self.ywidth
+
+            val = np.nansum(spec)
+            dval = np.sqrt(np.nansum(dspec ** 2))
 
         elif method == 'photometry' or method == 'adaptive_photometry':
 
@@ -583,12 +614,55 @@ class cubelet():
 
             spec = np.array(photflux)
             dspec = np.array(photrms)
+            val = np.nansum(spec)
+            dval = np.sqrt(np.nansum(dspec ** 2))
+
+        elif method == 'matched_filter' or method == 'weighted_matched_filter':
+
+            # load in the templates for the matched filtering
+            # ** catch error when params isn't passed?
+            if fieldidx is None:
+                sscube = cubelet(params.sspath, params)
+                sfcube = cubelet(params.sfpath, params)
+            else:
+                sscube = cubelet(params.sspath[fieldidx], params)
+                sfcube = cubelet(params.sfpath[fieldidx], params)
+            
+            # check to make sure the templates are the same size as the actual cube
+            if sfcube.cube.shape != self.cube.shape:
+                print(f"template size ({sfcube.cube.shape}) isn't matching cubelet size ({self.cube.shape}), returning none")
+                return None
+
+            if method == 'matched_filter':
+                # default mask (all ones inside the central 15x15) 
+                # *** add in ability to pass a different mask
+                defmask = np.ones_like(sfcube.cube)
+
+                # get the weighting factor a
+                aval = np.nansum(sfcube.cube * defmask * self.cube) / np.nansum(sfcube.cube * defmask * sfcube.cube)
+
+                # get the output line luminosity by scaling the un-pipeline-ed cube by a
+                val = aval * sscube.get_aperture()[0]
+                # placeholder for noise (need to fill in with bootstrap)
+                dval = -1e10
+
+            elif method == 'weighted_matched_filter':
+                # get the weighting factor a, using inverse-variance weighting as the 'weights'/mask
+                W = 1 / (self.cuberms**2)
+                aval = np.nansum(sfcube.cube * W * self.cube) / np.nansum(sfcube.cube * W * sfcube.cube)
+                daval = np.sqrt(1/np.nansum(sfcube.cube * (1/self.cuberms)**2 * sfcube.cube))
+
+                # get the output line luminosity by scaling the un-pipeline-ed cube by a
+                val = aval * sscube.get_aperture()[0]
+                dval = daval * sscube.get_aperture()[0]
+
+
+            # save the a factor
+            self.a = aval
 
         else:
             print("Don't know that aperture extraction method")
 
-        val = np.nansum(spec)
-        dval = np.sqrt(np.nansum(dspec ** 2))
 
         if in_place:
             self.aperture_value = val
@@ -668,13 +742,16 @@ class cubelet():
         return np.array(outvallist).flatten(), np.array(outdvallist).flatten()
 
 
-    def get_output_dict(self, in_place=False):
-        if self.adaptivephotometry:
-            llum, dllum = self.get_aperture(method='adaptive_photometry')  # made changes here
-        else:
-            llum, dllum = self.get_aperture()  # defaults to summed
-        self.linelum = llum
-        self.dlinelum = dllum
+    def get_output_dict(self, in_place=False, params=None):
+        try: 
+            _ = self.linelum
+        except AttributeError:
+            if self.adaptivephotometry:
+                llum, dllum = self.get_aperture(method='adaptive_photometry')  # made changes here
+            else:
+                llum, dllum = self.get_aperture()  # defaults to summed
+            self.linelum = llum
+            self.dlinelum = dllum
 
         outdict = {'linelum': self.linelum,
                 'dlinelum': self.dlinelum,
@@ -1300,8 +1377,8 @@ def single_cutout(idx, galcat, comap, params):
             if np.sum(np.isnan(aperture[i, :, :]).flatten()) > params.xwidth ** 2 / 2:
                 return None
 
-    # *** is this still doing anything?
-    if params.obsunits:
+    # get the per-cube linelum and rhoh2 from weighted mean of aperture
+    if params.get_summed_luminosity:
         observer_units_weightedsum(pixval, rmsval, cutout, params)
 
     # try:
@@ -1381,6 +1458,25 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                 print('   done {} of {} cutouts in this field'.format(i, galcat.nobj))
 
     if not parallel_run:
+
+        # do per-field template fit if this is being run on its own
+        if params.matched_filter or params.weighted_matched_filter:
+            if field is None:
+                fieldidx = None
+            else:
+                fieldidx = field - 1
+            if params.matched_filter:
+                lum, dlum = stackinst.get_aperture(method='matched_filter', params=params, fieldidx=fieldidx)
+            elif params.weighted_matched_filter:
+                lum, dlum = stackinst.get_aperture(method='weighted_matched_filter', params=params, fieldidx=fieldidx)
+            stackinst.linelum = lum
+            stackinst.dlinelum = dlum
+            # add to the plot comments so it's clear this has been matched filter
+            try:
+                params.plotcomment.append("matched filtered luminosity")
+            except AttributeError:
+                params.plotcomment = "matched filtered luminosity"
+
         # plot field output if this is being run on its own
         try:
             stackinst.make_plots(comap, galcat, params, field=field)
@@ -1465,6 +1561,24 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
         finalcube = finalcubelist[0].copy()
         for cube in finalcubelist[1:]:
             finalcube.stackin_cubelet(cube)
+
+    # do per-field template fit if required
+    if params.matched_filter or params.weighted_matched_filter:
+        if field is None:
+            fieldidx = None
+        else:
+            fieldidx = field - 1
+        if params.matched_filter:
+            lum, dlum = finalcube.get_aperture(method='matched_filter', params=params, fieldidx=fieldidx, in_place=True)
+        elif params.weighted_matched_filter:
+            lum, dlum = finalcube.get_aperture(method='weighted_matched_filter', params=params, fieldidx=fieldidx)
+        finalcube.linelum = lum
+        finalcube.dlinelum = dlum
+        # add to the plot comments so it's clear this has been matched filter
+        try:
+            params.plotcomment.append("matched filtered luminosity")
+        except AttributeError:
+            params.plotcomment = "matched filtered luminosity"
 
     # plot the final joined output for this cube
     try:

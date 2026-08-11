@@ -110,11 +110,11 @@ class parameters():
                 setattr(self, attr, None)
 
         # boolean parameters
-        for attr in ['cubelet', 'obsunits', 'rotate', 'lowmodefilter', 'chanmeanfilter',
+        for attr in ['cubelet', 'get_summed_luminosity', 'rotate', 'lowmodefilter', 'chanmeanfilter',
                      'specmeanfilter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
                      'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace',
                      'parallelize', 'adaptivephotometry', 'cosmogrid', 'scalermscuts',
-                     'maskisolatedpix']:
+                     'maskisolatedpix', 'matched_filter', 'weighted_matched_filter']:
             try:
                 val = default_dir[attr] == 'True'
                 setattr(self, attr, val)
@@ -317,7 +317,7 @@ class parameters():
         print("Stacking metaparameters")
         print("-------------")
         print("\t Cubelet stacking: {}".format(self.cubelet))
-        print("\t Returning observer units: {}".format(self.obsunits))
+        print("\t Returning aperture-summed luminosity units: {}".format(self.get_summed_luminosity))
         print("\t Verbose output: {}".format(self.verbose))
         print("\t Saving stack data: {}".format(self.savedata))
         if self.savedata:

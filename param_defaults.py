@@ -29,7 +29,11 @@ usefeed 100
  # full list of them
 cubelet True
 # return physical units
-obsunits True
+get_summed_luminosity True
+# do the template-fit matched filtering
+matched_filter False
+# do the template-fit matched filtering, but noise-weighted
+weighted_matched_filter False
 # rotate each cubelet by a random pi/2 angle before stacking
 # this should help with asymmetric noise which is common when catalogue objects
 # tend to fall near the edge of the map
