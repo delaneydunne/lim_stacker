@@ -637,6 +637,7 @@ class cubelet():
                 # default mask (all ones inside the central 15x15) 
                 # *** add in ability to pass a different mask
                 defmask = np.ones_like(sfcube.cube)
+                defmask[np.where(np.isnan(self.cube))] = np.nan
 
                 # get the weighting factor a
                 aval = np.nansum(sfcube.cube * defmask * self.cube) / np.nansum(sfcube.cube * defmask * sfcube.cube)
