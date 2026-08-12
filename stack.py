@@ -198,6 +198,12 @@ class cubelet():
             self.z_mean = outvals['z_mean ()'][0]
         except KeyError:
             self.z_mean = outvals.z_mean[0]
+        try:
+            self.a = outvals.a[0]
+            self.da = outvals.da[0]
+        except KeyError:
+            pass
+
 
         # fix values if they've been stored weird
         if type(self.z_mean) == str:
@@ -292,6 +298,13 @@ class cubelet():
                                                 np.array((self.dlinelum, cubelet.dlinelum)), weights=weights)
         self.rhoh2, self.drhoh2 = weightmean(np.array((self.rhoh2, cubelet.rhoh2)),
                                             np.array((self.drhoh2, cubelet.drhoh2)), weights=weights)
+
+        if params.matched_filter or params.weighted_matched_filter:
+            try:
+                self.a, self.da = weightmean(np.array((self.a, cubelet.a)),
+                                            np.array((self.da, cubelet.da)), weights=weights)
+            except AttributeError:
+                print("don't have an a value for both cubelets, not propagating")
 
         # housekeeping **** check averaging (also why is cubelet nuobs_mean a list?)
         self.catidx = np.concatenate((self.catidx, cubelet.catidx))
@@ -646,6 +659,7 @@ class cubelet():
                 val = aval * sscube.get_aperture()[0]
                 # placeholder for noise (need to fill in with bootstrap)
                 dval = -1e10
+                daval = 1
 
             elif method == 'weighted_matched_filter':
                 # get the weighting factor a, using inverse-variance weighting as the 'weights'/mask
@@ -660,6 +674,7 @@ class cubelet():
 
             # save the a factor
             self.a = aval
+            self.da = daval
 
         else:
             print("Don't know that aperture extraction method")
@@ -761,6 +776,11 @@ class cubelet():
                 'nuobs_mean': self.nuobs_mean,
                 'z_mean': self.z_mean,
                 'nobj': self.ncutouts}
+        try:
+            outdict['a'] = self.a
+            outdict['da'] = self.da
+        except AttributeError:
+            pass
 
         if in_place:
             self.outdict = outdict
