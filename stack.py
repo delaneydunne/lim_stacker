@@ -201,7 +201,7 @@ class cubelet():
         try:
             self.a = outvals.a[0]
             self.da = outvals.da[0]
-        except KeyError:
+        except AttributeError:
             pass
 
 
@@ -304,7 +304,7 @@ class cubelet():
                 self.a, self.da = weightmean(np.array((self.a, cubelet.a)),
                                             np.array((self.da, cubelet.da)), weights=weights)
             except AttributeError:
-                print("don't have an a value for both cubelets, not propagating")
+                pass
 
         # housekeeping **** check averaging (also why is cubelet nuobs_mean a list?)
         self.catidx = np.concatenate((self.catidx, cubelet.catidx))
