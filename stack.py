@@ -1539,6 +1539,7 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
     called if params.parallelize is True
     uses params.nthreads to determine number of processes
     will be wonky if params.goalnumcutouts is set -- haven't figured that out yet
+    ***also not handling weights at all rn
     """
 
     # housekeeping
@@ -1588,7 +1589,7 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
     else:
         finalcube = finalcubelist[0].copy()
         for cube in finalcubelist[1:]:
-            finalcube.stackin_cubelet(cube)
+            finalcube.stackin_cubelet(cube, params)
 
     # do per-field template fit if required
     if params.matched_filter or params.weighted_matched_filter:
@@ -1677,8 +1678,8 @@ def stacker(maplist, catlist, params):
 
     # combine everything together into one stack
     stackedcube = cubelist[0]
-    stackedcube.stackin_cubelet(cubelist[1])
-    stackedcube.stackin_cubelet(cubelist[2])
+    stackedcube.stackin_cubelet(cubelist[1], params=params)
+    stackedcube.stackin_cubelet(cubelist[2], params=params)
 
     llum, dllum = stackedcube.get_aperture()
 
