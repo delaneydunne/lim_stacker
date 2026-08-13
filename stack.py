@@ -632,6 +632,9 @@ class cubelet():
 
         elif method == 'matched_filter' or method == 'weighted_matched_filter':
 
+            if params.rotate == True:
+                print("Are you sure you want to fit a rotated cube to an unrotated template?")
+
             # load in the templates for the matched filtering
             # ** catch error when params isn't passed?
             if fieldidx is None:
@@ -1505,6 +1508,10 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
             print('No values to stack in this field')
             # return None
 
+        # remove the padded map and rms to avoid conflicts when parallelizing
+        del(comap.padmap)
+        del(comap.padrms)
+
     if field:
         fieldstr = '/field' + str(field)
     else:
@@ -1606,6 +1613,10 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
         finalcube.make_plots(comap, galcat, params, field=field)
     except UnboundLocalError:
         print('No values to stack in this field')
+    
+    # remove the padded map and rms to avoid conflicts when parallelizing
+        del(comap.padmap)
+        del(comap.padrms)
 
     # return finalcubelist
     return finalcube
