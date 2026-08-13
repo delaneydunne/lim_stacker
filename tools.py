@@ -2053,7 +2053,7 @@ def field_setup(mapfile, catfile, params, trim_cat=True, reshape=True, sim_cat=F
     df = params.freqstackwidth
     dxy = params.spacestackwidth
     mapinst.padmap = np.pad(mapinst.map, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
-    mapinst.padrms = np.pad(mapinst.map, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
+    mapinst.padrms = np.pad(mapinst.rms, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
 
     # load in the catalogue
     if not sim_cat:
