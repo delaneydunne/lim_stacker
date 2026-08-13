@@ -1304,28 +1304,17 @@ def single_cutout(idx, galcat, comap, params):
         ycutidx = (yidx - dxy, yidx + dxy + 1)
     cutout.spaceyidx = ycutidx
 
-    # pad edges of map with nans so you don't have to worry about going off the edge
-    # do this only the first time, and then just save the ouptut for later
-    try:
-        padmap = comap.padmap
-        padrms = comap.padrms
-    except AttributeError:
-        padmap = np.pad(comap.map, ((df, df), (dxy, dxy), (dxy, dxy)), 'constant', constant_values=np.nan)
-        padrms = np.pad(comap.rms, ((df, df), (dxy, dxy), (dxy, dxy)), 'constant', constant_values=np.nan)
-        comap.padmap = padmap
-        comap.padrms = padrms
-
     padfreqidx = (cutout.freqfreqidx[0] + df, cutout.freqfreqidx[1] + df)
     padxidx = (cutout.spacexidx[0] + dxy, cutout.spacexidx[1] + dxy)
     padyidx = (cutout.spaceyidx[0] + dxy, cutout.spaceyidx[1] + dxy)
 
     # pull the actual values to stack
-    cpixval = padmap[padfreqidx[0]:padfreqidx[1],
+    cpixval = copy.deepcopy(comap.padmap[padfreqidx[0]:padfreqidx[1],
             padyidx[0]:padyidx[1],
-            padxidx[0]:padxidx[1]]
-    crmsval = padrms[padfreqidx[0]:padfreqidx[1],
+            padxidx[0]:padxidx[1]])
+    crmsval = copy.deepcopy(comap.padrms[padfreqidx[0]:padfreqidx[1],
             padyidx[0]:padyidx[1],
-            padxidx[0]:padxidx[1]]
+            padxidx[0]:padxidx[1]])
 
     # rotate randomly
     if params.rotate:
@@ -1508,10 +1497,6 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
             print('No values to stack in this field')
             # return None
 
-        # remove the padded map and rms to avoid conflicts when parallelizing
-        del(comap.padmap)
-        del(comap.padrms)
-
     if field:
         fieldstr = '/field' + str(field)
     else:
@@ -1564,9 +1549,14 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
         if j == params.nthreads - 1:
             tidx = np.concatenate((tidx, remainder))
 
+        # cut catalogue for each particular parallel run
         pcatinst = galcat.subset(tidx, in_place=False)
 
-        processes.append(Process(target=field_stack_queued, args=(comap, pcatinst, params, field, qout)))
+        # create a hard copy of comap to pass to field_stack so there aren't weird overwriting issues with
+        # the map padding
+        pcomap = comap.copy()
+
+        processes.append(Process(target=field_stack_queued, args=(pcomap, pcatinst, params, field, qout)))
 
     # run processes
     for p in processes:
@@ -1614,10 +1604,6 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
         finalcube.make_plots(comap, galcat, params, field=field)
     except UnboundLocalError:
         print('No values to stack in this field')
-    
-    # remove the padded map and rms to avoid conflicts when parallelizing
-        del(comap.padmap)
-        del(comap.padrms)
 
     # return finalcubelist
     return finalcube
