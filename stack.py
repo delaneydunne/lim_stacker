@@ -1472,7 +1472,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                 if field_nobj == goalnobj:
                     if params.verbose:
                         print("Hit goal number of {} cutouts".format(goalnobj))
-                        break
+                    break
 
         if params.verbose:
             if i % printi == 0:
