@@ -785,6 +785,14 @@ class cubelet():
         except AttributeError:
             pass
 
+        if params.matched_filter:
+            outdict['mean_method'] = "matched_filter"
+        elif params.weighted_matched_filter:
+            outdict['mean_method'] = 'weighted_matched_filter'
+        else:
+            outdict['mean_method'] = "summed"
+
+
         if in_place:
             self.outdict = outdict
 
@@ -861,7 +869,7 @@ class cubelet():
                 except AttributeError:
                     comment = ['Multi-field stack']
 
-        outdict = self.get_output_dict()
+        outdict = self.get_output_dict(params)
 
         combined_plotter(self, params, stackim=im, stackrms=dim,
                         stackspec=spec, cmap='PiYG_r',
@@ -878,7 +886,7 @@ class cubelet():
         ovalfile = params.datasavepath + fieldstr + '/output_values.csv'
         # strip the values of their units before saving them (otherwise really annoying
         # to read out on the other end)
-        outdict = self.get_output_dict()
+        outdict = self.get_output_dict(params)
         outputvals_nu = dict_saver(outdict, ovalfile)
 
         idxfile = params.datasavepath + fieldstr + '/included_cat_indices.npz'
