@@ -761,7 +761,7 @@ class cubelet():
         return np.array(outvallist).flatten(), np.array(outdvallist).flatten()
 
 
-    def get_output_dict(self, in_place=False, params=None):
+    def get_output_dict(self, params, in_place=False):
         try: 
             _ = self.linelum
         except AttributeError:
