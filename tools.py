@@ -1059,6 +1059,12 @@ class maps():
         params.nchans = self.map.shape[0]
         params.chanwidth = np.abs(self.freq[1] - self.freq[0])
 
+        # generate a padded copy of the map for easier cutouts
+        df = params.freqstackwidth
+        dxy = params.spacestackwidth
+        self.padmap = np.pad(self.map, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
+        self.padrms = np.pad(self.rms, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
+
     def mask_isolated_pix(self, params):
         """
         new scanning strategies are starting to show fringing in the maps -- this is a filter to clean out 
@@ -2051,12 +2057,6 @@ def field_setup(mapfile, catfile, params, trim_cat=True, reshape=True, sim_cat=F
     """
     # load in the map
     mapinst = maps(params, inputfile=mapfile, cosmogrid=params.cosmogrid, reshape=reshape)
-
-    # pad the map for cube cutouts
-    df = params.freqstackwidth
-    dxy = params.spacestackwidth
-    mapinst.padmap = np.pad(mapinst.map, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
-    mapinst.padrms = np.pad(mapinst.rms, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
 
     # load in the catalogue
     if not sim_cat:
