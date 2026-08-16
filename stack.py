@@ -638,11 +638,11 @@ class cubelet():
             # load in the templates for the matched filtering
             # ** catch error when params isn't passed?
             if fieldidx is None:
-                sscube = cubelet(params.sspath, params)
-                sfcube = cubelet(params.sfpath, params)
+                sscube = cubelet(params.sspath, params, xstep=2)
+                sfcube = cubelet(params.sfpath, params, xstep=2)
             else:
-                sscube = cubelet(params.sspath[fieldidx], params)
-                sfcube = cubelet(params.sfpath[fieldidx], params)
+                sscube = cubelet(params.sspath[fieldidx], params, xstep=2)
+                sfcube = cubelet(params.sfpath[fieldidx], params, xstep=2)
             
             # check to make sure the templates are the same size as the actual cube
             if sfcube.cube.shape != self.cube.shape:

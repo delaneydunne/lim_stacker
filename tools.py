@@ -1863,6 +1863,9 @@ def weightmean(vals, rmss, axis=None, weights=None):
     else:
         weights = 1/rmss**2
 
+    # make sure nans match up
+    weights[np.where(np.isnan(vals))] = np.nan
+
     meanval = np.nansum(vals*weights, axis=axis) / np.nansum(1*weights, axis=axis)
     meanrms = np.sqrt(1/np.nansum(1*weights, axis=axis))
 
