@@ -1313,6 +1313,12 @@ class maps():
         # units
         self.unit = 'K'
 
+        # generate a padded copy of the map for easier cutouts
+        df = params.freqstackwidth
+        dxy = params.spacestackwidth
+        self.padmap = np.pad(self.map, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)
+        self.padrms = np.pad(self.rms, ((df,df), (dxy,dxy), (dxy,dxy)), 'constant', constant_values=np.nan)        
+
 
     def setup_coordinates(self, cosmogrid=False):
         """
