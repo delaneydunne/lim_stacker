@@ -896,6 +896,90 @@ class cubelet():
         np.savez(cubefile, T=self.cube, rms=self.cuberms, xarr=self.xarr, freqarr=self.freqarr)
 
         return
+    
+    def linear_3d_filter(self, params, in_place=True):
+        """
+        fit a 3D linear polynomial to the cube instance (using noise-weighting) and subtract it off
+        idea is this should deal well with large-scale systematics
+        """
+
+        # mask out the central region
+        # array copies to mask:
+        cuben = copy.deepcopy(self.cube)
+        dcuben = copy.deepcopy(self.cuberms)
+
+        # indices to mask
+        xoff = params.xwidth * params.fitmasknbeams // 2
+        foff = params.freqwidth * params.fitmasknbeams // 2
+        centpix = (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth)
+        maskminpix = (params.freqstackwidth - foff, params.spacestackwidth - xoff, params.spacestackwidth - xoff)
+        maskmaxpix = (params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
+
+        # mask out
+        cuben[maskminpix[0]:maskmaxpix[0], 
+                maskminpix[1]:maskmaxpix[1], 
+                maskminpix[2]:maskmaxpix[2]] = np.nan
+        dcuben[maskminpix[0]:maskmaxpix[0], 
+                maskminpix[1]:maskmaxpix[1], 
+                maskminpix[2]:maskmaxpix[2]] = np.nan
+
+        # set up coordinates for fitting
+        coordlist = [np.arange(cuben.shape[i]) for i in range(3)]
+        meshcoordlist = np.meshgrid(*coordlist, indexing='ij')
+        coordlistf = [coord.flatten() for coord in meshcoordlist]
+
+        # flatten
+        cubenf = cuben.flatten()
+        dcubenf = dcuben.flatten()
+
+        # slice out nans
+        nanmask = np.isfinite(cubenf)
+        coordlistfm = [coord[nanmask] for coord in coordlistf]
+
+        cubenfm = cubenf[nanmask]
+        dcubenfm = dcubenf[nanmask]
+
+        # set up weights and weight
+        wfm = 1 / dcubenfm**2
+        Afmw = np.column_stack((np.ones_like(coordlistfm[0]), *coordlistfm)) * wfm[:, np.newaxis]
+        cubenfmw = cubenfm * wfm
+
+        # do the fit
+        coeffs, residuals, rank, s = np.linalg.lstsq(Afmw, cubenfmw, rcond=None)
+
+        # set up a model to subtract off
+        lowmodefilter = coeffs[0] + coeffs[1]*meshcoordlist[0] + coeffs[2]*meshcoordlist[1] + coeffs[3]*meshcoordlist[2]
+
+        if not in_place:
+            newcube = self.copy()
+            newcube.cube = self.cube - lowmodefilter
+            newcube.linear_filter_coeffs = coeffs
+            return newcube
+
+        else:
+            self.cube = self.cube - lowmodefilter
+            self.linear_filter_coeffs = coeffs
+
+        return coeffs
+    
+    def get_linear_3d_filter_arr(self, params):
+        """
+        function to get the 3D array subtracted off as part of the low-mode filter
+        if linear_3d_filter hasn't already been run on the cubelet, will run it
+        """
+
+        try:
+            coeffs = self.linear_filter_coeffs
+        except AttributeError:
+            self.linear_3d_filter(self, params)
+        
+        # set up coordinates for fitting
+        coordlist = [np.arange(self.cube.shape[i]) for i in range(3)]
+        meshcoordlist = np.meshgrid(*coordlist, indexing='ij')
+
+        arr = coeffs[0] + coeffs[1]*meshcoordlist[0] + coeffs[2]*meshcoordlist[1] + coeffs[3]*meshcoordlist[2]
+
+        return arr
 
 
 """ CUTOUT FILTERS """
