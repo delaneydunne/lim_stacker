@@ -1030,6 +1030,10 @@ class maps():
         params.nchans = self.map.shape[0]
         params.chanwidth = np.abs(self.freq[1] - self.freq[0])
 
+        self.pad_map(params)
+
+    def pad_map(self, params):
+
         # generate a padded copy of the map for easier cutouts
         df = params.freqstackwidth
         dxy = params.spacestackwidth
@@ -1103,6 +1107,22 @@ class maps():
 
         self.map = ssmap 
         self.meanvals = spacemean + specmean 
+
+        # repeat for the padded map
+        ogmap = self.padmap
+        spaceres = self.padmap.shape[2]
+        specres = self.padmap.shape[0]
+        specmean = np.nanmean(ogmap, axis=(1,2))
+        specmean = np.tile(specmean, (spaceres, spaceres, 1)).T
+
+        smap = ogmap - specmean
+
+        spacemean  = np.nanmean(smap, axis=0)
+        spacemean = np.tile(spacemean, (specres,1,1))
+
+        ssmap = smap - spacemean
+
+        self.padmap = ssmap 
 
 
     def load_cosmogrid(self, inputfile, params, reshape=True):
