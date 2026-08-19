@@ -40,20 +40,10 @@ weighted_matched_filter False
 rotate True
 # random seed for this random rotation
 rotseed 12345
-# remove a 2D linear polynomial from each cutout before stacking
-lowmodefilter False
-# instaed, remove the per-channel mean of the region around the source before stacking
-chanmeanfilter False
-## if fitting, the number of beams to extend outwards from the stack aperture to fit
-fitnbeams 3
-## and to mask
-fitmasknbeams 1
-# find global mean in the cutout spectrum
-specmeanfilter False
-# if fitting, the number of times the frequency stack aperture to mask out in the center
-freqmaskwidth 1
-## and number of times the aperture to include total
-frequsewidth 8
+# remove a 3D linear polynomial from each cutout before stacking
+linear_3d_filter False
+## if fitting, mask 'fitmasknaper*xwidth/ywidth/freqwidth' from the central aperture
+fitmasknaper 1
 ## if the c0_0 parameter part of the fit is above this value on either side of 0,
 ## assume the cutout as a whole is bad
 fitmeanlimit 100

@@ -306,6 +306,11 @@ class cubelet():
             except AttributeError:
                 pass
 
+        try:
+            self.linear_filter_coeffs = np.vstack((self.linear_filter_coeffs, cubelet.linear_filter_coeffs))
+        except AttributeError:
+            pass
+
         # housekeeping **** check averaging (also why is cubelet nuobs_mean a list?)
         self.catidx = np.concatenate((self.catidx, cubelet.catidx))
         nuobs_mean = (self.nuobs_mean * self.ncutouts + cubelet.nuobs_mean[0] * cubelet.ncutouts) / (
@@ -909,9 +914,8 @@ class cubelet():
         dcuben = copy.deepcopy(self.cuberms)
 
         # indices to mask
-        xoff = params.xwidth * params.fitmasknbeams // 2
-        foff = params.freqwidth * params.fitmasknbeams // 2
-        centpix = (params.freqstackwidth, params.spacestackwidth, params.spacestackwidth)
+        xoff = params.xwidth * params.fitmasknaper // 2
+        foff = params.freqwidth * params.fitmasknaper // 2
         maskminpix = (params.freqstackwidth - foff, params.spacestackwidth - xoff, params.spacestackwidth - xoff)
         maskmaxpix = (params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
 
@@ -945,7 +949,7 @@ class cubelet():
         cubenfmw = cubenfm * wfm
 
         # do the fit
-        coeffs, residuals, rank, s = np.linalg.lstsq(Afmw, cubenfmw, rcond=None)
+        coeffs, _,_,_ = np.linalg.lstsq(Afmw, cubenfmw, rcond=None)
 
         # set up a model to subtract off
         lowmodefilter = coeffs[0] + coeffs[1]*meshcoordlist[0] + coeffs[2]*meshcoordlist[1] + coeffs[3]*meshcoordlist[2]
@@ -1435,37 +1439,10 @@ def single_cutout(idx, galcat, comap, params):
             return None
 
     """ more advanced stacks """
-    # subtract global spectral mean
-    if params.specmeanfilter:
-        cutout = remove_cutout_spectral_mean(cutout, params)
 
     # check if the cutout failed the tests in these functions
     if not cutout:
         return None
-
-    # subtract the per-channel means
-    if params.chanmeanfilter:
-        cutout = remove_cutout_chanmean(cutout, params)
-
-    # check if the cutout failed the tests in these functions
-    if not cutout:
-        return None
-
-    # subtract the low-order modes
-    if params.lowmodefilter:
-        cutout = remove_cutout_lowmodes(cutout, params)
-
-    # check if the cutout failed the tests in these functions
-    if not cutout:
-        return None
-
-    # put the cutout into line luminosity units
-    # if comap.unit != 'linelum':
-    #     print('putting cutout into line lum')
-    #     nuobsarr = np.tile(nuobs,[31,31,1]).T
-    #     cutmap, cutmaprms = line_luminosity(cutout.cubestack, cutout.cubestackrms, nuobsarr, params, summed=True)
-    #     cutout.cubestack = cutmap
-    #     cutout.cubestackrms = cutmaprms
 
     # physical space the cutout
     if params.physicalspace:
@@ -1485,13 +1462,6 @@ def single_cutout(idx, galcat, comap, params):
     # get the per-cube linelum and rhoh2 from weighted mean of aperture
     if params.get_summed_luminosity:
         observer_units_weightedsum(pixval, rmsval, cutout, params)
-
-    # try:
-    #     if params.physicalspace:
-    #         cutout = physical_spacing(cutout, comap, params, oversamp_factor=params.pspacefac)
-    # except AttributeError:
-    #     print('params.physicalspace not set: defaulting to false')
-    #     params.physicalspace = False
 
     return cutout
 
@@ -1539,15 +1509,29 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
             # stack as you go
             if ti == 0:
                 stackinst = cubelet(cutout, params)
+                # subtract off the linear filter
+                if params.linear_3d_filter:
+                    print('doing linear filter')
+                    coeffs = stackinst.linear_3d_filter(params)
+                    print(coeffs)
+                # check units
                 if  stackinst.unit != 'linelum':
                     stackinst.to_linelum(params)
+                # weight
                 if weight:
                     stackinst.weight_rms(weight)
                 ti = 1
             else:
                 stackinst_new = cubelet(cutout, params)
+                # subtract off the linear filter
+                if params.linear_3d_filter:
+                    print('doing linear filter')
+                    coeffs = stackinst.linear_3d_filter(params)
+                    print(coeffs)
+                # check units
                 if stackinst_new.unit != 'linelum':
                     stackinst_new.to_linelum(params)
+                # average in the new cubelet
                 stackinst.stackin_cubelet(stackinst_new, params, weights=weight)  # Added 'params' here
 
             if goalnobj:

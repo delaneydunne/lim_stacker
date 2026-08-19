@@ -110,8 +110,8 @@ class parameters():
                 setattr(self, attr, None)
 
         # boolean parameters
-        for attr in ['cubelet', 'get_summed_luminosity', 'rotate', 'lowmodefilter', 'chanmeanfilter',
-                     'specmeanfilter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
+        for attr in ['cubelet', 'get_summed_luminosity', 'rotate', 'linear_3d_filter',
+                     'verbose', 'returncutlist', 'savedata', 'saveplots',
                      'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace',
                      'parallelize', 'adaptivephotometry', 'cosmogrid', 'scalermscuts',
                      'maskisolatedpix', 'matched_filter', 'weighted_matched_filter']:
@@ -136,33 +136,15 @@ class parameters():
                 warnings.warn("Missing random seed for rotation. Using 12345 as default", RuntimeWarning)
             self.rng = np.random.default_rng(self.rotseed)
 
-
         try:
-            setattr(self, 'fitnbeams', int(default_dir['fitnbeams']))
+            setattr(self, 'fitmasknaper', int(default_dir['fitmasknaper']))
         except:
-            self.fitnbeams = 3
-            warnings.warn("Missing number of beams for cutout fitting. Using 3 as default", RuntimeWarning)
-
-        try:
-            setattr(self, 'fitmasknbeams', int(default_dir['fitmasknbeams']))
-        except:
-            self.fitmasknbeams = 1
-            warnings.warn("Missing number of beams for cutout fitting aperture mask. Using 1 as default", RuntimeWarning)
-        try:
-            setattr(self, 'freqmaskwidth', int(default_dir['freqmaskwidth']))
-        except:
-            self.freqmaskwidth = 1
-            warnings.warn("Missing number of apertures to mask for calculating spectral mean. Using 1 as default", RuntimeWarning)
-        try:
-            setattr(self, 'frequsewidth', int(default_dir['frequsewidth']))
-        except:
-            self.frequsewidth = 10
-            warnings.warn("Missing number of apertures for calculating spectral mean. Using 10 as default", RuntimeWarning)
+            self.fitmasknaper = 1
+            warnings.warn("Missing number of apertures for cutout fitting aperture mask. Using 1 as default", RuntimeWarning)
 
 
         if self.savedata:
             setattr(self, 'savepath', default_dir['savepath'])
-            self.make_output_pathnames()
         else:
             setattr(self, 'savepath', None)
 
@@ -220,12 +202,8 @@ class parameters():
         sinfo = '_x'+str(self.xwidth)+'f'+str(self.freqwidth)
         if self.rotate:
             sinfo += '_rot'
-        if self.lowmodefilter:
+        if self.linear_3d_filter:
             sinfo += '_lmfilt'
-        if self.chanmeanfilter:
-            sinfo += '_cmfilt'
-        if self.lowmodefilter or self.chanmeanfilter:
-            sinfo += '_r'+str(self.fitnbeams)+'m'+str(self.fitmasknbeams)
 
         if self.savepath and append:
             outputdir = self.savepath + sinfo
@@ -331,15 +309,8 @@ class parameters():
         print("-------------")
         print("Filtering parameters")
         print("-------------")
-        print("\t Global mean subtraction from spectrum: {}".format(self.specmeanfilter))
-        if self.specmeanfilter:
-            print("\t\t Numbers of apertures: ({},{})".format(self.freqmaskwidth, self.frequsewidth))
-        print("\t Per-channel mean subtraction: {}".format(self.chanmeanfilter))
-        if self.chanmeanfilter:
-            print("\t\t Numbers of beams: ({}, {})".format(self.fitmasknbeams, self.fitnbeams))
-        print("\t Low-order polynomial removal: {}".format(self.lowmodefilter))
-        if self.lowmodefilter:
-            print("\t\t Numbers of beams: ({}, {})".format(self.fitmasknbeams, self.fitnbeams))
+        if self.linear_3d_filter:
+            print("\t\t Numbers of beams: ({}, {})".format(self.fitmasknaper, self.fitnbeams))
         print("-------------")
 
     def create_sensmap_bootstrap(self, sensfilepath, cat=False, odin=False):

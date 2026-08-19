@@ -256,15 +256,15 @@ def changrid(cubelet, rmslet, params, smooth=None, rad=None, ext=None, offset=0,
 
             axs[i,j].plot(xcorners, ycorners, color='k')
 
-            if params.lowmodefilter or params.chanmeanfilter:
+            if params.linear_3d_filter:
 
                 # radius around the center to keep for fitting
-                cliprad = int((params.fitnbeams - 1) * params.xwidth)
+                cliprad = int((params.fitmasknaper - 1) * params.xwidth)
                 clipmin, clipmax = rectmin - cliprad, rectmax + cliprad
                 lmxcorners = (clipmin, clipmin, clipmax, clipmax, clipmin)
                 lmycorners = (clipmin, clipmax, clipmax, clipmin, clipmin)
 
-                axs[i,j].plot(lmxcorners, lmycorners, color='0.5')
+                axs[i,j].plot(lmxcorners, lmycorners, color='0.5', zorder=10)
 
     fig.colorbar(c, ax=axs)
 
@@ -703,16 +703,10 @@ def combined_plotter(cube, params, stackim=None, stackrms=None, stackspec=None, 
     print(ycorners)
 
     # if lmfiltering, corners for the recangle included in that
-    if params.lowmodefilter or params.chanmeanfilter:
+    if params.linear_3d_filter:
 
-        # radius around the center to keep for fitting
-        cliprad = int((params.fitnbeams - 1) * params.xwidth)
-        clipmin, clipmax = rectmin - cliprad, rectmax + cliprad
-        lmxcorners = (clipmin, clipmin, clipmax, clipmax, clipmin)
-        lmycorners = (clipmin, clipmax, clipmax, clipmin, clipmin)
-
-        if params.fitmasknbeams != 1:
-            cliprad = int((params.fitmasknbeams - 1) * params.xwidth)
+        if params.fitmasknaper != 1:
+            cliprad = int((params.fitmasknaper - 1) * params.xwidth)
             clipmin, clipmax = rectmin - cliprad, rectmax + cliprad
             lmmxcorners = (clipmin, clipmin, clipmax, clipmax, clipmin)
             lmmycorners = (clipmin, clipmax, clipmax, clipmin, clipmin)
@@ -750,9 +744,8 @@ def combined_plotter(cube, params, stackim=None, stackrms=None, stackspec=None, 
     usax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
     usax.set_title('Unsmoothed')
 
-    if params.lowmodefilter or params.chanmeanfilter:
-        usax.plot(lmxcorners, lmycorners, color='0.5')
-        usax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
+    if params.linear_3d_filter:
+        usax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':', zorder=10)
 
     usax.tick_params(axis='y',
                             labelleft=False,
@@ -787,9 +780,8 @@ def combined_plotter(cube, params, stackim=None, stackrms=None, stackspec=None, 
     smax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
     smax.set_title('Gaussian-smoothed')
 
-    if params.lowmodefilter or params.chanmeanfilter:
-        smax.plot(lmxcorners, lmycorners, color='0.5')
-        smax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
+    if params.linear_3d_filter:
+        smax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':', zorder=10)
 
     smax.tick_params(axis='y',
                             labelleft=False,
@@ -818,9 +810,8 @@ def combined_plotter(cube, params, stackim=None, stackrms=None, stackspec=None, 
     rmsax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
     rmsax.set_title('Map RMS')
 
-    if params.lowmodefilter or params.chanmeanfilter:
-        rmsax.plot(lmxcorners, lmycorners, color='0.5')
-        rmsax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
+    if params.linear_3d_filter:
+        rmsax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':', zorder=10)
 
     rmsax.tick_params(axis='y',
                             labelleft=False,
@@ -888,66 +879,6 @@ def combined_plotter(cube, params, stackim=None, stackrms=None, stackspec=None, 
     sbax.set_xlabel(r"$L'_{CO} \times 10^{10}$ (K km/s pc$^2$)")
     sbax.set_ylabel('Counts')
     sbax.set_title('Aperture ID')
-
-    # SNR units
-    # snrim = stackim / stackrms
-    # vext = np.nanmax(np.abs(snrim))
-    # c = usnax.pcolormesh(snrim, cmap=cmap, vmin=-vext, vmax=vext)
-    # usnax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
-    # usnax.set_title('S/N Units')
-    #
-    # if params.lowmodefilter or params.chanmeanfilter:
-    #     usnax.plot(lmxcorners, lmycorners, color='0.5')
-    #     usnax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
-    #
-    # usnax.tick_params(axis='y',
-    #                         labelleft=False,
-    #                         labelright=False,
-    #                         left=False,
-    #                         right=False)
-    # usnax.tick_params(axis='x',
-    #                      labeltop=False,
-    #                      labelbottom=False,
-    #                      top=False,
-    #                      bottom=False)
-    #
-    # divider = make_axes_locatable(usnax)
-    # cax0 = divider.new_horizontal(size='5%', pad=0.05)
-    # fig.add_axes(cax0)
-    # cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
-    # cbar.ax.set_ylabel(r"$L'_{CO} / \sigma(L'_{CO})$")
-    # usnax.set_aspect(aspect=1)
-
-    # SNR units
-    # snrim = stackim / stackrms
-    # ssnrim = convolve(snrim, params.gauss_kernel)
-    # vext = np.nanmax(np.abs(ssnrim))
-    # c = ssnax.pcolormesh(ssnrim, cmap=cmap, vmin=-vext, vmax=vext)
-    # ssnax.plot(xcorners, ycorners, color='k', linewidth=2, zorder=10)
-    # ssnax.set_title('S/N Units (Smoothed)')
-    #
-    # if params.lowmodefilter or params.chanmeanfilter:
-    #     ssnax.plot(lmxcorners, lmycorners, color='0.5')
-    #     ssnax.plot(lmmxcorners, lmmycorners, color='0.5', ls=':')
-    #
-    # ssnax.tick_params(axis='y',
-    #                         labelleft=False,
-    #                         labelright=False,
-    #                         left=False,
-    #                         right=False)
-    # ssnax.tick_params(axis='x',
-    #                      labeltop=False,
-    #                      labelbottom=False,
-    #                      top=False,
-    #                      bottom=False)
-    #
-    # divider = make_axes_locatable(ssnax)
-    # cax0 = divider.new_horizontal(size='5%', pad=0.05)
-    # fig.add_axes(cax0)
-    # cbar = fig.colorbar(c, cax=cax0, orientation='vertical')
-    # cbar.ax.set_ylabel(r"$L'_{CO} / \sigma(L'_{CO})$")
-    # ssnax.set_aspect(aspect=1)
-
 
     if params.freqwidth % 2 == 0:
         freqarr = np.arange(params.freqstackwidth * 2)*params.chanwidth - (params.freqstackwidth-0.5)*params.chanwidth
