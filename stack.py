@@ -1511,9 +1511,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                 stackinst = cubelet(cutout, params)
                 # subtract off the linear filter
                 if params.linear_3d_filter:
-                    print('doing linear filter')
                     coeffs = stackinst.linear_3d_filter(params)
-                    print(coeffs)
                 # check units
                 if  stackinst.unit != 'linelum':
                     stackinst.to_linelum(params)
@@ -1525,9 +1523,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                 stackinst_new = cubelet(cutout, params)
                 # subtract off the linear filter
                 if params.linear_3d_filter:
-                    print('doing linear filter')
                     coeffs = stackinst_new.linear_3d_filter(params)
-                    print(coeffs)
                 # check units
                 if stackinst_new.unit != 'linelum':
                     stackinst_new.to_linelum(params)
