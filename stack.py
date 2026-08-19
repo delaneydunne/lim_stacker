@@ -975,7 +975,7 @@ class cubelet():
         try:
             coeffs = self.linear_filter_coeffs
         except AttributeError:
-            self.linear_3d_filter(self, params)
+            self.linear_3d_filter(params)
         
         # set up coordinates for fitting
         coordlist = [np.arange(self.cube.shape[i]) for i in range(3)]
@@ -984,6 +984,103 @@ class cubelet():
         arr = coeffs[0] + coeffs[1]*meshcoordlist[0] + coeffs[2]*meshcoordlist[1] + coeffs[3]*meshcoordlist[2]
 
         return arr
+    
+    def linear_2d_filter(self, params, in_place=True):
+        """
+        fit a 2D linear polynomial to each channel of the cube instance (using noise-weighting) and subtract it off
+        idea is this should deal well with large-scale systematics
+        """
+
+        # mask out the central region
+        # array copies to mask:
+        cuben = copy.deepcopy(self.cube)
+        dcuben = copy.deepcopy(self.cuberms)
+
+        # indices to mask
+        xoff = params.xwidth * params.fitmasknaper // 2
+        foff = params.freqwidth * params.fitmasknaper // 2
+        maskminpix = (params.freqstackwidth - foff, params.spacestackwidth - xoff, params.spacestackwidth - xoff)
+        maskmaxpix = (params.freqstackwidth + foff + 1, params.spacestackwidth + xoff + 1, params.spacestackwidth + xoff + 1)
+
+        # mask out
+        cuben[maskminpix[0]:maskmaxpix[0], 
+                maskminpix[1]:maskmaxpix[1], 
+                maskminpix[2]:maskmaxpix[2]] = np.nan
+        dcuben[maskminpix[0]:maskmaxpix[0], 
+                maskminpix[1]:maskmaxpix[1], 
+                maskminpix[2]:maskmaxpix[2]] = np.nan
+        
+        # set up coordinate arrays
+        coordlist = [np.arange(cuben.shape[i]) for i in (1,2)]
+        meshcoordlist = np.meshgrid(*coordlist, indexing='ij')
+        coordlistf = [coord.flatten() for coord in meshcoordlist]
+
+        # iterate through channels, getting the filter array in each channel
+        lmflist = []
+        coefflist = []
+        for chan in range(cuben.shape[0]):
+            # slice to channel, flatten
+            cubenf = cuben[chan,:,:].flatten()
+            dcubenf = dcuben[chan,:,:].flatten()
+
+            # slice out nans
+            nanmask = np.isfinite(cubenf)
+            coordlistfm = [coord[nanmask] for coord in coordlistf]
+            
+            cubenfm = cubenf[nanmask]
+            dcubenfm = dcubenf[nanmask]
+
+            # set up weights and weight
+            wfm = 1 / dcubenfm**2
+            Afmw = np.column_stack((np.ones_like(coordlistfm[0]), *coordlistfm)) * wfm[:, np.newaxis]
+            cubenfmw = cubenfm * wfm
+
+            # do the fit
+            coeffs, _,_,_ = np.linalg.lstsq(Afmw, cubenfmw, rcond=None)
+            coefflist.append(coeffs)
+
+            lowmodefilter = coeffs[0] + coeffs[1]*meshcoordlist[0] + coeffs[2]*meshcoordlist[1]
+            lmflist.append(lowmodefilter)
+
+        lmfarr = np.stack(lmflist)
+
+        if not in_place:
+            newcube = self.copy()
+            newcube.cube = self.cube - lmfarr
+            newcube.linear_filter_coeffs = coefflist
+            return newcube
+
+        else:
+            self.cube = self.cube - lmfarr
+            self.linear_filter_coeffs = coefflist
+
+        return coefflist
+    
+    def get_linear_2d_filter_arr(self, params):
+        """
+        function to get the 3D array subtracted off as part of the low-mode filter
+        if linear_2d_filter hasn't already been run on the cubelet, will run it
+        """
+
+        try:
+            coeffs = self.linear_filter_coeffs
+        except AttributeError:
+            self.linear_2d_filter(params)
+            coeffs = self.linear_filter_coeffs
+        
+        # set up coordinates for fitting
+        coordlist = [np.arange(self.cube.shape[i]) for i in (1,2)]
+        meshcoordlist = np.meshgrid(*coordlist, indexing='ij')
+
+        lmflist = []
+        for chan in range(self.cube.shape[0]):
+            lmf = coeffs[chan][0] + coeffs[chan][1]*meshcoordlist[0] + coeffs[chan][2]*meshcoordlist[1]
+            lmflist.append(lmf)
+        arr = np.stack(lmflist)
+
+        return arr
+
+
 
 
 """ CUTOUT FILTERS """
@@ -1509,9 +1606,11 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
             # stack as you go
             if ti == 0:
                 stackinst = cubelet(cutout, params)
-                # subtract off the linear filter
+                # subtract off the linear filter, whichever implementation is passed
                 if params.linear_3d_filter:
                     coeffs = stackinst.linear_3d_filter(params)
+                if params.linear_2d_filter:
+                    coeffs = stackinst.linear_2d_filter(params)
                 # check units
                 if  stackinst.unit != 'linelum':
                     stackinst.to_linelum(params)
@@ -1524,6 +1623,8 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                 # subtract off the linear filter
                 if params.linear_3d_filter:
                     coeffs = stackinst_new.linear_3d_filter(params)
+                if params.linear_2d_filter:
+                    coeffs = stackinst_new.linear_2d_filter(params)
                 # check units
                 if stackinst_new.unit != 'linelum':
                     stackinst_new.to_linelum(params)

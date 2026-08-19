@@ -111,7 +111,7 @@ class parameters():
 
         # boolean parameters
         for attr in ['cubelet', 'get_summed_luminosity', 'rotate', 'linear_3d_filter',
-                     'verbose', 'returncutlist', 'savedata', 'saveplots',
+                     'linear_2d_filter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
                      'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace',
                      'parallelize', 'adaptivephotometry', 'cosmogrid', 'scalermscuts',
                      'maskisolatedpix', 'matched_filter', 'weighted_matched_filter']:
@@ -202,7 +202,7 @@ class parameters():
         sinfo = '_x'+str(self.xwidth)+'f'+str(self.freqwidth)
         if self.rotate:
             sinfo += '_rot'
-        if self.linear_3d_filter:
+        if self.linear_3d_filter or self.linear_2d_filter:
             sinfo += '_lmfilt'
 
         if self.savepath and append:
@@ -309,7 +309,7 @@ class parameters():
         print("-------------")
         print("Filtering parameters")
         print("-------------")
-        if self.linear_3d_filter:
+        if self.linear_3d_filter or self.linear_2d_filter:
             print("\t\t Numbers of beams: ({}, {})".format(self.fitmasknaper, self.fitnbeams))
         print("-------------")
 
