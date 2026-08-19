@@ -2096,8 +2096,8 @@ def setup(mapfiles, cataloguefile, params, trim_cat=True, reshape=True):
         catlist.append(catinst)
 
     # adjust the stored beam model to be in pixels
-    params.beamwidth = params.beamwidth / (maplist[0].xstep*u.deg).to(u.arcmin).value
-    params.gauss_kernel = Gaussian2DKernel(params.beamwidth / (2*np.sqrt(2*np.log(2))))
+    params.pixbeamwidth = params.beamwidth / (maplist[0].xstep*u.deg).to(u.arcmin).value
+    params.gauss_kernel = Gaussian2DKernel(params.pixbeamwidth / (2*np.sqrt(2*np.log(2))))
 
     return maplist, catlist
 
