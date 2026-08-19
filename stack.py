@@ -1526,7 +1526,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                 # subtract off the linear filter
                 if params.linear_3d_filter:
                     print('doing linear filter')
-                    coeffs = stackinst.linear_3d_filter(params)
+                    coeffs = stackinst_new.linear_3d_filter(params)
                     print(coeffs)
                 # check units
                 if stackinst_new.unit != 'linelum':
