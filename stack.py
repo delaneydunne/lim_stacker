@@ -532,9 +532,9 @@ class cubelet():
 
         # when summed, all-nan columns are getting cast to zero (expected behaviour from nansum)
         # would like these to stay masked just in case so mask them by hand
-        # nanmask = spec < 1e-10
-        # spec[nanmask] = np.nan
-        # dspec[nanmask] = np.nan
+        nanmask = np.abs(spec) < 1e-10
+        spec[nanmask] = np.nan
+        dspec[nanmask] = np.nan
 
         self.spectrum = spec
         self.spectrumrms = dspec
@@ -551,9 +551,9 @@ class cubelet():
 
         # when summed, all-nan columns are getting cast to zero (expected behaviour from nansum)
         # would like those to stay masked just in case so mask them by hand
-        # nanmask = im < 1e-10
-        # im[nanmask] = np.nan
-        # dim[nanmask] = np.nan
+        nanmask = np.abs(im) < 1e-10
+        im[nanmask] = np.nan
+        dim[nanmask] = np.nan
 
         if in_place:
             self.image = im
