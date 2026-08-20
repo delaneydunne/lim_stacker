@@ -1689,7 +1689,8 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
 
     try:
         if stackinst:
-            stackinst.save_cubelet(params, fieldstr)
+            if params.savedata:
+                stackinst.save_cubelet(params, fieldstr)
 
         return stackinst
     except UnboundLocalError:
@@ -1836,7 +1837,8 @@ def stacker(maplist, catlist, params):
         if params.parallelize:
             cube = parallel_field_stack(maplist[i], catlist[i], params, field=fields[i])
             try:
-                cube.save_cubelet(params, '/field' + str(fields[i]))
+                if params.savedata:
+                    cube.save_cubelet(params, '/field' + str(fields[i]))
             except AttributeError:
                 print(f"Couldn't save Field {fields[i]} cubelet (nothing to save)")
         else:
@@ -1857,7 +1859,8 @@ def stacker(maplist, catlist, params):
     # make plots, save stuff
     if params.plotspace:
         stackedcube.make_plots(maplist, catlist, params)
-    stackedcube.save_cubelet(params)
+    if params.savedata:
+        stackedcube.save_cubelet(params)
 
     # rearrange the index list by field
     stackedcube.index_by_field(catlist)
