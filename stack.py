@@ -530,6 +530,12 @@ class cubelet():
                 spec = np.array(photflux)
                 dspec = np.array(photrms)
 
+        # when summed, all-nan columns are getting cast to zero (expected behaviour from nansum)
+        # would like these to stay masked just in case so mask them by hand
+        nanmask = spec < 1e-10
+        spec[nanmask] = np.nan
+        dspec[nanmask] = np.nan
+
         self.spectrum = spec
         self.spectrumrms = dspec
 
@@ -542,6 +548,12 @@ class cubelet():
 
         im = np.nansum(apim, axis=0)
         dim = np.sqrt(np.nansum(dapim ** 2, axis=0))
+
+        # when summed, all-nan columns are getting cast to zero (expected behaviour from nansum)
+        # would like those to stay masked just in case so mask them by hand
+        nanmask = im < 1e-10
+        im[nanmask] = np.nan
+        dim[nanmask] = np.nan
 
         if in_place:
             self.image = im
