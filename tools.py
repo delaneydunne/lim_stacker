@@ -192,6 +192,11 @@ class parameters():
         # kernel object for the beam
         self.gauss_kernel = Gaussian2DKernel(self.beamwidth / (2*np.sqrt(2*np.log(2))))
 
+        # make path names if either of the boolean save parameters are true
+        if self.saveplots or self.savedata:
+            self.make_output_pathnames()
+
+
     def make_output_pathnames(self, append=True):
         """
         Uses the input parameters to automatically make a directory to save data

@@ -1663,12 +1663,15 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                 fieldidx = None
             else:
                 fieldidx = field - 1
-            if params.matched_filter:
-                lum, dlum = stackinst.get_aperture(method='matched_filter', params=params, fieldidx=fieldidx)
-            elif params.weighted_matched_filter:
-                lum, dlum = stackinst.get_aperture(method='weighted_matched_filter', params=params, fieldidx=fieldidx)
-            stackinst.linelum = lum
-            stackinst.dlinelum = dlum
+            try:
+                if params.matched_filter:
+                    lum, dlum = stackinst.get_aperture(method='matched_filter', params=params, fieldidx=fieldidx)
+                elif params.weighted_matched_filter:
+                    lum, dlum = stackinst.get_aperture(method='weighted_matched_filter', params=params, fieldidx=fieldidx)
+                stackinst.linelum = lum
+                stackinst.dlinelum = dlum
+            except AttributeError:
+                print('no values to stack in this field')
             # add to the plot comments so it's clear this has been matched filter
             try:
                 params.plotcomment.append("matched filtered luminosity")
@@ -1773,12 +1776,15 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
             fieldidx = None
         else:
             fieldidx = field - 1
-        if params.matched_filter:
-            lum, dlum = finalcube.get_aperture(method='matched_filter', params=params, fieldidx=fieldidx, in_place=True)
-        elif params.weighted_matched_filter:
-            lum, dlum = finalcube.get_aperture(method='weighted_matched_filter', params=params, fieldidx=fieldidx)
-        finalcube.linelum = lum
-        finalcube.dlinelum = dlum
+        try:
+            if params.matched_filter:
+                lum, dlum = finalcube.get_aperture(method='matched_filter', params=params, fieldidx=fieldidx, in_place=True)
+            elif params.weighted_matched_filter:
+                lum, dlum = finalcube.get_aperture(method='weighted_matched_filter', params=params, fieldidx=fieldidx)
+            finalcube.linelum = lum
+            finalcube.dlinelum = dlum
+        except AttributeError:
+            return None
         # add to the plot comments so it's clear this has been matched filter
         try:
             params.plotcomment.append("matched filtered luminosity")
