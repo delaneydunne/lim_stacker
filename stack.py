@@ -313,10 +313,17 @@ class cubelet():
 
         # housekeeping **** check averaging (also why is cubelet nuobs_mean a list?)
         self.catidx = np.concatenate((self.catidx, cubelet.catidx))
-        nuobs_mean = (self.nuobs_mean * self.ncutouts + cubelet.nuobs_mean[0] * cubelet.ncutouts) / (
+        try:
+            new_nuobs_mean = cubelet.nuobs_mean[0]
+            new_z_mean = cubelet.z_mean[0]
+        except TypeError:
+            new_nuobs_mean = cubelet.nuobs_mean 
+            new_z_mean = cubelet.z_mean
+
+        nuobs_mean = (self.nuobs_mean * self.ncutouts + new_nuobs_mean * cubelet.ncutouts) / (
                     self.ncutouts + cubelet.ncutouts)
         self.nuobs_mean = nuobs_mean
-        z_mean = (self.z_mean * self.ncutouts + cubelet.z_mean[0] * cubelet.ncutouts) / (
+        z_mean = (self.z_mean * self.ncutouts + new_z_mean * cubelet.ncutouts) / (
                     self.ncutouts + cubelet.ncutouts)
         self.z_mean = z_mean
         self.ncutouts = self.ncutouts + cubelet.ncutouts

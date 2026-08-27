@@ -948,58 +948,6 @@ def combined_plotter(cube, params, stackim=None, stackrms=None, stackspec=None, 
 
     radax.set_xlabel('Radius (arcmin)')
 
-    # # indexing
-    # nextra = 9
-    # freqcent = int(cubelet.shape[0] / 2)
-    # chans = np.arange(freqcent - nextra, freqcent + nextra + 1)
-
-    # carr = np.abs(chans - freqcent) / (chans[-1] - freqcent)
-
-    # chanprofs = []
-    # for i, chan in enumerate(chans):
-    #     chanprof, rmsprof, xaxis = radprof(cubelet, rmslet, params, chan=chan)
-
-    #     if params.plotunits == 'linelum':
-    #         chanprof, rmsprof = chanprof/1e10, rmsprof/1e10
-
-    #     chanprof = np.concatenate([[chanprof[0]], chanprof])
-    #     rmsprof = np.concatenate([[rmsprof[0]], rmsprof])
-
-    #     chanprofs.append(chanprof)
-
-    #     xaxis = xaxis * 2
-    #     xaxis = np.concatenate([[0], xaxis])
-
-    #     if chan == freqcent:
-    #         radax.step(xaxis, chanprof, where='pre', zorder=100,
-    #                    color=str(carr[i]), lw=3, label='Channel {}'.format(str(i-nextra)))
-
-    #         radax.fill_between(xaxis, (chanprof-rmsprof), (chanprof+rmsprof),
-    #                            color='0.9', zorder=0)
-    #     else:
-
-    #         radax.step(xaxis, chanprof, zorder=(1-carr[i])*10, where='pre',
-    #                    color=str(carr[i]), label='Channel {}'.format(str(i-nextra)))
-
-    # radax.axhline(0, color='k', ls='--')
-    # radax.axvline(0, color='k', ls='--')
-
-    # radax.axvline(3, color='0.3', ls=':', zorder=5)
-
-    # if params.plotunits == 'linelum':
-    #     radax.secondary_yaxis(location='right').set_ylabel(r"$L'_{CO}$ (K km/s pc$^2$; $\times 10^{10}$)")
-    # elif params.plotunits == 'flux':
-    #     radax.secondary_yaxis(location='right').set_ylabel(r"$S\Delta v$ (Jy km/s)")
-
-    # radax.tick_params(axis='y',
-    #                         labelleft=False,
-    #                         labelright=True,
-    #                         left=False,
-    #                         right=True)
-
-    # radax.set_xlabel('Radius (arcmin)')
-    # radax.set_xlim((-2, 20))
-    # radax.set_ylim((np.nanmin(chanprofs)*1.1, np.nanmax(chanprofs)*1.1))
 
     if stackresult:
         if params.plotunits == 'linelum':
