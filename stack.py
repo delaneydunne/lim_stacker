@@ -1688,7 +1688,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
         # plot field output if this is being run on its own
         try:
             stackinst.make_plots(comap, galcat, params, field=field)
-        except UnboundLocalError:
+        except UnboundLocalError or AttributeError:
             print('No values to stack in this field')
             # return None
 
