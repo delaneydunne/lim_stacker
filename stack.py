@@ -1801,7 +1801,7 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
     # plot the final joined output for this cube
     try:
         finalcube.make_plots(comap, galcat, params, field=field)
-    except UnboundLocalError:
+    except UnboundLocalError or AttributeError:
         print('No values to stack in this field')
 
     # return finalcubelist
