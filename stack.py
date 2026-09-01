@@ -1670,6 +1670,11 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                 fieldidx = None
             else:
                 fieldidx = field - 1
+            # warn if sfpath/sspath aren't passed to avoid confusion with other errors
+            try:
+                ssp, sfp = params.sspath, params.sfpath
+            except AttributeError:
+                print("You're trying to do a matched filter but you haven't passed a template (fill in params.sspath/sfpath)")
             try:
                 if params.matched_filter:
                     lum, dlum = stackinst.get_aperture(method='matched_filter', params=params, fieldidx=fieldidx)
@@ -1783,6 +1788,12 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
             fieldidx = None
         else:
             fieldidx = field - 1
+        # check that sspath/sfpath are passed to avoid confusion with errors due to an empty cube
+        try:
+            sspath = params.sspath
+            sfpath = params.sfpath
+        except AttributeError:
+            print("You're trying to do a matched filter but you haven't passed a template (fill in params.sspath/sfpath)")
         try:
             if params.matched_filter:
                 lum, dlum = finalcube.get_aperture(method='matched_filter', params=params, fieldidx=fieldidx, in_place=True)
