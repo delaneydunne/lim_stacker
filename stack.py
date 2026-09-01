@@ -1677,7 +1677,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                     lum, dlum = stackinst.get_aperture(method='weighted_matched_filter', params=params, fieldidx=fieldidx)
                 stackinst.linelum = lum
                 stackinst.dlinelum = dlum
-            except AttributeError:
+            except (AttributeError, UnboundLocalError):
                 print('no values to stack in this field')
             # add to the plot comments so it's clear this has been matched filter
             try:
