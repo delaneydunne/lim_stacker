@@ -1514,7 +1514,7 @@ def single_cutout(idx, galcat, comap, params):
             ycutidx = (yidx - dxy + 1, yidx + dxy + 1)
     else:
         ycutidx = (yidx - dxy, yidx + dxy + 1)
-    cutout.spaceyidx = ycutidx
+    cutout.spaceyidx = ycutidx 
 
     padfreqidx = (cutout.freqfreqidx[0] + df, cutout.freqfreqidx[1] + df)
     padxidx = (cutout.spacexidx[0] + dxy, cutout.spacexidx[1] + dxy)
@@ -1682,7 +1682,7 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                     lum, dlum = stackinst.get_aperture(method='weighted_matched_filter', params=params, fieldidx=fieldidx)
                 stackinst.linelum = lum
                 stackinst.dlinelum = dlum
-            except (AttributeError, UnboundLocalError):
+            except (UnboundLocalError):
                 print('no values to stack in this field')
             # add to the plot comments so it's clear this has been matched filter
             try:

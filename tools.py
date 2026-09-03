@@ -565,7 +565,6 @@ class catalogue():
             if type == 'z':
                 offset_redshifts(self, mean, scatter, rng)
             elif type == 'vel':
-
                 offset_velocities(self, mean, scatter, rng)
             elif type == 'freq':
                 offset_frequencies(self, mean, scatter, rng)
