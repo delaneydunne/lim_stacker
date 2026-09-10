@@ -919,6 +919,10 @@ class cubelet():
         cubefile = params.datasavepath + fieldstr + '/stacked_3d_cubelet.npz'
         np.savez(cubefile, T=self.cube, rms=self.cuberms, xarr=self.xarr, freqarr=self.freqarr)
 
+        if params.save_filter_arr:
+            filtfile = params.datasavepath + fieldstr + '/linear_2d_filter_cubelet.npz'
+            np.savez(filtfile, T=self.filterarr, rms=self.cuberms, xarr=self.xarr, freqarr=self.freqarr)
+
         return
     
     def linear_3d_filter(self, params, in_place=True):
@@ -1633,6 +1637,11 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                     coeffs = stackinst.linear_3d_filter(params)
                 if params.linear_2d_filter:
                     coeffs = stackinst.linear_2d_filter(params)
+                    # save the filter array for inspection if need be
+                    if params.save_filter_arr:
+                        filtarr = stackinst.get_linear_2d_filter_arr(params)
+                        filtinst = stackinst.copy()
+                        filtinst.cube = filtarr
                 # check units
                 if  stackinst.unit != 'linelum':
                     stackinst.to_linelum(params)
@@ -1647,11 +1656,17 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                     coeffs = stackinst_new.linear_3d_filter(params)
                 if params.linear_2d_filter:
                     coeffs = stackinst_new.linear_2d_filter(params)
+                    if params.save_filter_arr:
+                        filtarr = stackinst_new.get_linear_2d_filter_arr(params)
+                        filtinst_new = stackinst_new.copy()
+                        filtinst_new.cube = filtarr
                 # check units
                 if stackinst_new.unit != 'linelum':
                     stackinst_new.to_linelum(params)
                 # average in the new cubelet
                 stackinst.stackin_cubelet(stackinst_new, params, weights=weight)  # Added 'params' here
+                if params.save_filter_arr:
+                    filtinst.stackin_cubelet(filtinst_new, params, weights=weight)
 
             if goalnobj:
                 field_nobj += 1     
@@ -1704,6 +1719,10 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
         fieldstr = '/field' + str(field)
     else:
         fieldstr = ''
+
+    # if saving the removed modes from the 2d filter, add this in to the cubelet to be saved
+    if params.save_filter_arr:
+        stackinst.filterarr = filtinst.cube
 
     try:
         if stackinst:
