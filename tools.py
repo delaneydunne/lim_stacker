@@ -101,7 +101,7 @@ class parameters():
 
         # float-valued parameters
         for attr in ['centfreq', 'beamwidth', 'fitmeanlimit', 'voxelrmslimit', 'isolatedpixcutoff',
-                     'cat_offset_velocity', 'cat_offset_scatter']:
+                     'cat_offset_velocity', 'cat_offset_scatter', 'maskchanlimit']:
             try:
                 val = float(default_dir[attr])
                 setattr(self, attr, val)

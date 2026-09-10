@@ -58,6 +58,8 @@ voxelrmslimit 1e6
 # this is what's used for the power spectrum (with rmsscale=8)
 scalermscuts True
 rmsscale 8
+# minimum fraction of channels within the central aperture that are not masked
+maskchanlimit 0.8333
 # mask any isolated pixels that may have been left by the previous masks
 maskisolatedpix True 
 # size of the boxcar kernel in pix

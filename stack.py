@@ -1549,9 +1549,12 @@ def single_cutout(idx, galcat, comap, params):
     if np.sum(np.isnan(pixval).flatten()) > (params.freqwidth * params.xwidth * params.ywidth) / 2:
         return None
 
-    # less than half of EACH SPECTRAL CHANNEL masked
+    # less than half of 5/6ths of the SPECTRAL CHANNELs masked
+    nmaskchan = 0
     for i in range(pixval.shape[0]):
         if np.sum(np.isnan(pixval[i, :, :]).flatten()) > params.xwidth * params.ywidth / 2:
+            nmaskchan += 1
+        if nmaskchan / params.freqwidth > params.maskchanlimit:
             return None
 
     """ more advanced stacks """
