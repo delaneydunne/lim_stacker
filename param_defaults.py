@@ -44,6 +44,8 @@ rotseed 12345
 linear_3d_filter False
 # remove a 2D linear polynomial from each cutout before stacking
 linear_2d_filter False
+# save the output from this (properly averaged into a cubelet) ** this is still a little wonky
+save_filter_arr False
 ## if fitting, mask 'fitmasknaper*xwidth/ywidth/freqwidth' from the central aperture
 fitmasknaper 1
 ## if the c0_0 parameter part of the fit is above this value on either side of 0,

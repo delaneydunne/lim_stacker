@@ -114,7 +114,8 @@ class parameters():
                      'linear_2d_filter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
                      'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace',
                      'parallelize', 'adaptivephotometry', 'cosmogrid', 'scalermscuts',
-                     'maskisolatedpix', 'matched_filter', 'weighted_matched_filter']:
+                     'maskisolatedpix', 'matched_filter', 'weighted_matched_filter',
+                     'save_filter_arr']:
             try:
                 val = default_dir[attr] == 'True'
                 setattr(self, attr, val)
