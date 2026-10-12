@@ -1699,7 +1699,7 @@ class maps():
         outdec = self.dec + self.ystep / 2
 
         # set up output coordinates for reshaping to match pipeline output
-        outshape = (4, len(outfreq)//4, outra, outdec)
+        outshape = (4, len(outfreq)//4, len(outra), len(outdec))
 
         # save to hdf5 file (slightly more barebones than the actual output)
         with h5py.File(outfile, 'w') as f:
