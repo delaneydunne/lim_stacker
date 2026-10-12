@@ -1698,12 +1698,23 @@ class maps():
         outra = self.ra + self.xstep / 2
         outdec = self.dec + self.ystep / 2
 
+        # set up output coordinates for reshaping to match pipeline output
+        outshape = (4, len(outfreq)//4, outra, outdec)
+
         # save to hdf5 file (slightly more barebones than the actual output)
         with h5py.File(outfile, 'w') as f:
-            dset = f.create_dataset('map_coadd', data = self.map, dtype='float64')
-            dset = f.create_dataset('rms_coadd', data = self.rms, dtype='float64')
-            dset = f.create_dataset('nhit_coadd', data = self.hit, dtype='float64')
-            dset = f.create_dataset('freq', data = outfreq, dtype='float64')
+            dset = f.create_dataset('map_coadd', 
+                                    data = np.reshape(self.map, outshape), 
+                                    dtype='float64')
+            dset = f.create_dataset('rms_coadd', 
+                                    data = np.reshape(self.rms, outshape),
+                                    dtype='float64')
+            dset = f.create_dataset('nhit_coadd', 
+                                    data = np.reshape(self.hit, outshape),
+                                    dtype='float64')
+            dset = f.create_dataset('freq', 
+                                    data = np.reshape(outfreq, (4,len(outfreq)//4)),
+                                    dtype='float64')
             dset = f.create_dataset('x', data = outra, dtype='float64')
             dset = f.create_dataset('y', data = outdec, dtype='float64')
 
