@@ -101,7 +101,7 @@ class parameters():
 
         # float-valued parameters
         for attr in ['centfreq', 'beamwidth', 'fitmeanlimit', 'voxelrmslimit', 'isolatedpixcutoff',
-                     'cat_offset_velocity', 'cat_offset_scatter', 'maskchanlimit']:
+                     'cat_offset_velocity', 'cat_offset_scatter', 'maskchanlimit', 'pbcorrfac']:
             try:
                 val = float(default_dir[attr])
                 setattr(self, attr, val)
@@ -115,7 +115,7 @@ class parameters():
                      'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace',
                      'parallelize', 'adaptivephotometry', 'cosmogrid', 'scalermscuts',
                      'maskisolatedpix', 'matched_filter', 'weighted_matched_filter',
-                     'save_filter_arr']:
+                     'save_filter_arr','dopbcorr']:
             try:
                 val = default_dir[attr] == 'True'
                 setattr(self, attr, val)
@@ -1187,7 +1187,7 @@ class maps():
 
 
     """UNIT CONVERSIONS"""
-    def to_flux(self):
+    def to_flux(self, pbcorr=True, pbcorrfac=0.72):
         """ converts from temperature units to flux units. won't do anything if the unit
             isn't already in K"""
         
@@ -1195,9 +1195,10 @@ class maps():
             print('need units to be K, and current units are '+self.unit)
             return
         
-        # correct for primary beam response
-        self.map /= 0.72
-        self.rms /= 0.72
+        if pbcorr:
+            # correct for primary beam response
+            self.map /= pbcorrfac
+            self.rms /= pbcorrfac
 
 
         # extended diffuse field => quantity comes out in Jy/sr where sr given by pixel area
@@ -1977,7 +1978,7 @@ def simlum_to_stacklum(simlum, stackout, params):
     linelum = const.c**2 / (2*const.k_B) * flux * DLs**2 / ((stackout.nuobs_mean*u.GHz)**2 * (1+stackout.z_mean)**3)
     
     # beam adjustment, units
-    outlum = linelum.to(u.K*u.km/u.s*u.pc**2) * 0.72
+    outlum = linelum.to(u.K*u.km/u.s*u.pc**2) * params.pbcorrfac
 
     frac = stackout.linelum / outlum.value
     
@@ -2070,6 +2071,16 @@ def field_setup(mapfile, catfile, params, trim_cat=True, reshape=True, sim_cat=F
     """
     # load in the map
     mapinst = maps(params, inputfile=mapfile, cosmogrid=params.cosmogrid, reshape=reshape)
+
+    if mapinst.type == 'raw simulation' and params.dopbcorr == True:
+        print("Attempting to correct for the COMAP primary beam response on a raw simulation " +
+              "(probably shouldn't do that). I have changed params.dopbcorr to be False. " +
+              "Change it back explicitly if you really want to do this correction.")
+        params.dopbcorr = False
+    elif mapinst.type == 'data' and params.dopbcorr == False:
+        print("Are you sure you don't want to correct for the primary beam response? " + 
+              "Currently you're passing real data and have params.dopbcorr=False. " +
+               "Not changing anything, but double-check this is what you want to do.")
 
     # load in the catalogue
     if not sim_cat:

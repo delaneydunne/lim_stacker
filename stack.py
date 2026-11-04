@@ -375,9 +375,10 @@ class cubelet():
             print('need units to be K, and current units are ' + self.unit)
             return
 
-        # correct for primary beam response
-        self.cube /= 0.72
-        self.cuberms /= 0.72
+        if params.dopbcorr:
+            # correct for primary beam response
+            self.cube /= params.pbcorrfac
+            self.cuberms /= params.pbcorrfac
 
         # voxel solid angle (working with diffuse extended field, so essentially get out Jy/sr)
         pixsize_x = (self.xarr[1] - self.xarr[0]) * u.arcmin
@@ -2039,9 +2040,10 @@ def perchannel_flux_sum(tbvals, rmsvals, nuobs, params):
     # out will cause problems. interpolate to fill them (bad)
     tbvals, rmsvals = cubelet_fill_nans(tbvals, rmsvals, params)
 
-    # correct for the primary beam response
-    tbvals = tbvals / 0.72
-    rmsvals = rmsvals / 0.72
+    if params.dopbcorr:
+        # correct for the primary beam 
+        tbvals = tbvals / params.pbcorrfac
+        rmsvals = rmsvals / params.pbcorrfac
 
     # not the COMAP beam but the angular size of the region over which the brightness
     # temperature is the given value (ie one spaxel)
@@ -2103,9 +2105,10 @@ def perchannel_flux_mean(tbvals, rmsvals, nuobs, params):
     # number of frequency channels we're dealing with
     freqwidth = tbvals.shape[0]
 
-    # correct for the primary beam response
-    tbvals = tbvals / 0.72
-    rmsvals = rmsvals / 0.72
+    if params.dopbcorr:
+        # correct for the primary beam response
+        tbvals = tbvals / params.pbcorrfac
+        rmsvals = rmsvals / params.pbcorrfac
 
     # not the COMAP beam but the angular size of the region over which the brightness
     # temperature is the given value (ie one spaxel)
@@ -2171,9 +2174,10 @@ def perpixel_flux(tbvals, rmsvals, nuobs, params):
     # number of frequency channels we're dealing with
     freqwidth = tbvals.shape[0]
 
-    # correct for the primary beam response
-    tbvals = tbvals / 0.72
-    rmsvals = rmsvals / 0.72
+    if params.dopbcorr:
+        # correct for the primary beam response
+        tbvals = tbvals / params.pbcorrfac
+        rmsvals = rmsvals / params.pbcorrfac
 
     # not the COMAP beam but the angular size of the region over which the brightness
     # temperature is the given value (ie one spaxel)
@@ -2287,9 +2291,10 @@ def observer_units(Tvals, rmsvals, zvals, nuobsvals, params):
     unit change to physical units (**OLD***)
     """
 
-    # main beam to full beam correction
-    Tvals = Tvals / 0.72
-    rmsvals = rmsvals / 0.72
+    if params.dopbcorr:
+        # main beam to full beam correction
+        Tvals = Tvals / params.pbcorrfac
+        rmsvals = rmsvals / params.pbcorrfac
 
     # actual beam FWHP is a function of frequency - listed values are 4.9,4.5,4.4 arcmin at 26, 30, 34GHz
     # set up a function to interpolate on

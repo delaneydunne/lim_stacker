@@ -13,6 +13,11 @@ centfreq 115.27
 beamwidth 4.5
 # cosmology to use (default 'comap' is the one from the ES papers)
 cosmo comap
+# whether to do the 0.72x primary beam correction (default is true, code will 
+# try to catch if a simulation is being input and change to false)
+dopbcorr True
+# actual factor to use for this correction
+pbcorrfac 0.72
 
 """ properties of the catalogue """
 # systemic offset velocity to apply to the catalogue before stacking
