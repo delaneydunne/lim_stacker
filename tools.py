@@ -2069,6 +2069,15 @@ def field_setup(mapfile, catfile, params, trim_cat=True, reshape=True, sim_cat=F
     wrapper function to set up for a single-field stack run
     *** tidy this up again -- put simulation parameters into params**
     """
+
+    # catch if freqstackwidth < freqwidth or spacestackwidth < xwidth/ywidth
+    if params.freqstackwidth < params.freqwidth // 2:
+        params.freqstackwidth = params.freqwidth // 2
+        print('freqstackwidth < freqwidth//2, have set it back to freqwidth//2')
+    if params.spacestackwidth < np.max((params.xwidth // 2, params.ywidth //2)):
+        params.spacestackwidth = np.max((params.xwidth // 2, params.ywidth //2))
+        print('spacestackwidth < xwidth//2, have set it back to xwidth//2')
+
     # load in the map
     mapinst = maps(params, inputfile=mapfile, cosmogrid=params.cosmogrid, reshape=reshape)
 
