@@ -110,11 +110,11 @@ class parameters():
                 setattr(self, attr, None)
 
         # boolean parameters
-        for attr in ['cubelet', 'get_summed_luminosity', 'rotate', 'linear_3d_filter',
+        for attr in ['cubelet', 'rotate', 'linear_3d_filter',
                      'linear_2d_filter', 'verbose', 'returncutlist', 'savedata', 'saveplots',
                      'savefields', 'plotspace', 'plotfreq', 'plotcubelet', 'physicalspace',
                      'parallelize', 'adaptivephotometry', 'cosmogrid', 'scalermscuts',
-                     'maskisolatedpix', 'matched_filter', 'weighted_matched_filter',
+                     'maskisolatedpix',
                      'save_filter_arr','dopbcorr']:
             try:
                 val = default_dir[attr] == 'True'
@@ -122,6 +122,15 @@ class parameters():
             except:
                 warnings.warn("Parameter '"+attr+"' should be boolean", RuntimeWarning)
                 setattr(self, attr, None)
+
+        # string-valued parameter
+        for attr in ['aperture_method']:
+            try:
+                val = str(default_dir[attr])
+                setattr(self, attr, val)
+            except:
+                warnings.warn("Parameter '"+attr+"' should be a string. Defaulting to 'summed'", RuntimeWarning)
+                setattr(self, attr, 'summed')
 
         # make sure you're not trying to plot a cubelet if you're not actually making one
         if not self.cubelet:
@@ -2081,6 +2090,8 @@ def field_setup(mapfile, catfile, params, trim_cat=True, reshape=True, sim_cat=F
     # load in the map
     mapinst = maps(params, inputfile=mapfile, cosmogrid=params.cosmogrid, reshape=reshape)
 
+    # check if the primary beam correction is being done appropriately (ie should be done on actual
+    # data, should not be done on simulations)
     if mapinst.type == 'raw simulation' and params.dopbcorr == True:
         print("Attempting to correct for the COMAP primary beam response on a raw simulation " +
               "(probably shouldn't do that). I have changed params.dopbcorr to be False. " +

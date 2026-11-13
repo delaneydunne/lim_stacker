@@ -113,10 +113,8 @@ class cubelet():
         # read in the cutout values
         self.cube = cutout.cubestack
         self.cuberms = cutout.cubestackrms
-        self.linelum = cutout.linelum
-        self.dlinelum = cutout.dlinelum
-        self.rhoh2 = cutout.rhoh2
-        self.drhoh2 = cutout.drhoh2
+        self.Tb = cutout.Tb
+        self.dTb = cutout.dTb
 
     def from_files(self, path, params, xstep=None):
 
@@ -183,11 +181,21 @@ class cubelet():
 
         # load in output values
         outvals = pd.read_csv(valuefile)
-
-        self.linelum = outvals.linelum[0]
-        self.dlinelum = outvals.dlinelum[0]
-        self.rhoh2 = outvals.rhoh2[0]
-        self.drhoh2 = outvals.drhoh2[0]
+        try:
+            self.linelum = outvals.linelum[0]
+            self.dlinelum = outvals.dlinelum[0]
+        except AttributeError:
+            self.linelum, self.dlinelum = np.nan, np.nan
+        try:
+            self.rhoh2 = outvals.rhoh2[0]
+            self.drhoh2 = outvals.drhoh2[0]
+        except AttributeError:
+            self.rhoh2, self.drhoh2 = np.nan, np.nan
+        try:
+            self.Tb = outvals.Tb[0]
+            self.dTb = outvals.dTb[0]
+        except AttributeError:
+            self.Tb, self.dTb = np.nan, np.nan
 
         self.ncutouts = outvals.nobj[0]
         try:
@@ -227,10 +235,15 @@ class cubelet():
         self.cube, self.cuberms = weightmean(cubevals, rmsvals, axis=0)
 
         # stack together the single values
-        self.linelum, self.dlinelum = weightmean(np.array((self.linelum, cutout.linelum)),
-                                                np.array((self.dlinelum, cutout.dlinelum)))
-        self.rhoh2, self.drhoh2 = weightmean(np.array((self.rhoh2, cutout.rhoh2)),
-                                            np.array((self.drhoh2, cutout.drhoh2)))
+        for attr in ['Tb', 'linelum', 'rhoh2']:
+            try:
+                val, dval = weightmean(np.array((getattr(self, attr), getattr(cutout, attr))),
+                                    np.array((getattr(self, 'd'+attr), getattr(cutout, 'd'+attr))))
+                setattr(self, attr, val)
+                setattr(self, 'd'+attr, dval)
+            except AttributeError:
+                setattr(self, attr, np.nan)
+                setattr(self, 'd'+attr, np.nan)
 
         # if doing adaptive photometry, pull a centered spectrum from the new cubelet and average it in to the saved spectrum
         # *** currently this does not work but it also isn't called anywhere
@@ -260,7 +273,7 @@ class cubelet():
         # get rid of the cutout entirely
         del (cutout)
 
-    def stackin_cubelet(self, cubelet, params=None, weights=None):
+    def stackin_cubelet(self, cubelet, params, weights=None):
         # merge two stacked cubelets
         if not cubelet:
             del (cubelet)
@@ -294,12 +307,17 @@ class cubelet():
         self.cube, self.cuberms = weightmean(cubevals, rmsvals, axis=0, weights=bigweights)
 
         # stack together the single values
-        self.linelum, self.dlinelum = weightmean(np.array((self.linelum, cubelet.linelum)),
-                                                np.array((self.dlinelum, cubelet.dlinelum)), weights=weights)
-        self.rhoh2, self.drhoh2 = weightmean(np.array((self.rhoh2, cubelet.rhoh2)),
-                                            np.array((self.drhoh2, cubelet.drhoh2)), weights=weights)
+        for attr in ['Tb', 'linelum', 'rhoh2']:
+            try:
+                val, dval = weightmean(np.array((getattr(self, attr), getattr(cubelet, attr))),
+                                    np.array((getattr(self, 'd'+attr), getattr(cubelet, 'd'+attr))))
+                setattr(self, attr, val)
+                setattr(self, 'd'+attr, dval)
+            except AttributeError:
+                setattr(self, attr, np.nan)
+                setattr(self, 'd'+attr, np.nan)
 
-        if params.matched_filter or params.weighted_matched_filter:
+        if params.aperture_method == 'matched_filter' or params.aperture_method == 'weighted_matched_filter':
             try:
                 self.a, self.da = weightmean(np.array((self.a, cubelet.a)),
                                             np.array((self.da, cubelet.da)), weights=weights)
@@ -793,11 +811,13 @@ class cubelet():
             if self.adaptivephotometry:
                 llum, dllum = self.get_aperture(method='adaptive_photometry')  # made changes here
             else:
-                llum, dllum = self.get_aperture()  # defaults to summed
+                llum, dllum = self.get_aperture(method=params.aperture_method, params=params)  # defaults to summed
             self.linelum = llum
             self.dlinelum = dllum
 
-        outdict = {'linelum': self.linelum,
+        outdict = {'Tb': self.Tb,
+                   'dTb': self.dTb,
+                'linelum': self.linelum,
                 'dlinelum': self.dlinelum,
                 'rhoh2': self.rhoh2,
                 'drhoh2': self.drhoh2,
@@ -810,9 +830,9 @@ class cubelet():
         except AttributeError:
             pass
 
-        if params.matched_filter:
+        if params.aperture_method=='matched_filter':
             outdict['mean_method'] = "matched_filter"
-        elif params.weighted_matched_filter:
+        elif params.aperture_method=='weighted_matched_filter':
             outdict['mean_method'] = 'weighted_matched_filter'
         else:
             outdict['mean_method'] = "summed"
@@ -1584,8 +1604,7 @@ def single_cutout(idx, galcat, comap, params):
                 return None
 
     # get the per-cube linelum and rhoh2 from weighted mean of aperture
-    if params.get_summed_luminosity:
-        observer_units_weightedsum(pixval, rmsval, cutout, params)
+    get_weighted_sum(pixval, rmsval, cutout, params)
 
     return cutout
 
@@ -1605,15 +1624,6 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
             _ = params.rng
         except AttributeError:
             params.rng = np.random.default_rng(params.rotseed)
-
-    # catch if freqstackwidth < freqwidth or spacestackwidth < xwidth/ywidth
-    if params.freqstackwidth < params.freqwidth // 2:
-        params.freqstackwidth = params.freqwidth // 2
-        print('freqstackwidth < freqwidth//2, have set it back to freqwidth//2')
-    if params.spacestackwidth < np.max((params.xwidth // 2, params.ywidth //2)):
-        params.spacestackwidth = np.max((params.xwidth // 2, params.ywidth //2))
-        print('spacestackwidth < xwidth//2, have set it back to xwidth//2')
-
 
     ti = 0
     # if we're keeping track of the number of cutouts
@@ -1658,6 +1668,10 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                 # weight
                 if weight:
                     stackinst.weight_rms(weight)
+                # calculate line luminosity
+                llum, dllum = stackinst.get_aperture(method='summed', params=params)
+                stackinst.linelum = llum
+                stackinst.dlinelum = dllum
                 ti = 1
             else:
                 stackinst_new = cubelet(cutout, params)
@@ -1673,6 +1687,9 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                 # check units
                 if stackinst_new.unit != 'linelum':
                     stackinst_new.to_linelum(params)
+                    llum, dllum = stackinst_new.get_aperture(method='summed', params=params)
+                    stackinst_new.linelum = llum
+                    stackinst_new.dlinelum = dllum
                 # average in the new cubelet
                 stackinst.stackin_cubelet(stackinst_new, params, weights=weight)  # Added 'params' here
                 if params.save_filter_arr:
@@ -1693,7 +1710,8 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
     if not parallel_run:
 
         # do per-field template fit if this is being run on its own
-        if params.matched_filter or params.weighted_matched_filter:
+        if params.aperture_method == 'matched_filter' or params.aperture_method == 'weighted_matched_filter':
+            print('aperture method matched filter')
             if field is None:
                 fieldidx = None
             else:
@@ -1704,9 +1722,9 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
             except AttributeError:
                 print("You're trying to do a matched filter but you haven't passed a template (fill in params.sspath/sfpath)")
             try:
-                if params.matched_filter:
+                if params.aperture_method == 'matched_filter':
                     lum, dlum = stackinst.get_aperture(method='matched_filter', params=params, fieldidx=fieldidx)
-                elif params.weighted_matched_filter:
+                elif params.aperture_method == 'weighted_matched_filter':
                     lum, dlum = stackinst.get_aperture(method='weighted_matched_filter', params=params, fieldidx=fieldidx)
                 stackinst.linelum = lum
                 stackinst.dlinelum = dlum
@@ -1815,7 +1833,7 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
             finalcube.stackin_cubelet(cube, params)
 
     # do per-field template fit if required
-    if params.matched_filter or params.weighted_matched_filter:
+    if params.aperture_method == 'matched_filter' or params.aperture_method == 'weighted_matched_filter':
         if field is None:
             fieldidx = None
         else:
@@ -1827,9 +1845,9 @@ def parallel_field_stack(comap, galcat, params, field=None, goalnobj=None, weigh
         except AttributeError:
             print("You're trying to do a matched filter but you haven't passed a template (fill in params.sspath/sfpath)")
         try:
-            if params.matched_filter:
+            if params.aperture_method == 'matched_filter':
                 lum, dlum = finalcube.get_aperture(method='matched_filter', params=params, fieldidx=fieldidx, in_place=True)
-            elif params.weighted_matched_filter:
+            elif params.aperture_method == 'weighted_matched_filter':
                 lum, dlum = finalcube.get_aperture(method='weighted_matched_filter', params=params, fieldidx=fieldidx)
             finalcube.linelum = lum
             finalcube.dlinelum = dlum
@@ -1871,14 +1889,6 @@ def stacker(maplist, catlist, params):
             numcutoutlist = params.goalnumcutouts
     else:
         numcutoutlist = [None, None, None]
-
-    # change units of the map
-    # if maplist[0].unit != 'linelum':
-    #     if params.verbose:
-    #         print('Units are '+maplist[0].unit+'. Changing to linelum')
-    #     for map in maplist:
-    #         map.to_flux()
-    #         map.to_linelum(params)
 
     cubelist = []
     for i in range(len(maplist)):
@@ -2244,38 +2254,26 @@ def observer_units_sum(tbvals, rmsvals, cutout, params):
     return cutout
 
 
-def observer_units_weightedsum(tbvals, rmsvals, cutout, params):
+def get_weighted_sum(tbvals, rmsvals, cutout, params):
     """
     calculate the more physical quantities associated with a single cutout. Uses
     a WEIGHTED SUM to get the per-channel flux, and thus ignores NaNs.
     assumes cubelet is already in line luminosity units
     """
 
-    # per-channel fluxes
-    # Sval_chan, Srms_chan = perchannel_flux_mean(tbvals, rmsvals, cutout.freq, params)
-
-    # make the fluxes into line luminosities
-    # linelum, linelumrms = line_luminosity(Sval_chan, Srms_chan, cutout.freq, params)
     pcllum, dpcllum = weightmean(tbvals, rmsvals, axis=(1, 2))
-    # ap_area = params.xwidth * params.ywidth
-    # pcllum, dpcllum = pcllum * ap_area, dpcllum * ap_area
 
-    linelum = np.nansum(pcllum) * u.K * u.km / u.s * u.pc ** 2
-    linelumrms = np.sqrt(np.nansum(dpcllum ** 2)) * u.K * u.km / u.s * u.pc ** 2
+    tb = np.nansum(pcllum) * u.K
+    tbrms = np.sqrt(np.nansum(dpcllum ** 2)) * u.K
 
-    # rhoh2 = rho_h2(linelum, cutout.freq, params)
-    # rhoh2rms = rho_h2(linelumrms, cutout.freq, params)
-    rhoh2 = rho_h2(linelum, cutout.freq, params)
-    rhoh2rms = rho_h2(linelumrms, cutout.freq, params)
+    # rhoh2 = rho_h2(tb, cutout.freq, params)
+    # rhoh2rms = rho_h2(tbrms, cutout.freq, params)
 
-    # cutout.flux = Sval_chan.value
-    # cutout.dflux = Srms_chan.value
+    cutout.Tb = tb.value
+    cutout.dTb = tbrms.value
 
-    cutout.linelum = linelum.value
-    cutout.dlinelum = linelumrms.value
-
-    cutout.rhoh2 = rhoh2.value
-    cutout.drhoh2 = rhoh2rms.value
+    # cutout.rhoh2 = rhoh2.value
+    # cutout.drhoh2 = rhoh2rms.value
 
     return cutout
 
