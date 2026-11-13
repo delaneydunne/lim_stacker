@@ -1606,6 +1606,15 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
         except AttributeError:
             params.rng = np.random.default_rng(params.rotseed)
 
+    # catch if freqstackwidth < freqwidth or spacestackwidth < xwidth/ywidth
+    if params.freqstackwidth < params.freqwidth // 2:
+        params.freqstackwidth = params.freqwidth // 2
+        print('freqstackwidth < freqwidth//2, have set it back to freqwidth//2')
+    if params.spacestackwidth < np.max(params.xwidth // 2, params.ywidth //2):
+        params.spacestackwidth = np.max(params.xwidth // 2, params.ywidth //2)
+        print('spacestackwidth < xwidth//2, have set it back to xwidth//2')
+
+
     ti = 0
     # if we're keeping track of the number of cutouts
     if goalnobj:
