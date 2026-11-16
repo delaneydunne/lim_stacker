@@ -916,9 +916,10 @@ class cubelet():
 
         outdict = self.get_output_dict(params)
 
-        combined_plotter(self, params, stackim=im, stackrms=dim,
-                        stackspec=spec, cmap='PiYG_r',
-                        stackresult=outdict, comment=comment, fieldstr=fieldstr)
+        if params.plotspace and params.plotfreq:
+            combined_plotter(self, params, stackim=im, stackrms=dim,
+                            stackspec=spec, cmap='PiYG_r',
+                            stackresult=outdict, comment=comment, fieldstr=fieldstr)
 
         return
 
@@ -1672,6 +1673,8 @@ def field_stack(comap, galcat, params, field=None, goalnobj=None, weights=None, 
                 llum, dllum = stackinst.get_aperture(method='summed', params=params)
                 stackinst.linelum = llum
                 stackinst.dlinelum = dllum
+                stackinst.rhoh2 = np.nan # THIS IS A PLACEHOLDER
+                stackinst.drhoh2 = np.nan
                 ti = 1
             else:
                 stackinst_new = cubelet(cutout, params)
@@ -2258,7 +2261,7 @@ def get_weighted_sum(tbvals, rmsvals, cutout, params):
     """
     calculate the more physical quantities associated with a single cutout. Uses
     a WEIGHTED SUM to get the per-channel flux, and thus ignores NaNs.
-    assumes cubelet is already in line luminosity units
+    assumes cubelet is in brightness temperature units
     """
 
     pcllum, dpcllum = weightmean(tbvals, rmsvals, axis=(1, 2))
